@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/glass_time_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_frosted_glass_time"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Top Row: Day of Week on Left, Time Period (Afternoon/Morning/Evening) on Right -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextClock
+            android:id="@+id/glass_time_day_of_week"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:format12Hour="EEEE"
+            android:format24Hour="EEEE"
+            android:maxLines="1"
+            android:shadowColor="#40000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="2"
+            android:text="Monday"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:timeZone="Europe/Athens" />
+
+        <TextView
+            android:id="@+id/glass_time_period_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="Afternoon"
+            android:textColor="#CCE2E8F0"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Center: Large Bold Display Digital Clock -->
+    <TextClock
+        android:id="@+id/glass_time_clock_digits"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:fontFamily="sans-serif-condensed"
+        android:format12Hour="HH:mm"
+        android:format24Hour="HH:mm"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.04"
+        android:maxLines="1"
+        android:shadowColor="#55000000"
+        android:shadowDx="0"
+        android:shadowDy="2"
+        android:shadowRadius="4"
+        android:text="15:05"
+        android:textColor="#FFFFFF"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:timeZone="Europe/Athens" />
+
+    <!-- Middle-Bottom Row: Vertical White Accent Bar + City Theme & Full Date -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="4dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="9dp"
+            android:contentDescription="@null"
+            android:src="@drawable/bg_widget_vertical_bar" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/glass_time_theme_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Zephyr Weather"
+                android:textColor="#E6E2E8F0"
+                android:textSize="12sp" />
+
+            <TextClock
+                android:id="@+id/glass_time_full_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:format12Hour="d MMMM, yyyy"
+                android:format24Hour="d MMMM, yyyy"
+                android:maxLines="1"
+                android:text="23 November, 2026"
+                android:textColor="#FFFFFF"
+                android:textSize="11.5sp"
+                android:textStyle="bold"
+                android:timeZone="Europe/Athens" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom: Capsule Day Progress Bar -->
+    <ProgressBar
+        android:id="@+id/glass_time_day_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="9dp"
+        android:layout_marginTop="10dp"
+        android:max="100"
+        android:progress="62"
+        android:progressDrawable="@drawable/bg_widget_day_progress" />
+
+</LinearLayout>

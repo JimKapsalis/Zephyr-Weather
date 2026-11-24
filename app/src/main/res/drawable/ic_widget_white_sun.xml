@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Center crisp white sun disc -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24,14A10,10 0 1,1 14,24A10,10 0 0,1 24,14Z" />
+    <!-- 8 radiating rounded sun rays -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M24,4L24,8.5 M24,39.5L24,44 M4,24L8.5,24 M39.5,24L44,24 M9.86,9.86L13.04,13.04 M34.96,34.96L38.14,38.14 M38.14,9.86L34.96,13.04 M13.04,34.96L9.86,38.14" />
+</vector>

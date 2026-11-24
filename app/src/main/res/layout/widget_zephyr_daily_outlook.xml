@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/daily_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_zephyr"
+    android:orientation="vertical"
+    android:padding="13dp">
+
+    <!-- Top Header: Live Clock + Date + Town Name on Left, Current Icon + Temp + Condition on Right -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <TextClock
+                    android:id="@+id/daily_widget_clock"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:format12Hour="HH:mm"
+                    android:format24Hour="HH:mm"
+                    android:textColor="#FFFFFF"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:timeZone="Europe/Athens" />
+
+                <TextClock
+                    android:id="@+id/daily_widget_date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginBottom="3dp"
+                    android:format12Hour="EEE, d MMM"
+                    android:format24Hour="EEE, d MMM"
+                    android:textColor="#FBBF24"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:timeZone="Europe/Athens" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/daily_widget_city"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="📍 Zephyr Weather"
+                android:textColor="#F8FAFC"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/daily_widget_current_icon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_widget_partly_sunny" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/daily_widget_current_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="22°C"
+                android:textColor="#FFFFFF"
+                android:textSize="23sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/daily_widget_condition"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Partly Cloudy • H:25° L:13°"
+                android:textColor="#67E8F9"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom Row: 5-Day Forecast Columns -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:weightSum="5">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_pill_active"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/daily_slot_1_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="Today"
+                android:textColor="#FBBF24"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/daily_slot_1_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginVertical="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_sun" />
+
+            <TextView
+                android:id="@+id/daily_slot_1_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="25°/13°"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_pill"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/daily_slot_2_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="Tue"
+                android:textColor="#E2E8F0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/daily_slot_2_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginVertical="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_partly_sunny" />
+
+            <TextView
+                android:id="@+id/daily_slot_2_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="24°/12°"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_pill"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/daily_slot_3_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="Wed"
+                android:textColor="#E2E8F0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/daily_slot_3_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginVertical="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_rain" />
+
+            <TextView
+                android:id="@+id/daily_slot_3_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="21°/11°"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_pill"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/daily_slot_4_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="Thu"
+                android:textColor="#E2E8F0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/daily_slot_4_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginVertical="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_sun" />
+
+            <TextView
+                android:id="@+id/daily_slot_4_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="23°/12°"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_pill"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="6dp">
+
+            <TextView
+                android:id="@+id/daily_slot_5_day"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="Fri"
+                android:textColor="#E2E8F0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/daily_slot_5_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginVertical="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_partly_sunny" />
+
+            <TextView
+                android:id="@+id/daily_slot_5_temp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="24°/13°"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

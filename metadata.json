@@ -1,0 +1,8 @@
+{
+  "name": "Zephyr Weather",
+  "description": "High-precision Aegean & global meteorological forecast, live Doppler radar, hardware GPS location, and bilingual Greek/English interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

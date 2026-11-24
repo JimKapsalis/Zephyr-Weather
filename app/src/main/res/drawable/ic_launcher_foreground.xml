@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Original Golden Sun Disc -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M54,30 A18,18 0 1,1 54,66 A18,18 0 1,1 54,30 Z" />
+
+    <!-- Original Zephyr Sky-Blue Cloud -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M66,59 C64.5,51.5 58,46 50,46 C43,46 37.5,50.5 35.5,57 C34.5,54 32,54 30,55 C26.5,56.5 24.5,60 24.5,64 C24.5,69.5 29,73.5 34.5,73.5 L65.5,73.5 C70,73.5 74,69.5 74,65 C74,61 70.5,57.5 66,59 Z" />
+</vector>

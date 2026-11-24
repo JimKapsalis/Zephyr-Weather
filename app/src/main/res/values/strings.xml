@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Zephyr Weather</string>
+    <string name="widget_master_label">Zephyr • Clock, Hourly &amp; Daily</string>
+    <string name="widget_master_desc">Live digital clock with hourly and daily weather forecast</string>
+    <string name="widget_hourly_label">Zephyr • Clock &amp; Hourly Strip</string>
+    <string name="widget_hourly_desc">Live clock and 5-hour weather forecast strip</string>
+    <string name="widget_daily_label">Zephyr • 5-Day Weather Outlook</string>
+    <string name="widget_daily_desc">Current conditions and 5-day high/low weather forecast</string>
+    <string name="widget_glass_time_label">Time (2x2 Frosted Glass)</string>
+    <string name="widget_glass_time_desc">Frosted glass 2x2 square digital clock with day period, date, and day progress bar</string>
+    <string name="widget_glass_weather_label">Weather (2x2 Frosted Glass)</string>
+    <string name="widget_glass_weather_desc">Frosted glass 2x2 square weather widget with temperature, high/low arrows, AQI, and wind pill</string>
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_banner_unit_id">ca-app-pub-3940256099942544/6300978111</string>
+</resources>

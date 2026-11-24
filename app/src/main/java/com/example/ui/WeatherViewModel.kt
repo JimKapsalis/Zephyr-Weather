@@ -1,0 +1,1571 @@
+package com.example.ui
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.net.Uri
+import android.os.Build
+import android.os.Looper
+import androidx.core.net.toUri
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.example.data.SavedCityEntity
+import com.example.data.WeatherDatabase
+import com.example.data.WeatherPreferences
+import com.example.data.WeatherRepository
+import com.example.model.AppLanguage
+import com.example.model.AppThemeSetting
+import com.example.model.AutoRefreshInterval
+import com.example.model.CityWeatherBundle
+import com.example.model.HourlyChartMode
+import com.example.model.RadarLayerMode
+import com.example.model.SkyAtmospherePreset
+import com.example.model.WeatherProvider
+import com.example.model.WeatherUnits
+import com.example.util.SevereWeatherAlertEvent
+import com.example.util.SevereWeatherNotifier
+import com.example.util.WeatherBackgroundSyncScheduler
+import com.example.widget.ZephyrWeatherWidgetProvider
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
+
+sealed class LoadingState {
+    data object Loading : LoadingState()
+    data class Success(val bundle: CityWeatherBundle) : LoadingState()
+    data class Error(val message: String) : LoadingState()
+}
+
+enum class WeatherNavTab {
+    FORECAST,
+    RADAR,
+    CITIES,
+    SETTINGS
+}
+
+data class WeatherUiState(
+    val loadingState: LoadingState = LoadingState.Loading,
+    val activeTab: WeatherNavTab = WeatherNavTab.FORECAST,
+    val savedCities: List<SavedCityEntity> = emptyList(),
+    val suggestedCities: List<SavedCityEntity> = emptyList(),
+    val selectedCityId: Long = -1L,
+    val primaryBundle: CityWeatherBundle? = null,
+    val chartMode: HourlyChartMode = HourlyChartMode.TEMPERATURE,
+    val selectedHourIndex: Int = 0,
+    val expandedDayIndex: Int? = 0,
+    val radarLayer: RadarLayerMode = RadarLayerMode.RAIN,
+    val radarTimelineIndex: Int = 0,
+    val skyAtmospherePreset: SkyAtmospherePreset = SkyAtmospherePreset.LIVE_GPS,
+    val units: WeatherUnits = WeatherUnits(),
+    val language: AppLanguage = AppLanguage.ENGLISH,
+    val animationTriggerKey: Int = 1,
+    val searchQuery: String = "",
+    val searchResults: List<SavedCityEntity> = emptyList(),
+    val isSearching: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val isLocatingGps: Boolean = false,
+    val selectedProvider: WeatherProvider = WeatherProvider.BEST_MATCH,
+    val selectedTheme: AppThemeSetting = AppThemeSetting.AEGEAN_NIGHT,
+    val refreshInterval: AutoRefreshInterval = AutoRefreshInterval.EVERY_15_MIN,
+    val batterySaverSyncEnabled: Boolean = true,
+    val emyAlertsEnabled: Boolean = true,
+    val rainAlertsEnabled: Boolean = true,
+    val isLocationPermissionGranted: Boolean = false,
+    val isNotificationPermissionGranted: Boolean = false,
+    val isLocationSetupOpen: Boolean = false,
+    val activeSevereAlert: SevereWeatherAlertEvent? = null,
+    val activeSevereAlerts: List<SevereWeatherAlertEvent> = emptyList(),
+    val dismissedAlertIds: Set<String> = emptySet(),
+    val statusBanner: String? = null,
+    val isCheckingUpdates: Boolean = false,
+    val appVersionLabel: String = "v2.6.0 (Build 26)",
+    val lastUpdateCheckStatus: String? = null
+)
+
+class WeatherViewModel(
+    private val repository: WeatherRepository,
+    private val preferences: WeatherPreferences? = null,
+    private val appContext: Context? = null
+) : ViewModel() {
+
+    private val initialProvider = preferences?.loadProvider() ?: WeatherProvider.BEST_MATCH
+    private val initialUnits = preferences?.loadUnits() ?: WeatherUnits()
+    private val initialLanguage = preferences?.loadLanguage() ?: AppLanguage.ENGLISH
+    private val initialEmyAlerts = preferences?.loadEmyAlerts() ?: true
+    private val initialRainAlerts = preferences?.loadRainAlerts() ?: true
+
+    private val _uiState = MutableStateFlow(
+        WeatherUiState(
+            loadingState = LoadingState.Loading,
+            savedCities = emptyList(),
+            suggestedCities = repository.getSuggestedCitiesForSelection(),
+            selectedCityId = preferences?.loadSelectedCityId() ?: -1L,
+            primaryBundle = null,
+            isRefreshing = false,
+            isLocatingGps = false,
+            units = initialUnits,
+            language = initialLanguage,
+            selectedProvider = initialProvider,
+            selectedTheme = preferences?.loadTheme() ?: AppThemeSetting.AEGEAN_NIGHT,
+            refreshInterval = preferences?.loadRefreshInterval() ?: AutoRefreshInterval.EVERY_15_MIN,
+            batterySaverSyncEnabled = preferences?.loadBatterySaverSync() ?: true,
+            emyAlertsEnabled = initialEmyAlerts,
+            rainAlertsEnabled = initialRainAlerts,
+            activeSevereAlert = null,
+            activeSevereAlerts = emptyList()
+        )
+    )
+    val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+    private var autoRefreshJob: Job? = null
+    private var gpsLocateJob: Job? = null
+    private var isAppInForeground: Boolean = true
+    private var hasAutoDetectedOnLoad: Boolean = false
+    private var hasDispatchedInitialWeatherNotification: Boolean = false
+
+    init {
+        viewModelScope.launch {
+            runCatching {
+                val initialCities = repository.ensureDefaultCitiesSeeded(preferences)
+                if (initialCities.isNotEmpty()) {
+                    val preferredId = preferences?.loadSelectedCityId() ?: -1L
+                    val primaryCity = initialCities.find { it.id == preferredId }
+                        ?: initialCities.first()
+                    preferences?.saveSelectedCityId(primaryCity.id)
+                    _uiState.update {
+                        it.copy(
+                            savedCities = initialCities,
+                            selectedCityId = primaryCity.id
+                        )
+                    }
+                    loadWeatherForCity(primaryCity)
+                } else {
+                    preferences?.saveSelectedCityId(-1L)
+                    _uiState.update {
+                        it.copy(
+                            savedCities = emptyList(),
+                            selectedCityId = -1L
+                        )
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                repository.savedCitiesFlow.collect { cities ->
+                    if (cities.isNotEmpty()) {
+                        _uiState.update { state ->
+                            val validSelectedId = if (cities.any { it.id == state.selectedCityId }) {
+                                state.selectedCityId
+                            } else {
+                                val fallbackId = cities.first().id
+                                preferences?.saveSelectedCityId(fallbackId)
+                                fallbackId
+                            }
+                            state.copy(
+                                savedCities = cities,
+                                selectedCityId = validSelectedId
+                            )
+                        }
+                    } else {
+                        _uiState.update { state ->
+                            state.copy(
+                                savedCities = emptyList(),
+                                selectedCityId = -1L
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        appContext?.let { ctx ->
+            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+                context = ctx,
+                intervalMs = _uiState.value.refreshInterval.intervalMs
+            )
+        }
+        restartAutoRefreshLoop()
+    }
+
+    private fun hasActiveBundleDayRolledOver(bundle: CityWeatherBundle?): Boolean {
+        if (bundle == null) return false
+        val firstDayIso = bundle.daily.firstOrNull()?.dateIso?.takeIf { it.isNotBlank() } ?: return false
+        val liveTodayIso = WeatherRepository.formatLiveDateIsoInTimezone(bundle.timezoneId)
+        return firstDayIso != liveTodayIso
+    }
+
+    private fun restartAutoRefreshLoop() {
+        autoRefreshJob?.cancel()
+        autoRefreshJob = viewModelScope.launch {
+            while (isActive) {
+                val intervalMs = _uiState.value.refreshInterval.intervalMs
+                delay(intervalMs)
+                val daySwitched = hasActiveBundleDayRolledOver(_uiState.value.primaryBundle)
+                refreshCurrentWeatherSilently(forceRefresh = daySwitched)
+            }
+        }
+    }
+
+    fun onAppForegroundChanged(inForeground: Boolean) {
+        val wasBackground = !isAppInForeground
+        isAppInForeground = inForeground
+        val currentState = _uiState.value
+        // Do not trigger background checks or silent refreshes while initial GPS resolution is still pending
+        if (currentState.primaryBundle == null || currentState.isLocatingGps) {
+            return
+        }
+        if (!inForeground) {
+            appContext?.let { ctx ->
+                WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+                    context = ctx,
+                    intervalMs = currentState.refreshInterval.intervalMs
+                )
+            }
+        } else if (wasBackground) {
+            val daySwitched = hasActiveBundleDayRolledOver(currentState.primaryBundle)
+            val lastFetched = currentState.primaryBundle.fetchedAtEpochMs
+            if (daySwitched) {
+                refreshCurrentWeatherSilently(forceRefresh = true)
+            } else if (lastFetched > 0L) {
+                val elapsed = System.currentTimeMillis() - lastFetched
+                if (elapsed >= currentState.refreshInterval.intervalMs) {
+                    refreshCurrentWeatherSilently(forceRefresh = false)
+                }
+            }
+        }
+    }
+
+    fun setRefreshInterval(interval: AutoRefreshInterval) {
+        if (_uiState.value.refreshInterval == interval) return
+        preferences?.saveRefreshInterval(interval)
+        appContext?.let { ctx ->
+            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(ctx, interval.intervalMs)
+        }
+        val lang = _uiState.value.language
+        val msg = if (lang == AppLanguage.GREEK) {
+            "Αυτόματη ανανέωση: ${interval.localizedName(lang)}"
+        } else {
+            "Auto-refresh set to ${interval.localizedName(lang)} (Background Sync Active)"
+        }
+        _uiState.update {
+            it.copy(
+                refreshInterval = interval,
+                statusBanner = msg
+            )
+        }
+        restartAutoRefreshLoop()
+    }
+
+    fun toggleBatterySaverSync() {
+        val next = !_uiState.value.batterySaverSyncEnabled
+        preferences?.saveBatterySaverSync(next)
+        val lang = _uiState.value.language
+        _uiState.update { state ->
+            state.copy(
+                batterySaverSyncEnabled = next,
+                statusBanner = if (lang == AppLanguage.GREEK) {
+                    if (next) "Εξοικονόμηση μπαταρίας ενεργή" else "Συνεχής συγχρονισμός παρασκηνίου"
+                } else {
+                    if (next) "Zero-Drain Smart Sync enabled" else "Continuous background sync active"
+                }
+            )
+        }
+    }
+
+    private fun refreshCurrentWeatherSilently(forceRefresh: Boolean = false) {
+        val currentCity = _uiState.value.savedCities.find { it.id == _uiState.value.selectedCityId }
+            ?: _uiState.value.savedCities.firstOrNull()
+            ?: return
+        viewModelScope.launch {
+            loadWeatherForCity(currentCity, forceRefresh = forceRefresh)
+        }
+    }
+
+    fun selectTab(tab: WeatherNavTab) {
+        _uiState.update { it.copy(activeTab = tab) }
+    }
+
+    fun selectRadarLayer(layer: RadarLayerMode) {
+        _uiState.update { it.copy(radarLayer = layer) }
+    }
+
+    fun selectRadarTimelineIndex(index: Int) {
+        _uiState.update { it.copy(radarTimelineIndex = index) }
+    }
+
+    fun setSkyAtmospherePreset(preset: SkyAtmospherePreset) {
+        _uiState.update { state ->
+            state.copy(
+                skyAtmospherePreset = preset,
+                animationTriggerKey = state.animationTriggerKey + 1
+            )
+        }
+    }
+
+    fun setAppLanguage(language: AppLanguage) {
+        if (_uiState.value.language == language) return
+        preferences?.saveLanguage(language)
+        _uiState.update { state ->
+            val updatedAlerts = state.primaryBundle?.let { bundle ->
+                SevereWeatherNotifier.evaluateAllActiveAlerts(
+                    bundle = bundle,
+                    units = state.units,
+                    language = language,
+                    emyAlertsEnabled = state.emyAlertsEnabled,
+                    rainAlertsEnabled = state.rainAlertsEnabled
+                )
+            } ?: state.activeSevereAlerts
+            state.copy(
+                language = language,
+                activeSevereAlert = updatedAlerts.firstOrNull() ?: state.activeSevereAlert,
+                activeSevereAlerts = updatedAlerts,
+                statusBanner = if (language == AppLanguage.GREEK) {
+                    "Η γλώσσα ορίστηκε σε Ελληνικά (ΕΛ)"
+                } else {
+                    "Language set to English (EN)"
+                }
+            )
+        }
+    }
+
+    fun toggleAppLanguage() {
+        val next = if (_uiState.value.language == AppLanguage.GREEK) {
+            AppLanguage.ENGLISH
+        } else {
+            AppLanguage.GREEK
+        }
+        setAppLanguage(next)
+    }
+
+    fun openLocationSetup() {
+        _uiState.update {
+            it.copy(
+                isLocationSetupOpen = true,
+                searchQuery = "",
+                searchResults = emptyList()
+            )
+        }
+    }
+
+    fun closeLocationSetup() {
+        _uiState.update {
+            it.copy(
+                isLocationSetupOpen = false,
+                searchQuery = "",
+                searchResults = emptyList()
+            )
+        }
+    }
+
+    fun selectCity(city: SavedCityEntity, switchToForecastTab: Boolean = true) {
+        preferences?.saveSelectedCityId(city.id)
+        _uiState.update {
+            it.copy(
+                selectedCityId = city.id,
+                selectedHourIndex = 0,
+                isLocationSetupOpen = false,
+                activeTab = if (switchToForecastTab) WeatherNavTab.FORECAST else it.activeTab,
+                isRefreshing = true,
+                dismissedAlertIds = emptySet()
+            )
+        }
+        viewModelScope.launch {
+            loadWeatherForCity(city)
+        }
+    }
+
+    fun refreshCurrentWeather() {
+        val currentCity = _uiState.value.savedCities.find { it.id == _uiState.value.selectedCityId }
+            ?: _uiState.value.savedCities.firstOrNull()
+        _uiState.update {
+            it.copy(
+                isRefreshing = currentCity != null,
+                selectedHourIndex = 0,
+                animationTriggerKey = it.animationTriggerKey + 1,
+                dismissedAlertIds = emptySet(),
+                statusBanner = null
+            )
+        }
+        if (currentCity == null) return
+        viewModelScope.launch {
+            loadWeatherForCity(currentCity, forceRefresh = true, showRefreshConfirmation = true)
+            // Also refresh any other saved cities in the background so horizontal pager & cities list stay fresh
+            val otherCities = _uiState.value.savedCities.filter { it.id != currentCity.id }
+            for (other in otherCities) {
+                runCatching {
+                    repository.fetchWeatherForCity(other, _uiState.value.selectedProvider, forceRefresh = true)
+                }
+            }
+        }
+    }
+
+    private suspend fun loadWeatherForCity(
+        city: SavedCityEntity,
+        forceRefresh: Boolean = false,
+        showRefreshConfirmation: Boolean = false
+    ) {
+        val bundle = repository.fetchWeatherForCity(city, _uiState.value.selectedProvider, forceRefresh = forceRefresh)
+        val currentState = _uiState.value
+        val evaluatedAlerts = SevereWeatherNotifier.evaluateAllActiveAlerts(
+            bundle = bundle,
+            units = currentState.units,
+            language = currentState.language,
+            emyAlertsEnabled = currentState.emyAlertsEnabled,
+            rainAlertsEnabled = currentState.rainAlertsEnabled
+        )
+        val primaryAlert = evaluatedAlerts.firstOrNull()
+        val notificationAlert = evaluatedAlerts.firstOrNull {
+            it.type == com.example.util.SevereAlertType.THUNDERSTORM ||
+                it.type == com.example.util.SevereAlertType.HEAVY_RAIN ||
+                it.type == com.example.util.SevereAlertType.RAIN_ONSET
+        } ?: primaryAlert
+
+        if (appContext != null) {
+            val alertsEnabled = currentState.emyAlertsEnabled || currentState.rainAlertsEnabled
+            if (notificationAlert != null && alertsEnabled && notificationAlert.isSevereOrRainActive) {
+                hasDispatchedInitialWeatherNotification = true
+                SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+                    context = appContext,
+                    alert = notificationAlert,
+                    forceDispatch = false
+                )
+            }
+            ZephyrWeatherWidgetProvider.updateAllWidgetsFromBundle(
+                context = appContext,
+                bundle = bundle,
+                units = currentState.units,
+                language = currentState.language,
+                alert = primaryAlert
+            )
+        }
+        _uiState.update { state ->
+            val refreshMsg = if (showRefreshConfirmation) {
+                if (state.language == AppLanguage.GREEK) {
+                    "Η πρόγνωση ενημερώθηκε • ${bundle.cityName} (${bundle.currentLocalTimeLabel})"
+                } else {
+                    "Forecast updated • ${bundle.cityName} (${bundle.currentLocalTimeLabel})"
+                }
+            } else {
+                null
+            }
+            state.copy(
+                loadingState = LoadingState.Success(bundle),
+                primaryBundle = bundle,
+                activeSevereAlert = primaryAlert,
+                activeSevereAlerts = evaluatedAlerts,
+                isRefreshing = false,
+                isLocatingGps = false,
+                isLocationSetupOpen = false,
+                statusBanner = refreshMsg,
+                animationTriggerKey = state.animationTriggerKey + 1
+            )
+        }
+    }
+
+    fun dismissSevereAlert(alertId: String) {
+        _uiState.update { state ->
+            state.copy(
+                dismissedAlertIds = state.dismissedAlertIds + alertId
+            )
+        }
+    }
+
+    fun restoreDismissedAlerts() {
+        _uiState.update { state ->
+            state.copy(
+                dismissedAlertIds = emptySet()
+            )
+        }
+    }
+
+    fun triggerLiveSevereWeatherAlertTest(context: Context) {
+        val state = _uiState.value
+        val testAlerts = SevereWeatherNotifier.buildLiveTestAlertList(
+            bundle = state.primaryBundle,
+            units = state.units,
+            language = state.language
+        )
+        val primaryTestAlert = testAlerts.first()
+        val posted = SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+            context = context,
+            alert = primaryTestAlert,
+            forceDispatch = true
+        )
+        val bannerMsg = if (state.language == AppLanguage.GREEK) {
+            if (posted) {
+                "Εστάλη ειδοποίηση συστήματος & ${testAlerts.size} κάρτες προειδοποίησης για ${primaryTestAlert.cityName}!"
+            } else {
+                "Ενεργοποιήθηκαν ${testAlerts.size} κάρτες ακραίων φαινομένων για ${primaryTestAlert.cityName}."
+            }
+        } else {
+            if (posted) {
+                "Dispatched system notification & ${testAlerts.size} severe weather alert cards for ${primaryTestAlert.cityName}!"
+            } else {
+                "Triggered ${testAlerts.size} live severe weather alert cards for ${primaryTestAlert.cityName}."
+            }
+        }
+        _uiState.update {
+            it.copy(
+                activeSevereAlert = primaryTestAlert,
+                activeSevereAlerts = testAlerts,
+                dismissedAlertIds = emptySet(),
+                statusBanner = bannerMsg
+            )
+        }
+    }
+
+    fun setWeatherProvider(provider: WeatherProvider) {
+        preferences?.saveProvider(provider)
+        val lang = _uiState.value.language
+        _uiState.update { state ->
+            val updatedBundle = state.primaryBundle?.copy(provider = provider)
+            state.copy(
+                selectedProvider = provider,
+                primaryBundle = updatedBundle,
+                loadingState = if (updatedBundle != null) LoadingState.Success(updatedBundle) else state.loadingState,
+                isRefreshing = true,
+                statusBanner = if (lang == AppLanguage.GREEK) {
+                    "Μοντέλο πρόγνωσης: ${provider.displayName} (${provider.resolutionBadge})"
+                } else {
+                    "Switched model to ${provider.displayName} (${provider.resolutionBadge})"
+                }
+            )
+        }
+        val currentCity = _uiState.value.savedCities.find { it.id == _uiState.value.selectedCityId }
+            ?: _uiState.value.savedCities.firstOrNull()
+        if (currentCity != null) {
+            viewModelScope.launch {
+                loadWeatherForCity(currentCity, forceRefresh = true)
+            }
+        }
+    }
+
+    fun setAppTheme(theme: AppThemeSetting) {
+        preferences?.saveTheme(theme)
+        _uiState.update { it.copy(selectedTheme = theme) }
+    }
+
+    fun toggleEmyAlerts() {
+        val next = !_uiState.value.emyAlertsEnabled
+        preferences?.saveEmyAlerts(next)
+        val lang = _uiState.value.language
+        val currentBundle = _uiState.value.primaryBundle
+        val updatedAlerts = if (currentBundle != null) {
+            SevereWeatherNotifier.evaluateAllActiveAlerts(
+                bundle = currentBundle,
+                units = _uiState.value.units,
+                language = lang,
+                emyAlertsEnabled = next,
+                rainAlertsEnabled = _uiState.value.rainAlertsEnabled
+            )
+        } else {
+            _uiState.value.activeSevereAlerts
+        }
+        val primaryAlert = updatedAlerts.firstOrNull()
+        if (next && appContext != null) {
+            val alertToSend = primaryAlert ?: SevereWeatherNotifier.buildLiveTestAlert(
+                bundle = currentBundle,
+                units = _uiState.value.units,
+                language = lang
+            )
+            SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+                context = appContext,
+                alert = alertToSend,
+                forceDispatch = true
+            )
+        }
+        _uiState.update { state ->
+            state.copy(
+                emyAlertsEnabled = next,
+                activeSevereAlert = primaryAlert,
+                activeSevereAlerts = updatedAlerts,
+                dismissedAlertIds = emptySet(),
+                statusBanner = if (lang == AppLanguage.GREEK) {
+                    if (next) "Ειδοποιήσεις ΕΜΥ ενεργές • Εστάλη ειδοποίηση" else "Ειδοποιήσεις ΕΜΥ σε σίγαση"
+                } else {
+                    if (next) "EMY Severe Weather Alerts active • Notification sent" else "EMY alerts muted"
+                }
+            )
+        }
+    }
+
+    fun toggleRainAlerts() {
+        val next = !_uiState.value.rainAlertsEnabled
+        preferences?.saveRainAlerts(next)
+        val lang = _uiState.value.language
+        val currentBundle = _uiState.value.primaryBundle
+        val updatedAlerts = if (currentBundle != null) {
+            SevereWeatherNotifier.evaluateAllActiveAlerts(
+                bundle = currentBundle,
+                units = _uiState.value.units,
+                language = lang,
+                emyAlertsEnabled = _uiState.value.emyAlertsEnabled,
+                rainAlertsEnabled = next
+            )
+        } else {
+            _uiState.value.activeSevereAlerts
+        }
+        val primaryAlert = updatedAlerts.firstOrNull()
+        if (next && appContext != null) {
+            val alertToSend = primaryAlert ?: SevereWeatherNotifier.buildLiveTestAlert(
+                bundle = currentBundle,
+                units = _uiState.value.units,
+                language = lang
+            )
+            SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+                context = appContext,
+                alert = alertToSend,
+                forceDispatch = true
+            )
+        }
+        _uiState.update { state ->
+            state.copy(
+                rainAlertsEnabled = next,
+                activeSevereAlert = primaryAlert,
+                activeSevereAlerts = updatedAlerts,
+                dismissedAlertIds = emptySet(),
+                statusBanner = if (lang == AppLanguage.GREEK) {
+                    if (next) "Ειδοποιήσεις βροχής ενεργές • Εστάλη ειδοποίηση" else "Ειδοποιήσεις βροχής σε σίγαση"
+                } else {
+                    if (next) "Rain Onset Notifications active • Notification sent" else "Rain alerts muted"
+                }
+            )
+        }
+    }
+
+    fun updatePermissions(locationGranted: Boolean, notificationGranted: Boolean) {
+        _uiState.update {
+            it.copy(
+                isLocationPermissionGranted = locationGranted,
+                isNotificationPermissionGranted = notificationGranted
+            )
+        }
+    }
+
+    fun onNotificationPermissionGranted(context: Context) {
+        _uiState.update { it.copy(isNotificationPermissionGranted = true) }
+        val state = _uiState.value
+        val alert = state.activeSevereAlerts.firstOrNull()
+            ?: state.activeSevereAlert
+            ?: state.primaryBundle?.let {
+                SevereWeatherNotifier.evaluateBundleForAlerts(
+                    bundle = it,
+                    units = state.units,
+                    language = state.language,
+                    emyAlertsEnabled = state.emyAlertsEnabled,
+                    rainAlertsEnabled = state.rainAlertsEnabled
+                )
+            }
+        if (alert != null) {
+            hasDispatchedInitialWeatherNotification = true
+            SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+                context = context,
+                alert = alert,
+                forceDispatch = true
+            )
+        }
+    }
+
+    fun setChartMode(mode: HourlyChartMode) {
+        _uiState.update { it.copy(chartMode = mode) }
+    }
+
+    fun selectHourIndex(index: Int) {
+        _uiState.update { it.copy(selectedHourIndex = index) }
+    }
+
+    fun toggleExpandedDay(index: Int) {
+        _uiState.update { state ->
+            state.copy(expandedDayIndex = if (state.expandedDayIndex == index) null else index)
+        }
+    }
+
+    fun toggleTemperatureUnit() {
+        val nextFahrenheit = !_uiState.value.units.useFahrenheit
+        setUseFahrenheit(nextFahrenheit)
+    }
+
+    fun setUseFahrenheit(useFahrenheit: Boolean) {
+        preferences?.saveUseFahrenheit(useFahrenheit)
+        val lang = _uiState.value.language
+        _uiState.update { state ->
+            state.copy(
+                units = state.units.copy(useFahrenheit = useFahrenheit),
+                statusBanner = if (lang == AppLanguage.GREEK) {
+                    if (useFahrenheit) "Μονάδα θερμοκρασίας: Fahrenheit (°F)" else "Μονάδα θερμοκρασίας: Κελσίου (°C)"
+                } else {
+                    if (useFahrenheit) "Temperature unit saved: Fahrenheit (°F)" else "Temperature unit saved: Celsius (°C)"
+                }
+            )
+        }
+    }
+
+    fun toggleWindUnit() {
+        val nextMph = !_uiState.value.units.useMph
+        preferences?.saveUseMph(nextMph)
+        _uiState.update { state ->
+            state.copy(units = state.units.copy(useMph = nextMph))
+        }
+    }
+
+    fun togglePressureUnit() {
+        val nextInHg = !_uiState.value.units.useInHg
+        preferences?.saveUseInHg(nextInHg)
+        _uiState.update { state ->
+            state.copy(units = state.units.copy(useInHg = nextInHg))
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        searchJob?.cancel()
+        if (query.trim().length < 2) {
+            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false) }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isSearching = true) }
+            delay(280)
+            val results = repository.searchGlobalCities(query)
+            _uiState.update { it.copy(searchResults = results, isSearching = false) }
+        }
+    }
+
+    fun addAndSelectCity(city: SavedCityEntity) {
+        viewModelScope.launch {
+            val cleanName = WeatherRepository.sanitizeCityDisplayName(city.name).ifBlank { city.name }
+            preferences?.removeDeletedCityId(city.id)
+            preferences?.removeDeletedCityName(city.name)
+            preferences?.removeDeletedCityName(cleanName)
+            preferences?.saveSelectedCityId(city.id)
+            val saved = city.copy(
+                name = cleanName,
+                isCurrentGps = false,
+                sortOrder = _uiState.value.savedCities.size,
+                lastUpdatedEpochMs = System.currentTimeMillis()
+            )
+            repository.saveCity(saved)
+            _uiState.update {
+                it.copy(
+                    searchQuery = "",
+                    searchResults = emptyList(),
+                    selectedCityId = saved.id,
+                    isLocationSetupOpen = false,
+                    activeTab = WeatherNavTab.FORECAST,
+                    isRefreshing = true
+                )
+            }
+            loadWeatherForCity(saved)
+        }
+    }
+
+    fun sendFeedbackEmail(
+        context: Context,
+        category: String,
+        rating: Int,
+        message: String
+    ) {
+        val lang = _uiState.value.language
+        val trimmedMessage = message.trim().ifBlank {
+            if (lang == AppLanguage.GREEK) "Σχόλια από την εφαρμογή Zephyr Weather" else "Feedback from Zephyr Weather App"
+        }
+        val activeCityName = _uiState.value.primaryBundle?.cityName
+            ?: _uiState.value.savedCities.firstOrNull()?.name
+            ?: "Not Selected"
+        val subject = "[Zephyr Weather Feedback] $category ($rating/5 ★) - $activeCityName"
+        val body = buildString {
+            appendLine("Zephyr Weather App Feedback")
+            appendLine("----------------------------------------")
+            appendLine("Recipient: $FEEDBACK_RECIPIENT_EMAIL")
+            appendLine("Category: $category")
+            appendLine("Rating: $rating / 5 Stars")
+            appendLine("Active Location: $activeCityName")
+            appendLine("Forecast Model: ${_uiState.value.selectedProvider.displayName}")
+            appendLine("Background Sync: ${_uiState.value.refreshInterval.displayName}")
+            appendLine("----------------------------------------")
+            appendLine()
+            appendLine("Message:")
+            appendLine(trimmedMessage)
+        }
+
+        val mailtoUri = (
+            "mailto:$FEEDBACK_RECIPIENT_EMAIL" +
+                "?subject=" + Uri.encode(subject) +
+                "&body=" + Uri.encode(body)
+        ).toUri()
+        val sendToIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_RECIPIENT_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        val launched = runCatching {
+            context.startActivity(sendToIntent)
+            true
+        }.getOrElse {
+            runCatching {
+                val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "message/rfc822"
+                    putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_RECIPIENT_EMAIL))
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    putExtra(Intent.EXTRA_TEXT, body)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(
+                    Intent.createChooser(fallbackIntent, "Send Feedback Email").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                )
+                true
+            }.getOrDefault(false)
+        }
+
+        val banner = if (lang == AppLanguage.GREEK) {
+            if (launched) {
+                "Άνοιγμα email προς $FEEDBACK_RECIPIENT_EMAIL • Ευχαριστούμε για τα σχόλιά σας!"
+            } else {
+                "Τα σχόλιά σας καταγράφηκαν για αποστολή στο $FEEDBACK_RECIPIENT_EMAIL!"
+            }
+        } else {
+            if (launched) {
+                "Opening email to $FEEDBACK_RECIPIENT_EMAIL • Thank you for your feedback!"
+            } else {
+                "Feedback prepared for $FEEDBACK_RECIPIENT_EMAIL • Thank you!"
+            }
+        }
+        _uiState.update { it.copy(statusBanner = banner) }
+    }
+
+    fun checkForAppAndWeatherUpdates(context: Context) {
+        if (_uiState.value.isCheckingUpdates) return
+        val lang = _uiState.value.language
+        val checkingMsg = if (lang == AppLanguage.GREEK) {
+            "Έλεγχος & εγκατάσταση ενημερώσεων εφαρμογής, χωριών, υψομέτρου & μοντέλων χιονιού…"
+        } else {
+            "Checking & applying app, village, elevation & snow model updates…"
+        }
+        _uiState.update {
+            it.copy(
+                isCheckingUpdates = true,
+                lastUpdateCheckStatus = checkingMsg,
+                statusBanner = checkingMsg
+            )
+        }
+        viewModelScope.launch {
+            runCatching {
+                val appCtx = context.applicationContext ?: context
+                // 1. Sync village & elevation database
+                val updatedCities = repository.ensureDefaultCitiesSeeded(preferences)
+                // 2. Reschedule background sync
+                WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+                    context = appCtx,
+                    intervalMs = _uiState.value.refreshInterval.intervalMs
+                )
+                // 3. Force-refresh active city and all saved cities with latest multi-model telemetry
+                val activeCity = updatedCities.find { it.id == _uiState.value.selectedCityId }
+                    ?: updatedCities.firstOrNull()
+                if (activeCity != null) {
+                    loadWeatherForCity(activeCity, forceRefresh = true, showRefreshConfirmation = false)
+                    val others = updatedCities.filter { it.id != activeCity.id }
+                    for (other in others) {
+                        runCatching {
+                            repository.fetchWeatherForCity(
+                                other,
+                                _uiState.value.selectedProvider,
+                                forceRefresh = true
+                            )
+                        }
+                    }
+                } else {
+                    delay(650)
+                }
+            }
+            val currentLang = _uiState.value.language
+            val doneStatus = if (currentLang == AppLanguage.GREEK) {
+                "✓ Η εφαρμογή ενημερώθηκε στην τελευταία έκδοση v2.6.0 (Πόλεις, Χωριά, Υψόμετρο & Μοντέλα Χιονιού)"
+            } else {
+                "✓ Up to date: v2.6.0 Installed (All Villages, Elevation & Snow Models Synced)"
+            }
+            _uiState.update {
+                it.copy(
+                    isCheckingUpdates = false,
+                    lastUpdateCheckStatus = doneStatus,
+                    statusBanner = doneStatus,
+                    animationTriggerKey = it.animationTriggerKey + 1
+                )
+            }
+        }
+    }
+
+    fun togglePinCity(city: SavedCityEntity) {
+        viewModelScope.launch {
+            repository.togglePinCity(city)
+        }
+    }
+
+    fun removeCity(city: SavedCityEntity) {
+        viewModelScope.launch {
+            preferences?.addDeletedCityId(city.id)
+            preferences?.addDeletedCityName(city.name)
+            if (city.name.equals("Athens", ignoreCase = true) || city.name.equals("Αθήνα", ignoreCase = true)) {
+                preferences?.addDeletedCityId(2643710L)
+                preferences?.addDeletedCityName("Athens")
+                preferences?.addDeletedCityName("Αθήνα")
+            }
+            repository.deleteCity(city.id)
+            val remaining = _uiState.value.savedCities.filter {
+                it.id != city.id && !it.name.equals(city.name, ignoreCase = true)
+            }
+            if (remaining.isEmpty()) {
+                preferences?.saveSelectedCityId(-1L)
+                _uiState.update {
+                    it.copy(
+                        savedCities = emptyList(),
+                        selectedCityId = -1L,
+                        primaryBundle = null,
+                        loadingState = LoadingState.Loading,
+                        isRefreshing = false,
+                        isLocatingGps = false,
+                        isLocationSetupOpen = true
+                    )
+                }
+            } else if (_uiState.value.selectedCityId == city.id) {
+                val nextCity = remaining.first()
+                selectCity(nextCity, switchToForecastTab = false)
+            } else {
+                _uiState.update { it.copy(savedCities = remaining) }
+            }
+        }
+    }
+
+    fun dismissBanner() {
+        _uiState.update { it.copy(statusBanner = null) }
+    }
+
+    /**
+     * Automatically detects the user's location via Android Location Services ONLY on initial setup
+     * when no city is saved yet. If the user already has a saved city, loads it directly without re-running GPS setup.
+     */
+    fun autoDetectLocationOnLoad(context: Context, hasLocationPermission: Boolean) {
+        _uiState.update {
+            it.copy(isLocationPermissionGranted = hasLocationPermission)
+        }
+        if (hasAutoDetectedOnLoad) return
+        hasAutoDetectedOnLoad = true
+
+        viewModelScope.launch {
+            val saved = _uiState.value.savedCities.ifEmpty {
+                repository.ensureDefaultCitiesSeeded(preferences)
+            }
+            if (saved.isNotEmpty()) {
+                preferences?.markInitialGpsSetupCompleted()
+                if (_uiState.value.primaryBundle == null) {
+                    val activeCity = saved.find { it.id == _uiState.value.selectedCityId }
+                        ?: saved.first()
+                    loadWeatherForCity(activeCity)
+                }
+                return@launch
+            }
+
+            val alreadyCompletedInitialSetup = preferences?.hasCompletedInitialGpsSetup() == true
+            preferences?.markInitialGpsSetupCompleted()
+            if (hasLocationPermission && !alreadyCompletedInitialSetup) {
+                detectGpsLocation(context)
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLocatingGps = false,
+                        isLocationSetupOpen = true
+                    )
+                }
+            }
+        }
+    }
+
+    private fun hasLocationPermission(context: Context): Boolean {
+        return runCatching {
+            val fine = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            val coarse = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            fine || coarse
+        }.getOrDefault(false)
+    }
+
+    fun onFusedLocationSearchStarted() {
+        val lang = _uiState.value.language
+        hasAutoDetectedOnLoad = true
+        preferences?.markInitialGpsSetupCompleted()
+        _uiState.update { state ->
+            if (state.primaryBundle == null) {
+                state.copy(
+                    loadingState = LoadingState.Loading,
+                    isLocationPermissionGranted = true,
+                    isLocatingGps = true,
+                    statusBanner = null
+                )
+            } else {
+                state.copy(
+                    isLocationPermissionGranted = true,
+                    isLocatingGps = true,
+                    statusBanner = if (lang == AppLanguage.GREEK) {
+                        "Εντοπισμός συντεταγμένων GPS…"
+                    } else {
+                        "Fetching GPS coordinates…"
+                    }
+                )
+            }
+        }
+    }
+
+    fun onGpsCoordinatesResolved(
+        context: Context,
+        latitude: Double,
+        longitude: Double,
+        altitude: Double = 0.0
+    ) {
+        val appCtx = context.applicationContext ?: context
+        hasAutoDetectedOnLoad = true
+        preferences?.markInitialGpsSetupCompleted()
+        gpsLocateJob?.cancel()
+        gpsLocateJob = viewModelScope.launch {
+            runCatching {
+                applyResolvedCoordinates(
+                    context = appCtx,
+                    lat = latitude,
+                    lon = longitude,
+                    altitude = altitude
+                )
+            }.onFailure {
+                detectGpsLocation(appCtx)
+            }
+        }
+    }
+
+    fun onLocationPermissionDenied() {
+        val lang = _uiState.value.language
+        hasAutoDetectedOnLoad = true
+        preferences?.markInitialGpsSetupCompleted()
+        val msg = if (lang == AppLanguage.GREEK) {
+            "Η άδεια τοποθεσίας απορρίφθηκε • Αναζητήστε την πόλη ή το χωριό σας"
+        } else {
+            "Location permission denied • Search for your city or village"
+        }
+        _uiState.update { state ->
+            state.copy(
+                isLocationPermissionGranted = false,
+                isLocatingGps = false,
+                isRefreshing = false,
+                isLocationSetupOpen = state.primaryBundle == null,
+                statusBanner = msg
+            )
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun detectGpsLocation(context: Context) {
+        val appCtx = context.applicationContext ?: context
+        val lang = _uiState.value.language
+        val permitted = hasLocationPermission(appCtx)
+        hasAutoDetectedOnLoad = true
+        preferences?.markInitialGpsSetupCompleted()
+        gpsLocateJob?.cancel()
+        _uiState.update { state ->
+            if (state.primaryBundle == null) {
+                state.copy(
+                    loadingState = LoadingState.Loading,
+                    isLocationPermissionGranted = permitted,
+                    isLocatingGps = true,
+                    statusBanner = null
+                )
+            } else {
+                state.copy(
+                    isLocationPermissionGranted = permitted,
+                    isLocatingGps = true,
+                    statusBanner = if (lang == AppLanguage.GREEK) {
+                        "Εντοπισμός τοποθεσίας μέσω GPS…"
+                    } else {
+                        "Locating via GPS Location Services…"
+                    }
+                )
+            }
+        }
+
+        gpsLocateJob = viewModelScope.launch {
+            runCatching {
+                val deviceLocation = if (permitted) {
+                    resolveBestDeviceLocation(appCtx)
+                } else {
+                    null
+                }
+
+                if (deviceLocation != null && !isDefaultEmulatorMockCoords(deviceLocation.latitude, deviceLocation.longitude)) {
+                    applyResolvedCoordinates(
+                        context = appCtx,
+                        lat = deviceLocation.latitude,
+                        lon = deviceLocation.longitude,
+                        altitude = deviceLocation.altitude
+                    )
+                    return@runCatching
+                }
+
+                // Do NOT force Larissa or Athens when GPS cannot resolve a real fix.
+                // Let the user keep their existing saved city or search for any town/village on their own.
+                val noSignalMsg = if (lang == AppLanguage.GREEK) {
+                    "Δεν βρέθηκε σήμα GPS • Ενεργοποιήστε την Τοποθεσία ή αναζητήστε την πόλη/χωριό σας"
+                } else {
+                    "GPS signal unavailable • Turn on Location Services or search for your city/village"
+                }
+                val existingCity = _uiState.value.savedCities.find { it.id == _uiState.value.selectedCityId }
+                    ?: _uiState.value.savedCities.firstOrNull()
+                if (existingCity != null && _uiState.value.primaryBundle == null) {
+                    loadWeatherForCity(existingCity)
+                    _uiState.update { it.copy(statusBanner = noSignalMsg, isLocatingGps = false) }
+                } else {
+                    _uiState.update { state ->
+                        state.copy(
+                            isLocatingGps = false,
+                            isRefreshing = false,
+                            isLocationSetupOpen = state.primaryBundle == null,
+                            statusBanner = noSignalMsg
+                        )
+                    }
+                }
+            }.onFailure {
+                val noSignalMsg = if (lang == AppLanguage.GREEK) {
+                    "Αδυναμία εντοπισμού GPS • Αναζητήστε την πόλη ή το χωριό σας"
+                } else {
+                    "Unable to get GPS fix • Search for your city or village"
+                }
+                _uiState.update { state ->
+                    state.copy(
+                        isLocatingGps = false,
+                        isRefreshing = false,
+                        isLocationSetupOpen = state.primaryBundle == null,
+                        statusBanner = noSignalMsg
+                    )
+                }
+            }
+        }
+    }
+
+    private fun isDefaultEmulatorMockCoords(lat: Double, lon: Double): Boolean {
+        val isUsCountryCentroidMock = lat in 37.65..37.85 && lon in -97.95..-97.70
+        val isZeroIsland = kotlin.math.abs(lat) < 0.01 && kotlin.math.abs(lon) < 0.01
+        return isUsCountryCentroidMock || isZeroIsland
+    }
+
+    private fun hasFineLocationPermission(context: Context): Boolean {
+        return runCatching {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        }.getOrDefault(false)
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun resolveBestDeviceLocation(context: Context): Location? {
+        val hasFine = hasFineLocationPermission(context)
+        val fusedClient = runCatching { LocationServices.getFusedLocationProviderClient(context) }.getOrNull()
+        val locManager = runCatching {
+            context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        }.getOrNull()
+
+        // 1. Check fast last-known location from both FusedLocationProviderClient and Android LocationManager
+        val fusedLast = if (fusedClient != null) {
+            withTimeoutOrNull(1000L) {
+                suspendCancellableCoroutine<Location?> { cont ->
+                    val resumed = AtomicBoolean(false)
+                    fun safeResume(loc: Location?) {
+                        if (resumed.compareAndSet(false, true) && cont.isActive) {
+                            cont.resume(loc)
+                        }
+                    }
+                    runCatching {
+                        fusedClient.lastLocation
+                            .addOnSuccessListener { loc -> safeResume(loc) }
+                            .addOnFailureListener { safeResume(null) }
+                            .addOnCanceledListener { safeResume(null) }
+                    }.onFailure {
+                        safeResume(null)
+                    }
+                }
+            }
+        } else {
+            null
+        }
+
+        val managerLast = runCatching {
+            if (locManager == null) return@runCatching null
+            val providers = buildList {
+                if (hasFine) {
+                    add(LocationManager.GPS_PROVIDER)
+                    add(LocationManager.PASSIVE_PROVIDER)
+                }
+                add(LocationManager.NETWORK_PROVIDER)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    add(LocationManager.FUSED_PROVIDER)
+                }
+            }
+            providers.mapNotNull { provider ->
+                runCatching { locManager.getLastKnownLocation(provider) }.getOrNull()
+            }.filter { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
+                .maxByOrNull { it.time }
+        }.getOrNull()
+
+        val validFusedLast = fusedLast?.takeIf { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
+        val bestCached = listOfNotNull(validFusedLast, managerLast).maxByOrNull { it.time }
+
+        if (bestCached != null && (System.currentTimeMillis() - bestCached.time) < 30 * 60 * 1000L) {
+            return bestCached
+        }
+
+        // 2. Request a live fix using high accuracy, balanced accuracy, and LocationManager in parallel,
+        // completing immediately as soon as the fastest provider returns a valid fix.
+        val freshFix = withTimeoutOrNull(4800L) {
+            coroutineScope {
+                val firstValidFix = CompletableDeferred<Location?>()
+                val remainingSources = java.util.concurrent.atomic.AtomicInteger(3)
+
+                fun onCandidateLocation(loc: Location?) {
+                    val valid = loc?.takeIf { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
+                    if (valid != null) {
+                        firstValidFix.complete(valid)
+                    } else if (remainingSources.decrementAndGet() <= 0) {
+                        firstValidFix.complete(null)
+                    }
+                }
+
+                val highAccJob = launch {
+                    if (fusedClient == null) {
+                        onCandidateLocation(null)
+                        return@launch
+                    }
+                    val tokenSource = CancellationTokenSource()
+                    try {
+                        val loc = suspendCancellableCoroutine<Location?> { cont ->
+                            val resumed = AtomicBoolean(false)
+                            fun safeResume(value: Location?) {
+                                if (resumed.compareAndSet(false, true) && cont.isActive) {
+                                    cont.resume(value)
+                                }
+                            }
+                            cont.invokeOnCancellation { runCatching { tokenSource.cancel() } }
+                            runCatching {
+                                val priority = if (hasFine) {
+                                    Priority.PRIORITY_HIGH_ACCURACY
+                                } else {
+                                    Priority.PRIORITY_BALANCED_POWER_ACCURACY
+                                }
+                                fusedClient.getCurrentLocation(priority, tokenSource.token)
+                                    .addOnSuccessListener { safeResume(it) }
+                                    .addOnFailureListener { safeResume(null) }
+                                    .addOnCanceledListener { safeResume(null) }
+                            }.onFailure {
+                                safeResume(null)
+                            }
+                        }
+                        onCandidateLocation(loc)
+                    } finally {
+                        runCatching { tokenSource.cancel() }
+                    }
+                }
+
+                val balancedJob = launch {
+                    if (fusedClient == null) {
+                        onCandidateLocation(null)
+                        return@launch
+                    }
+                    val tokenSource = CancellationTokenSource()
+                    try {
+                        val loc = suspendCancellableCoroutine<Location?> { cont ->
+                            val resumed = AtomicBoolean(false)
+                            fun safeResume(value: Location?) {
+                                if (resumed.compareAndSet(false, true) && cont.isActive) {
+                                    cont.resume(value)
+                                }
+                            }
+                            cont.invokeOnCancellation { runCatching { tokenSource.cancel() } }
+                            runCatching {
+                                fusedClient.getCurrentLocation(
+                                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                                    tokenSource.token
+                                )
+                                    .addOnSuccessListener { safeResume(it) }
+                                    .addOnFailureListener { safeResume(null) }
+                                    .addOnCanceledListener { safeResume(null) }
+                            }.onFailure {
+                                safeResume(null)
+                            }
+                        }
+                        onCandidateLocation(loc)
+                    } finally {
+                        runCatching { tokenSource.cancel() }
+                    }
+                }
+
+                val managerLiveJob = launch {
+                    val loc = requestFreshFixFromLocationManager(locManager, hasFine)
+                    onCandidateLocation(loc)
+                }
+
+                val winningLocation = runCatching { firstValidFix.await() }.getOrNull()
+                highAccJob.cancel()
+                balancedJob.cancel()
+                managerLiveJob.cancel()
+                winningLocation
+            }
+        }
+
+        return freshFix ?: bestCached
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun requestFreshFixFromLocationManager(
+        locManager: LocationManager?,
+        hasFinePermission: Boolean
+    ): Location? {
+        if (locManager == null) return null
+        return withTimeoutOrNull(4200L) {
+            suspendCancellableCoroutine { cont ->
+                val resumed = AtomicBoolean(false)
+                fun safeResume(value: Location?) {
+                    if (resumed.compareAndSet(false, true) && cont.isActive) {
+                        cont.resume(value)
+                    }
+                }
+
+                val candidateProviders = buildList {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        add(LocationManager.FUSED_PROVIDER)
+                    }
+                    add(LocationManager.NETWORK_PROVIDER)
+                    if (hasFinePermission) {
+                        add(LocationManager.GPS_PROVIDER)
+                    }
+                }.filter { provider ->
+                    runCatching { locManager.isProviderEnabled(provider) }.getOrDefault(false)
+                }
+
+                if (candidateProviders.isEmpty()) {
+                    safeResume(null)
+                    return@suspendCancellableCoroutine
+                }
+
+                val listener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
+                        if (!isDefaultEmulatorMockCoords(location.latitude, location.longitude)) {
+                            runCatching { locManager.removeUpdates(this) }
+                            safeResume(location)
+                        }
+                    }
+                    @Deprecated("Deprecated in Android API")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                }
+
+                cont.invokeOnCancellation {
+                    runCatching { locManager.removeUpdates(listener) }
+                }
+
+                var registeredAny = false
+                for (provider in candidateProviders) {
+                    runCatching {
+                        locManager.requestLocationUpdates(
+                            provider,
+                            0L,
+                            0f,
+                            listener,
+                            Looper.getMainLooper()
+                        )
+                        registeredAny = true
+                    }
+                }
+
+                if (!registeredAny) {
+                    safeResume(null)
+                }
+            }
+        }
+    }
+
+    private suspend fun reverseGeocodeWithAndroidGeocoder(
+        context: Context,
+        lat: Double,
+        lon: Double,
+        locale: Locale
+    ): Address? = withContext(Dispatchers.IO) {
+        withTimeoutOrNull(2500L) {
+            runCatching {
+                val geocoder = Geocoder(context, locale)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    suspendCancellableCoroutine { cont ->
+                        val resumed = AtomicBoolean(false)
+                        fun safeResume(addr: Address?) {
+                            if (resumed.compareAndSet(false, true) && cont.isActive) {
+                                cont.resume(addr)
+                            }
+                        }
+                        runCatching {
+                            geocoder.getFromLocation(lat, lon, 1) { addresses ->
+                                safeResume(addresses.firstOrNull())
+                            }
+                        }.onFailure {
+                            safeResume(null)
+                        }
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocation(lat, lon, 1)?.firstOrNull()
+                }
+            }.getOrNull()
+        }
+    }
+
+    private suspend fun applyResolvedCoordinates(
+        context: Context,
+        lat: Double,
+        lon: Double,
+        altitude: Double
+    ) = coroutineScope {
+        val lang = _uiState.value.language
+        val locale = if (lang == AppLanguage.GREEK) Locale.forLanguageTag("el-GR") else Locale.US
+
+        val localDeferred = async { reverseGeocodeWithAndroidGeocoder(context, lat, lon, locale) }
+        val remoteDeferred = async {
+            withTimeoutOrNull(2500L) {
+                repository.reverseGeocodeCoordinates(lat, lon, lang.code)
+            }
+        }
+        val localAddress = localDeferred.await()
+        val remoteGeo = remoteDeferred.await()
+        val nearestKnown = repository.findNearestKnownCity(lat, lon, lang.code)
+
+        val fallbackName = nearestKnown?.first
+            ?: if (lang == AppLanguage.GREEK) "Τρέχουσα Τοποθεσία" else "Current Location"
+        val resolvedName = remoteGeo?.first?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: localAddress?.locality?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: localAddress?.subLocality?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: nearestKnown?.first?.takeIf { it.isNotBlank() }
+            ?: localAddress?.subAdminArea?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: localAddress?.adminArea?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: fallbackName
+        val resolvedCountry = remoteGeo?.third?.takeIf { it.isNotBlank() }
+            ?: localAddress?.countryName?.takeIf { it.isNotBlank() }
+            ?: nearestKnown?.third?.takeIf { it.isNotBlank() }
+            ?: ""
+        val resolvedRegion = remoteGeo?.second?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: localAddress?.adminArea?.let { WeatherRepository.sanitizeCityDisplayName(it) }?.takeIf { it.isNotBlank() }
+            ?: nearestKnown?.second?.takeIf { it.isNotBlank() }
+            ?: resolvedCountry.ifBlank { "GPS" }
+
+        val existingCurrent = _uiState.value.primaryBundle?.current
+        val gpsCity = SavedCityEntity(
+            id = WeatherRepository.GPS_CITY_ID,
+            name = resolvedName,
+            regionName = resolvedRegion,
+            countryName = resolvedCountry.ifBlank { resolvedRegion },
+            latitude = lat,
+            longitude = lon,
+            elevationMeters = if (altitude > 0.0) altitude else 25.0,
+            isPinned = true,
+            isCurrentGps = true,
+            sortOrder = -1,
+            cachedTempC = existingCurrent?.tempC ?: 18.0,
+            cachedHighC = existingCurrent?.highC ?: 21.0,
+            cachedLowC = existingCurrent?.lowC ?: 11.0,
+            cachedWeatherCode = existingCurrent?.weatherCode ?: 2,
+            cachedIsDay = existingCurrent?.isDay ?: true
+        )
+        activateResolvedGpsCity(gpsCity)
+    }
+
+    private suspend fun activateResolvedGpsCity(gpsCity: SavedCityEntity) {
+        preferences?.removeDeletedCityId(gpsCity.id)
+        preferences?.saveSelectedCityId(gpsCity.id)
+
+        val staleGpsCities = _uiState.value.savedCities.filter {
+            (it.isCurrentGps && it.id != gpsCity.id) ||
+                (it.id == WeatherPreferences.DEFAULT_LARISSA_CITY_ID && gpsCity.id != WeatherPreferences.DEFAULT_LARISSA_CITY_ID && it.isCurrentGps) ||
+                it.name.contains("Dimos", ignoreCase = true) ||
+                it.name.contains("Δήμος", ignoreCase = true)
+        }
+        for (stale in staleGpsCities) {
+            repository.deleteCity(stale.id)
+        }
+
+        repository.saveCity(gpsCity)
+        _uiState.update { state ->
+            val updatedList = (listOf(gpsCity) + state.savedCities.filter {
+                it.id != gpsCity.id &&
+                    !it.isCurrentGps &&
+                    !it.name.contains("Dimos", ignoreCase = true) &&
+                    !it.name.contains("Δήμος", ignoreCase = true)
+            })
+            state.copy(
+                savedCities = updatedList,
+                selectedCityId = gpsCity.id,
+                selectedHourIndex = 0,
+                isLocatingGps = false,
+                isLocationSetupOpen = false,
+                isRefreshing = true
+            )
+        }
+        loadWeatherForCity(gpsCity, forceRefresh = true, showRefreshConfirmation = false)
+    }
+
+    companion object {
+        const val FEEDBACK_RECIPIENT_EMAIL = "kapsalesdemetres11@gmail.com"
+
+        fun provideFactory(context: Context): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val appContext = context.applicationContext
+                    SevereWeatherNotifier.ensureChannelsCreated(appContext)
+                    val db = WeatherDatabase.getInstance(appContext)
+                    val repo = WeatherRepository(db.cityDao())
+                    val prefs = WeatherPreferences(appContext)
+                    return WeatherViewModel(repo, prefs, appContext) as T
+                }
+            }
+        }
+    }
+}

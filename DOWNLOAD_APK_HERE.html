@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zephyr Weather - 1-Tap Debug APK</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 18px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(160deg, #061324, #0d233d, #123358);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .card {
+            max-width: 440px;
+            width: 100%;
+            background: rgba(16, 35, 60, 0.96);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 28px;
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+        }
+        h1 {
+            margin: 0 0 6px 0;
+            font-size: 23px;
+            color: #38bdf8;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #bae6fd;
+            margin-bottom: 18px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 18px 18px;
+            font-size: 16px;
+            font-weight: 800;
+            color: #041322;
+            background: linear-gradient(135deg, #34d399, #38bdf8);
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            box-sizing: border-box;
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.35);
+            margin-bottom: 12px;
+        }
+        .box {
+            text-align: left;
+            background: rgba(6, 19, 36, 0.72);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 16px;
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.55;
+            color: #e2e8f0;
+            margin-bottom: 14px;
+        }
+        .box b {
+            color: #34d399;
+        }
+        .status {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #a7f3d0;
+            line-height: 1.5;
+        }
+    </style>
+    <script src="apk_parts/apk_part_1.js"></script>
+    <script src="apk_parts/apk_part_2.js"></script>
+    <script src="apk_parts/apk_part_3.js"></script>
+    <script src="apk_parts/apk_part_4.js"></script>
+    <script src="apk_parts/apk_part_5.js"></script>
+    <script src="apk_parts/apk_part_6.js"></script>
+    <script src="apk_parts/apk_part_7.js"></script>
+    <script src="apk_parts/apk_part_8.js"></script>
+    <script src="apk_parts/apk_part_9.js"></script>
+</head>
+<body>
+    <div class="card">
+        <h1>Zephyr Weather Debug APK</h1>
+        <div class="subtitle">Signed Android Debug Package (12.29 MB)</div>
+        <div id="contentWarning" class="box" style="display:none; border-color:#fbbf24;">
+            ⚠️ <b>You opened this page inside ZipArchiver (content://).</b><br>
+            1️⃣ Tap the green button below.<br>
+            2️⃣ Open the <b>apk_parts</b> folder, <b>long-press</b> <code>apk_part_1.js</code> to select all 9 files (1 to 9), and tap <b>Select / Open</b>.<br>
+            3️⃣ It will immediately save <b>ZephyrWeather-debug.apk (12.29 MB)</b> to your <b>Downloads</b>!
+        </div>
+        <input id="partsInput" type="file" multiple accept=".js" style="display:none" onchange="handleManualFiles(this.files)">
+        <button class="btn" id="mainBtn" onclick="downloadApk()">⬇️ TAP HERE TO SAVE APK TO DOWNLOADS</button>
+        <div id="status" class="status">Ready to save <b>ZephyrWeather-debug.apk</b> to your Downloads folder.</div>
+    </div>
+    <script>
+        function saveByteArraysAsApk(byteArrays) {
+            // IMPORTANT: Use application/octet-stream instead of application/vnd.android.package-archive
+            // so Chrome saves ZephyrWeather-debug.apk as a real file in Downloads instead of sending
+            // a temporary blob/content URL to Orion Store ("This file can't be installed")!
+            const blob = new Blob(byteArrays, { type: "application/octet-stream" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "ZephyrWeather-debug.apk";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            document.getElementById("status").innerHTML = "✅ <b>ZephyrWeather-debug.apk (12.29 MB)</b> has been saved to your phone's <b>Downloads</b>! Open Chrome's <b>Downloads</b> (⋮ &rarr; Downloads) or your <b>Download</b> folder and tap <b>ZephyrWeather-debug.apk</b> to install.";
+        }
+
+        function decodeBase64ToBytes(b64) {
+            const clean = b64.replace(/\s+/g, "");
+            const bin = atob(clean);
+            const len = bin.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = bin.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function downloadApk() {
+            const statusEl = document.getElementById("status");
+            const parts = window.ZEPHYR_APK_PARTS || [];
+            if (parts.length < 9) {
+                document.getElementById("contentWarning").style.display = "block";
+                document.getElementById("partsInput").click();
+                return;
+            }
+            statusEl.textContent = "Saving ZephyrWeather-debug.apk (12.29 MB) to Downloads...";
+            setTimeout(() => {
+                const byteArrays = parts.map(decodeBase64ToBytes);
+                saveByteArraysAsApk(byteArrays);
+            }, 50);
+        }
+
+        async function handleManualFiles(fileList) {
+            if (!fileList || !fileList.length) return;
+            const statusEl = document.getElementById("status");
+            const files = Array.from(fileList);
+            files.sort((a, b) => {
+                const na = parseInt((a.name.match(/(\d+)/) || [0, 0])[1], 10);
+                const nb = parseInt((b.name.match(/(\d+)/) || [0, 0])[1], 10);
+                return na - nb;
+            });
+            statusEl.textContent = "Building ZephyrWeather-debug.apk from " + files.length + " part(s)...";
+            const byteArrays = [];
+            for (const f of files) {
+                const text = await f.text();
+                const match = text.match(/push\("([^"]+)"\)/);
+                if (match && match[1]) {
+                    byteArrays.push(decodeBase64ToBytes(match[1]));
+                }
+            }
+            if (byteArrays.length === 9) {
+                saveByteArraysAsApk(byteArrays);
+            } else {
+                statusEl.innerHTML = "⚠️ You only selected <b>" + byteArrays.length + " of 9</b> files! Tap the green button again, long-press <b>apk_part_1.js</b> inside <b>apk_parts</b>, select <b>ALL 9 files (1 to 9)</b>, and tap Open.";
+            }
+        }
+
+        window.addEventListener("load", () => {
+            const parts = window.ZEPHYR_APK_PARTS || [];
+            if (parts.length === 9) {
+                setTimeout(downloadApk, 350);
+            } else if (location.protocol === "content:") {
+                document.getElementById("contentWarning").style.display = "block";
+                document.getElementById("mainBtn").textContent = "📂 TAP HERE & SELECT ALL 9 FILES IN apk_parts";
+            }
+        });
+    </script>
+</body>
+</html>
