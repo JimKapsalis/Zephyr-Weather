@@ -89,9 +89,9 @@ enum class WeatherProvider(
     BEST_MATCH(
         id = "best_match",
         displayName = "Multi-Model + Live Radar (Best)",
-        subtitleEn = "Auto-fuses ECMWF, ICON, GFS & 15-min Live Doppler Nowcast Radar",
-        subtitleEl = "Αυτόματος συνδυασμός ECMWF, ICON, GFS & Ζωντανού Ραντάρ Βροχής 15 λεπτών",
-        resolutionBadge = "1–2 km Radar + Ensemble",
+        subtitleEn = "Auto-fuses ECMWF IFS, DWD ICON, NOAA GFS & 15-min Live Doppler Nowcast Radar",
+        subtitleEl = "Αυτόματος συνδυασμός ECMWF IFS, DWD ICON, GFS & Ζωντανού Ραντάρ 15 λεπτών",
+        resolutionBadge = "1–2 km Radar + 3-Model Ensemble",
         modelQuery = null
     ),
     ECMWF(
@@ -102,13 +102,37 @@ enum class WeatherProvider(
         resolutionBadge = "0.25° Global #1",
         modelQuery = "ecmwf_ifs025"
     ),
+    DWD_ICON(
+        id = "dwd_icon",
+        displayName = "DWD ICON (German Weather Service)",
+        subtitleEn = "High-resolution 2–7 km European & mountain terrain microclimate model",
+        subtitleEl = "Μοντέλο υψηλής ανάλυσης 2–7 km για Ευρώπη, Ελλάδα & ορεινά μικροκλίματα",
+        resolutionBadge = "2–7 km Europe HD",
+        modelQuery = "icon_seamless"
+    ),
+    METEO_FRANCE(
+        id = "meteo_france",
+        displayName = "Météo-France AROME / ARPEGE",
+        subtitleEn = "1.3–10 km Mediterranean & European high-resolution convective storm model",
+        subtitleEl = "Μοντέλο 1.3–10 km υψηλής ακρίβειας για τη Μεσόγειο και καταιγίδες",
+        resolutionBadge = "1.3–10 km Med HD",
+        modelQuery = "meteofrance_seamless"
+    ),
     NOAA_GFS(
         id = "gfs",
-        displayName = "NOAA GFS (US Weather Service)",
-        subtitleEn = "Global Forecast System with rapid hourly updates",
-        subtitleEl = "Παγκόσμιο σύστημα πρόγνωσης με συχνή ωριαία ανανέωση",
-        resolutionBadge = "13 km Global",
+        displayName = "NOAA GFS + HRRR (US Weather Service)",
+        subtitleEn = "Global Forecast System + 3 km HRRR with rapid hourly updates",
+        subtitleEl = "Παγκόσμιο σύστημα πρόγνωσης NOAA με συνεχή ωριαία ανανέωση",
+        resolutionBadge = "3–13 km Seamless",
         modelQuery = "gfs_seamless"
+    ),
+    UKMO(
+        id = "ukmo",
+        displayName = "UK Met Office (UKMO Seamless)",
+        subtitleEn = "High-resolution 1.5–10 km global and regional atmospheric model",
+        subtitleEl = "Παγκόσμιο ατμοσφαιρικό μοντέλο υψηλής ανάλυσης 1.5–10 km",
+        resolutionBadge = "1.5–10 km Global",
+        modelQuery = "ukmo_seamless"
     );
 
     val subtitle: String get() = subtitleEn

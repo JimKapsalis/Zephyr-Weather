@@ -79,7 +79,7 @@ data class WeatherUiState(
     val primaryBundle: CityWeatherBundle? = null,
     val chartMode: HourlyChartMode = HourlyChartMode.TEMPERATURE,
     val selectedHourIndex: Int = 0,
-    val expandedDayIndex: Int? = 0,
+    val expandedDayIndex: Int? = null,
     val radarLayer: RadarLayerMode = RadarLayerMode.RAIN,
     val radarTimelineIndex: Int = 0,
     val skyAtmospherePreset: SkyAtmospherePreset = SkyAtmospherePreset.LIVE_GPS,
@@ -393,6 +393,7 @@ class WeatherViewModel(
             it.copy(
                 selectedCityId = city.id,
                 selectedHourIndex = 0,
+                expandedDayIndex = null,
                 isLocationSetupOpen = false,
                 activeTab = if (switchToForecastTab) WeatherNavTab.FORECAST else it.activeTab,
                 isRefreshing = true,

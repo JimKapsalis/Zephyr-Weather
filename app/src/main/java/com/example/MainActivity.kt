@@ -1054,6 +1054,7 @@ fun LocationSetupSearchingScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isGreek = language == AppLanguage.GREEK
     val infiniteTransition = rememberInfiniteTransition(label = "locationSetupRadar")
     val pulseProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -1069,7 +1070,7 @@ fun LocationSetupSearchingScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag("location_setup_screen"),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -1081,15 +1082,15 @@ fun LocationSetupSearchingScreen(
             ) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = Color.White.copy(alpha = 0.10f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                    color = Color.White.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .clickable { onDismiss() }
                         .testTag("setup_close_button")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -1100,8 +1101,9 @@ fun LocationSetupSearchingScreen(
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
-                            text = if (language == AppLanguage.GREEK) "Κλείσιμο" else "Close",
+                            text = if (isGreek) "Κλείσιμο" else "Close",
                             style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                     }
@@ -1109,213 +1111,187 @@ fun LocationSetupSearchingScreen(
             }
         }
 
-        // Animated Radar / GPS Searching Indicator
-        Box(
-            modifier = Modifier
-                .size(128.dp)
-                .padding(top = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val maxR = size.minDimension / 2f
-                val r1 = maxR * (0.35f + 0.65f * pulseProgress)
-                val r2 = maxR * (0.35f + 0.65f * ((pulseProgress + 0.5f) % 1f))
-                drawCircle(
-                    color = CyanZephyr.copy(alpha = (1f - pulseProgress) * 0.45f),
-                    radius = r1
-                )
-                drawCircle(
-                    color = EmeraldBreeze.copy(alpha = (1f - ((pulseProgress + 0.5f) % 1f)) * 0.40f),
-                    radius = r2
-                )
-                drawCircle(
-                    color = Color(0xFF102A49),
-                    radius = maxR * 0.42f
-                )
-            }
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFF133357),
-                border = BorderStroke(1.5.dp, CyanGlow),
-                modifier = Modifier.size(56.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = WeatherIcons.MyLocation,
-                        contentDescription = null,
-                        tint = CyanGlow,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-        }
-
-        Text(
-            text = if (language == AppLanguage.GREEK) {
-                if (isLocatingGps) "Εντοπισμός Τοποθεσίας GPS…" else "Επιλέξτε Πόλη ή Χωριό"
-            } else {
-                if (isLocatingGps) "Locating via GPS…" else "Choose Your City or Village"
-            },
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color.White
-        )
-
-        Text(
-            text = if (language == AppLanguage.GREEK) {
-                if (isLocatingGps) {
-                    "Εντοπισμός συντεταγμένων GPS σε εξέλιξη… Ή αναζητήστε την πόλη ή το χωριό σας παρακάτω."
-                } else {
-                    "Χρησιμοποιήστε το GPS της συσκευής σας ή αναζητήστε μόνοι σας οποιαδήποτε πόλη ή χωριό."
-                }
-            } else {
-                if (isLocatingGps) {
-                    "Scanning GPS satellites… Or search for your city or village below."
-                } else {
-                    "Use your device's GPS Location Services or search for any city, town, or village below."
-                }
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.76f)
-        )
-
-        // Auto-Detect GPS Button
-        Button(
-            onClick = onRequestGpsLocation,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = EmeraldBreeze.copy(alpha = 0.24f)
+        // 1. Atmospheric Hero Onboarding Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(30.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF0E223A).copy(alpha = 0.94f)
             ),
-            border = BorderStroke(1.2.dp, EmeraldBreeze),
-            shape = RoundedCornerShape(22.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("setup_detect_gps_button")
-        ) {
-            Icon(
-                imageVector = WeatherIcons.MyLocation,
-                contentDescription = null,
-                tint = EmeraldBreeze,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (language == AppLanguage.GREEK) {
-                    "Αυτόματος Εντοπισμός Τοποθεσίας (GPS)"
-                } else {
-                    "Auto-Detect My Location (GPS)"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
-
-        // Search Location Input Field
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            placeholder = {
-                Text(
-                    text = if (language == AppLanguage.GREEK) {
-                        "Αναζήτηση πόλης ή χωριού (π.χ. Κάτω Παλαιοκαρυά)..."
-                    } else {
-                        "Search any city, town, or village..."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.62f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            border = BorderStroke(
+                width = 1.2.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        CyanZephyr.copy(alpha = 0.55f),
+                        EmeraldBreeze.copy(alpha = 0.45f),
+                        AmberSol.copy(alpha = 0.45f)
+                    )
                 )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = WeatherIcons.Search,
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Image(
+                    painter = painterResource(id = R.drawable.img_atmosphere_hero),
                     contentDescription = null,
-                    tint = CyanGlow,
-                    modifier = Modifier.size(20.dp)
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.30f,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(30.dp))
                 )
-            },
-            trailingIcon = {
-                if (isSearching) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = CyanZephyr
-                    )
-                } else if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(
-                            imageVector = WeatherIcons.Clear,
-                            contentDescription = "Clear",
-                            tint = Color.White.copy(alpha = 0.75f)
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.95f),
-                unfocusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.88f),
-                focusedBorderColor = CyanZephyr,
-                unfocusedBorderColor = CyanZephyr.copy(alpha = 0.38f),
-                cursorColor = CyanZephyr
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("setup_location_search_input")
-        )
-
-        // Live Search Results
-        if (searchResults.isNotEmpty()) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("setup_search_results_card"),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF132A46)
-                ),
-                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
-            ) {
-                Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                    searchResults.forEachIndexed { idx, city ->
-                        if (idx > 0) {
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectCity(city) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .testTag("setup_search_result_${city.id}"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = city.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF0E294B).copy(alpha = 0.55f),
+                                    Color(0xFF081426).copy(alpha = 0.92f)
                                 )
-                                val elevLabel = if (city.elevationMeters > 0.0) {
-                                    if (language == AppLanguage.GREEK) " • Υψόμετρο ${city.elevationMeters.toInt()} m" else " • Elev ${city.elevationMeters.toInt()} m"
-                                } else ""
-                                Text(
-                                    text = "${city.regionName}, ${city.countryName}$elevLabel",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.68f)
+                            )
+                        )
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Animated Radar / Weather Beacon
+                    Box(
+                        modifier = Modifier.size(96.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val maxR = size.minDimension / 2f
+                            val r1 = maxR * (0.38f + 0.62f * pulseProgress)
+                            val r2 = maxR * (0.38f + 0.62f * ((pulseProgress + 0.5f) % 1f))
+                            drawCircle(
+                                color = CyanZephyr.copy(alpha = (1f - pulseProgress) * 0.42f),
+                                radius = r1
+                            )
+                            drawCircle(
+                                color = EmeraldBreeze.copy(alpha = (1f - ((pulseProgress + 0.5f) % 1f)) * 0.38f),
+                                radius = r2
+                            )
+                            drawCircle(
+                                color = Color(0xFF102A49),
+                                radius = maxR * 0.46f
+                            )
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF14355B),
+                            border = BorderStroke(1.5.dp, CyanGlow),
+                            modifier = Modifier.size(50.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isLocatingGps) WeatherIcons.MyLocation else WeatherIcons.PartlySunny,
+                                    contentDescription = null,
+                                    tint = if (isLocatingGps) CyanGlow else Color.Unspecified,
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = CyanZephyr.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.40f))
+                    ) {
+                        Text(
+                            text = if (isGreek) {
+                                "ΖΩΝΤΑΝΟΣ ΚΑΙΡΟΣ • ΠΟΛΕΙΣ, ΧΩΡΙΑ & ΥΨΟΜΕΤΡΟ"
+                            } else {
+                                "LIVE WEATHER • CITIES, VILLAGES & ELEVATION"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CyanGlow,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                        )
+                    }
+
+                    Text(
+                        text = if (isGreek) {
+                            if (isLocatingGps) "Εντοπισμός Τοποθεσίας GPS…" else "Καλώς ήρθατε στο Zephyr Weather"
+                        } else {
+                            if (isLocatingGps) "Locating via GPS…" else "Welcome to Zephyr Weather"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+
+                    Text(
+                        text = if (isGreek) {
+                            if (isLocatingGps) {
+                                "Λήψη συντεταγμένων GPS & υψομέτρου σε εξέλιξη… Ή αναζητήστε την πόλη ή το χωριό σας παρακάτω."
+                            } else {
+                                "Εντοπίστε αυτόματα την τοποθεσία σας με GPS ή αναζητήστε οποιαδήποτε πόλη, κωμόπολη ή χωριό σε όλο τον κόσμο."
+                            }
+                        } else {
+                            if (isLocatingGps) {
+                                "Acquiring your live GPS coordinates & altitude… Or search for any city or village below."
+                            } else {
+                                "Detect your current coordinates via GPS or search for any city, town, or mountain village worldwide."
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.80f)
+                    )
+
+                    // Primary Auto-Detect GPS Action Button inside the Hero Card
+                    Button(
+                        onClick = onRequestGpsLocation,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = EmeraldBreeze.copy(alpha = 0.25f)
+                        ),
+                        border = BorderStroke(1.3.dp, EmeraldBreeze),
+                        shape = RoundedCornerShape(22.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 13.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("setup_detect_gps_button")
+                    ) {
+                        if (isLocatingGps) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = EmeraldBreeze
+                            )
+                        } else {
                             Icon(
-                                imageVector = WeatherIcons.AddCircle,
-                                contentDescription = "Select location",
-                                tint = CyanGlow,
-                                modifier = Modifier.size(20.dp)
+                                imageVector = WeatherIcons.MyLocation,
+                                contentDescription = null,
+                                tint = EmeraldBreeze,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text(
+                                text = if (isGreek) {
+                                    if (isLocatingGps) "Αναζήτηση Σήματος GPS…" else "Αυτόματος Εντοπισμός Τοποθεσίας (GPS)"
+                                } else {
+                                    if (isLocatingGps) "Scanning GPS Satellites…" else "Auto-Detect My Location (GPS)"
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = if (isGreek) {
+                                    "Ακριβείς συντεταγμένες, υψόμετρο & τοπικός σταθμός"
+                                } else {
+                                    "Exact coordinates, elevation & local weather station"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = EmeraldBreeze
                             )
                         }
                     }
@@ -1323,54 +1299,290 @@ fun LocationSetupSearchingScreen(
             }
         }
 
-        // Popular Quick-Select Cities
-        if (suggestedCities.isNotEmpty()) {
+        // 2. Search Any City, Town, or Village Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF10243E).copy(alpha = 0.94f)
+            ),
+            border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.38f))
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = if (language == AppLanguage.GREEK) {
-                        "Δημοφιλείς Τοποθεσίες (Άμεση Επιλογή):"
-                    } else {
-                        "Popular Locations (Quick Select):"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = CyanGlow,
-                    fontWeight = FontWeight.SemiBold
-                )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Icon(
+                        imageVector = WeatherIcons.Search,
+                        contentDescription = null,
+                        tint = CyanGlow,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = if (isGreek) {
+                            "Αναζήτηση Πόλης ή Χωριού"
+                        } else {
+                            "Search Any City, Town, or Village"
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = {
+                        Text(
+                            text = if (isGreek) {
+                                "Πληκτρολογήστε πόλη ή χωριό (π.χ. Κάτω Παλαιοκαρυά)..."
+                            } else {
+                                "Type any city, town, or village (e.g. Kato Palaiokarya)..."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.62f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = WeatherIcons.Search,
+                            contentDescription = null,
+                            tint = CyanGlow,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = CyanZephyr
+                            )
+                        } else if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChange("") }) {
+                                Icon(
+                                    imageVector = WeatherIcons.Clear,
+                                    contentDescription = "Clear",
+                                    tint = Color.White.copy(alpha = 0.75f)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.95f),
+                        unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.88f),
+                        focusedBorderColor = CyanZephyr,
+                        unfocusedBorderColor = CyanZephyr.copy(alpha = 0.35f),
+                        cursorColor = CyanZephyr
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup_location_search_input")
+                )
+
+                // Live Search Results inside the Search Card
+                if (searchResults.isNotEmpty()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("setup_search_results_card"),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFF0A182B).copy(alpha = 0.92f),
+                        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
+                    ) {
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            searchResults.forEachIndexed { idx, city ->
+                                if (idx > 0) {
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSelectCity(city) }
+                                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                                        .testTag("setup_search_result_${city.id}"),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = CyanZephyr.copy(alpha = 0.16f),
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = WeatherIcons.LocationOn,
+                                                    contentDescription = null,
+                                                    tint = CyanGlow,
+                                                    modifier = Modifier.size(17.dp)
+                                                )
+                                            }
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = city.name,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            val elevLabel = if (city.elevationMeters > 0.0) {
+                                                if (isGreek) " • Υψόμετρο ${city.elevationMeters.toInt()} m" else " • Elev ${city.elevationMeters.toInt()} m"
+                                            } else ""
+                                            Text(
+                                                text = "${city.regionName}, ${city.countryName}$elevLabel",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White.copy(alpha = 0.72f)
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = WeatherIcons.AddCircle,
+                                        contentDescription = "Select location",
+                                        tint = EmeraldBreeze,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Popular Locations (Rich Interactive Cards with Weather Icons & Elevation)
+        if (suggestedCities.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF0E2138).copy(alpha = 0.90f)
+                ),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isGreek) {
+                                "Δημοφιλείς Προορισμοί (Άμεση Επιλογή)"
+                            } else {
+                                "Popular Destinations (Quick Select)"
+                            },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = CyanGlow,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = if (isGreek) "Πατήστε για επιλογή" else "Tap to open",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.58f)
+                        )
+                    }
+
                     suggestedCities.forEach { city ->
+                        val spec = WmoWeatherMapper.resolve(city.cachedWeatherCode, city.cachedIsDay)
+                        val elevBadge = if (city.elevationMeters > 0.0) {
+                            if (isGreek) " • Υψόμετρο ${city.elevationMeters.toInt()} m" else " • Elev ${city.elevationMeters.toInt()} m"
+                        } else ""
+
                         Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color(0xFF102542).copy(alpha = 0.90f),
-                            border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFF132B49).copy(alpha = 0.88f),
+                            border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.28f)),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(50))
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
                                 .clickable { onSelectCity(city) }
                                 .testTag("setup_quick_city_${city.id}")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = WeatherIcons.LocationOn,
-                                    contentDescription = null,
-                                    tint = CyanGlow,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = city.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFF0B1A2E),
+                                        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f)),
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = spec.icon,
+                                                contentDescription = null,
+                                                tint = Color.Unspecified,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = city.name,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                        Text(
+                                            text = "${city.regionName}, ${city.countryName}$elevBadge",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White.copy(alpha = 0.72f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = CyanZephyr.copy(alpha = 0.16f),
+                                        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f))
+                                    ) {
+                                        Text(
+                                            text = if (isGreek) "Επιλογή" else "Select",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = CyanGlow,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

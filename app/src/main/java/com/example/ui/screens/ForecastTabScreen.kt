@@ -1368,8 +1368,24 @@ fun CurrentWeatherHeroSection(
                     color = Color.White.copy(alpha = 0.82f),
                     modifier = Modifier.testTag("hero_condition_description")
                 )
+
+                // CurrentWeather Composable Row: Temperature, Conditions, Humidity & Location Coordinates
+                if (bundle != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    CurrentWeather(
+                        temperatureText = temperatureDisplay,
+                        conditionText = conditionLabel,
+                        humidityPercent = bundle.current.humidity,
+                        latitude = bundle.latitude,
+                        longitude = bundle.longitude,
+                        elevationMeters = bundle.elevationMeters,
+                        language = language,
+                        visualSpec = visualSpec
+                    )
+                }
+
                 if (bundle != null && bundle.rainOutlook.hasRainInNext48h) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1388,6 +1404,183 @@ fun CurrentWeatherHeroSection(
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Displays live temperature, weather conditions, and humidity based on the user's current location coordinates.
+ */
+@Composable
+fun CurrentWeather(
+    temperatureText: String,
+    conditionText: String,
+    humidityPercent: Int,
+    latitude: Double,
+    longitude: Double,
+    elevationMeters: Double = 0.0,
+    language: AppLanguage = AppLanguage.ENGLISH,
+    visualSpec: com.example.model.WeatherVisualSpec = WmoWeatherMapper.resolve(2, isDay = true),
+    modifier: Modifier = Modifier
+) {
+    val isGreek = language == AppLanguage.GREEK
+    val latDir = if (latitude >= 0.0) "N" else "S"
+    val lonDir = if (longitude >= 0.0) "E" else "W"
+    val coordsLabel = remember(latitude, longitude, elevationMeters, isGreek) {
+        val baseCoords = String.format(
+            Locale.US,
+            "%.4f°%s, %.4f°%s",
+            kotlin.math.abs(latitude),
+            latDir,
+            kotlin.math.abs(longitude),
+            lonDir
+        )
+        if (elevationMeters > 0.0) {
+            val elevWord = if (isGreek) "Υψόμετρο" else "Elev"
+            "$baseCoords • $elevWord ${elevationMeters.roundToInt()} m"
+        } else {
+            baseCoords
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFF0A1628).copy(alpha = 0.72f),
+        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("current_weather_composable")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Coordinates header row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = WeatherIcons.MyLocation,
+                        contentDescription = null,
+                        tint = EmeraldBreeze,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = if (isGreek) "Συντεταγμένες Τοποθεσίας" else "Location Coordinates",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldBreeze
+                    )
+                }
+                Text(
+                    text = coordsLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.80f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag("current_weather_coordinates_text")
+                )
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+
+            // 3-Column Telemetry Strip: Temperature, Conditions, Humidity
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 1. Temperature
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        text = if (isGreek) "ΘΕΡΜΟΚΡΑΣΙΑ" else "TEMPERATURE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.64f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = temperatureText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = AmberSol,
+                        modifier = Modifier.testTag("current_weather_temperature_value")
+                    )
+                }
+
+                // 2. Conditions
+                Column(
+                    modifier = Modifier.weight(1.3f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (isGreek) "ΣΥΝΘΗΚΕΣ" else "CONDITIONS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.64f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        AnimatedWeatherStatusIcon(
+                            visualSpec = visualSpec,
+                            iconSize = 18.dp,
+                            contentDescription = conditionText
+                        )
+                        Text(
+                            text = conditionText,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("current_weather_condition_value")
+                        )
+                    }
+                }
+
+                // 3. Humidity
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = if (isGreek) "ΥΓΡΑΣΙΑ" else "HUMIDITY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.64f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = WeatherIcons.WaterDrop,
+                            contentDescription = null,
+                            tint = CyanGlow,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "$humidityPercent%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CyanGlow,
+                            modifier = Modifier.testTag("current_weather_humidity_value")
                         )
                     }
                 }

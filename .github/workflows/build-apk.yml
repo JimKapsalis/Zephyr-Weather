@@ -1,0 +1,77 @@
+name: Build & Release Zephyr Weather APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Installable Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Decode Debug Keystore if Base64 Present
+        run: |
+          if [ -f "app/debug.keystore.base64" ] && [ ! -f "app/debug.keystore" ]; then
+            base64 -d app/debug.keystore.base64 > app/debug.keystore
+          fi
+
+      - name: Build Debug & Release APKs
+        run: |
+          chmod +x gradlew || true
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug assembleRelease
+          else
+            gradle assembleDebug assembleRelease
+          fi
+
+      - name: Prepare Direct-Download APK Package
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/ZephyrWeather.apk
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk dist/ZephyrWeather-release.apk
+          fi
+
+      - name: Upload ZephyrWeather.apk Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZephyrWeather-APK
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Publish Direct-Download APK to GitHub Releases
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.6.0
+          name: "Zephyr Weather v2.6.0 (Direct APK Download)"
+          body: |
+            ### 🌦️ Zephyr Weather v2.6.0 — Direct Android APK Download
+            - **Direct APK Download**: Tap **`ZephyrWeather.apk`** below under **Assets** to install directly on your Android phone or tablet.
+            - **Multi-Model Ensemble Forecast**: Auto-fuses **ECMWF IFS (0.25°)**, **DWD ICON (2–7 km Europe & Mountain Terrain)**, **Météo-France AROME/ARPEGE**, **NOAA GFS + HRRR**, and **UK Met Office** with 15-minute live Doppler Nowcast assimilation.
+            - **True GPS Location & Global Village Search**: Real-time `FusedLocationProviderClient` GPS detection + full Greek & global village search (including mountain villages with exact elevation / Υψόμετρο).
+          files: |
+            dist/ZephyrWeather.apk
+            dist/ZephyrWeather-release.apk
+          prerelease: false
+          overwrite: true
