@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release version tag (e.g., v2.8.0)'
+        description: 'Release version tag (e.g., v2.9.0)'
         required: false
-        default: 'v2.8.0'
+        default: 'v2.9.0'
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
         run: |
           gradle assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather.apk
-          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather-v2.8.0.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather-v2.9.0.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -43,7 +43,7 @@ jobs:
           name: ZephyrWeather-APK
           path: |
             ZephyrWeather.apk
-            ZephyrWeather-v2.8.0.apk
+            ZephyrWeather-v2.9.0.apk
 
       - name: Update Direct Download APK in Repository Root
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -51,20 +51,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ZephyrWeather.apk
-          git diff --staged --quiet || git commit -m "chore: update direct download ZephyrWeather.apk (v2.8.0) [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: update direct download ZephyrWeather.apk (v2.9.0) [skip ci]"
           git push
 
-      - name: Publish APK to GitHub Releases (v2.8.0 / Latest)
+      - name: Publish APK to GitHub Releases (v2.9.0 / Latest)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag || 'v2.8.0' }}
-          name: "Zephyr Weather v2.8.0 — 4-Model Ensemble, Instant GPS & Best Performance for All Devices"
+          tag_name: ${{ github.event.inputs.release_tag || 'v2.9.0' }}
+          name: "Zephyr Weather v2.9.0 — 4-Model Ensemble, Instant GPS & Best Performance for All Devices"
           make_latest: true
           files: |
             ZephyrWeather.apk
-            ZephyrWeather-v2.8.0.apk
+            ZephyrWeather-v2.9.0.apk
           body: |
-            ## 🌤️ Zephyr Weather v2.8.0 (Build 28) — Universal High-Performance Release
+            ## 🌤️ Zephyr Weather v2.9.0 (Build 28) — Universal High-Performance Release
             ### ⚡ Maximum Performance & Battery Efficiency Across All Android Devices
             - **Universal 60Hz / 90Hz / 120Hz Smooth Rendering**: Draw-phase Compose weather animations and lifecycle-aware frame scheduling deliver silky-smooth visuals across all Android phones and tablets while using minimal RAM (`~70 MB`).
             - **Zero Background Drain**: Doze-friendly `JobScheduler` synchronization and automatic `ON_STOP` lifecycle pausing ensure zero background CPU keep-awake when your screen is off.

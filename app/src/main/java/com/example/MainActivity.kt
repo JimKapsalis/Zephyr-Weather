@@ -415,17 +415,7 @@ fun ZephyrWeatherApp(
             locationGranted = hasFine || hasCoarse,
             notificationGranted = hasNotif
         )
-        val prefs = com.example.data.WeatherPreferences(context)
-        val initialGpsDone = prefs.hasCompletedInitialGpsSetup()
-        if ((hasFine || hasCoarse) && !initialGpsDone && state.savedCities.isEmpty()) {
-            fetchCurrentCoordinatesWithFusedClient(
-                context = context,
-                fusedLocationClient = activeFusedClient,
-                viewModel = viewModel
-            )
-        } else {
-            viewModel.autoDetectLocationOnLoad(context, hasFine || hasCoarse)
-        }
+        viewModel.autoDetectLocationOnLoad(context, hasFine || hasCoarse)
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -667,31 +657,14 @@ fun ZephyrWeatherApp(
                             WeatherNavTab.FORECAST -> {
                                 when (currentLoadingState) {
                                     is LoadingState.Loading -> {
-                                        if (state.isLocatingGps || state.savedCities.isEmpty()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .testTag("loading_empty_scaffold")
-                                            ) {
-                                                LocationSetupSearchingScreen(
-                                                    language = state.language,
-                                                    isLocatingGps = state.isLocatingGps,
-                                                    searchQuery = state.searchQuery,
-                                                    searchResults = state.searchResults,
-                                                    isSearching = state.isSearching,
-                                                    suggestedCities = state.suggestedCities,
-                                                    canDismiss = state.savedCities.isNotEmpty(),
-                                                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
-                                                    onSelectCity = { viewModel.addAndSelectCity(it) },
-                                                    onRequestGpsLocation = triggerGpsLocate,
-                                                    onDismiss = {
-                                                        state.savedCities.firstOrNull()?.let { viewModel.selectCity(it) }
-                                                    }
-                                                )
-                                            }
-                                        } else {
+                                        val fallbackCity = state.savedCities.find { it.id == state.selectedCityId }
+                                            ?: state.savedCities.firstOrNull()
+                                        val resolvedBundle = state.primaryBundle
+                                            ?: fallbackCity?.let { viewModel.buildFallbackPreviewForUi(it) }
+
+                                        if (resolvedBundle != null) {
                                             ForecastTabScreen(
-                                                bundle = state.primaryBundle,
+                                                bundle = resolvedBundle,
                                                 savedCities = state.savedCities,
                                                 suggestedCities = state.suggestedCities,
                                                 selectedCityId = state.selectedCityId,
@@ -725,6 +698,31 @@ fun ZephyrWeatherApp(
                                                 onToggleExpandDay = { viewModel.toggleExpandedDay(it) },
                                                 onNavigateToRadar = { viewModel.selectTab(WeatherNavTab.RADAR) }
                                             )
+                                        } else if (state.isInitialDbLoaded && (state.isLocatingGps || state.savedCities.isEmpty())) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .testTag("loading_empty_scaffold")
+                                            ) {
+                                                LocationSetupSearchingScreen(
+                                                    language = state.language,
+                                                    isLocatingGps = state.isLocatingGps,
+                                                    searchQuery = state.searchQuery,
+                                                    searchResults = state.searchResults,
+                                                    isSearching = state.isSearching,
+                                                    suggestedCities = state.suggestedCities,
+                                                    canDismiss = state.savedCities.isNotEmpty(),
+                                                    onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                                                    onSelectCity = { viewModel.addAndSelectCity(it) },
+                                                    onRequestGpsLocation = triggerGpsLocate,
+                                                    onDismiss = {
+                                                        state.savedCities.firstOrNull()?.let { viewModel.selectCity(it) }
+                                                    }
+                                                )
+                                            }
+                                        } else {
+                                            // Silent 1-frame empty box while Room DB reads saved cities on startup (< 30ms)
+                                            Box(modifier = Modifier.fillMaxSize())
                                         }
                                     }
 
@@ -784,44 +782,47 @@ fun ZephyrWeatherApp(
                             }
 
                             WeatherNavTab.RADAR -> {
-                                when (currentLoadingState) {
-                                    is LoadingState.Success -> {
-                                        RadarTabScreen(
-                                            bundle = currentLoadingState.bundle,
-                                            units = state.units,
+                                val fallbackCity = state.savedCities.find { it.id == state.selectedCityId }
+                                    ?: state.savedCities.firstOrNull()
+                                val resolvedRadarBundle = (currentLoadingState as? LoadingState.Success)?.bundle
+                                    ?: state.primaryBundle
+                                    ?: fallbackCity?.let { viewModel.buildFallbackPreviewForUi(it) }
+                                if (resolvedRadarBundle != null) {
+                                    RadarTabScreen(
+                                        bundle = resolvedRadarBundle,
+                                        units = state.units,
+                                        language = state.language,
+                                        selectedLayer = state.radarLayer,
+                                        selectedTimelineIndex = state.radarTimelineIndex,
+                                        isRefreshing = state.isRefreshing,
+                                        onRefresh = { viewModel.refreshCurrentWeather() },
+                                        onSelectLayer = { viewModel.selectRadarLayer(it) },
+                                        onSelectTimelineIndex = { viewModel.selectRadarTimelineIndex(it) }
+                                    )
+                                } else if (state.isInitialDbLoaded) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .testTag("loading_empty_scaffold")
+                                    ) {
+                                        LocationSetupSearchingScreen(
                                             language = state.language,
-                                            selectedLayer = state.radarLayer,
-                                            selectedTimelineIndex = state.radarTimelineIndex,
-                                            isRefreshing = state.isRefreshing,
-                                            onRefresh = { viewModel.refreshCurrentWeather() },
-                                            onSelectLayer = { viewModel.selectRadarLayer(it) },
-                                            onSelectTimelineIndex = { viewModel.selectRadarTimelineIndex(it) }
+                                            isLocatingGps = state.isLocatingGps,
+                                            searchQuery = state.searchQuery,
+                                            searchResults = state.searchResults,
+                                            isSearching = state.isSearching,
+                                            suggestedCities = state.suggestedCities,
+                                            canDismiss = state.savedCities.isNotEmpty(),
+                                            onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                                            onSelectCity = { viewModel.addAndSelectCity(it) },
+                                            onRequestGpsLocation = triggerGpsLocate,
+                                            onDismiss = {
+                                                state.savedCities.firstOrNull()?.let { viewModel.selectCity(it) }
+                                            }
                                         )
                                     }
-
-                                    else -> {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .testTag("loading_empty_scaffold")
-                                        ) {
-                                            LocationSetupSearchingScreen(
-                                                language = state.language,
-                                                isLocatingGps = state.isLocatingGps,
-                                                searchQuery = state.searchQuery,
-                                                searchResults = state.searchResults,
-                                                isSearching = state.isSearching,
-                                                suggestedCities = state.suggestedCities,
-                                                canDismiss = state.savedCities.isNotEmpty(),
-                                                onSearchQueryChange = { viewModel.updateSearchQuery(it) },
-                                                onSelectCity = { viewModel.addAndSelectCity(it) },
-                                                onRequestGpsLocation = triggerGpsLocate,
-                                                onDismiss = {
-                                                    state.savedCities.firstOrNull()?.let { viewModel.selectCity(it) }
-                                                }
-                                            )
-                                        }
-                                    }
+                                } else {
+                                    Box(modifier = Modifier.fillMaxSize())
                                 }
                             }
 

@@ -101,15 +101,16 @@ data class WeatherUiState(
     val isLocationPermissionGranted: Boolean = false,
     val isNotificationPermissionGranted: Boolean = false,
     val isLocationSetupOpen: Boolean = false,
+    val isInitialDbLoaded: Boolean = false,
     val activeSevereAlert: SevereWeatherAlertEvent? = null,
     val activeSevereAlerts: List<SevereWeatherAlertEvent> = emptyList(),
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v2.8.0 (Build 28)",
+    val appVersionLabel: String = "v2.9.0 (Build 29)",
     val lastUpdateCheckStatus: String? = null,
     val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
-    val latestReleaseTag: String = "v2.8.0",
+    val latestReleaseTag: String = "v2.9.0",
     val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.apk",
     val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
     val latestReleaseNotes: String? = null,
@@ -168,14 +169,21 @@ class WeatherViewModel(
             runCatching {
                 val initialCities = repository.ensureDefaultCitiesSeeded(preferences)
                 if (initialCities.isNotEmpty()) {
+                    preferences?.markInitialGpsSetupCompleted()
                     val preferredId = preferences?.loadSelectedCityId() ?: -1L
                     val primaryCity = initialCities.find { it.id == preferredId }
                         ?: initialCities.first()
                     preferences?.saveSelectedCityId(primaryCity.id)
+                    val instantBundle = repository.buildInstantPreviewBundle(primaryCity, initialProvider)
                     _uiState.update {
                         it.copy(
+                            loadingState = LoadingState.Success(instantBundle),
+                            primaryBundle = it.primaryBundle ?: instantBundle,
                             savedCities = initialCities,
-                            selectedCityId = primaryCity.id
+                            selectedCityId = primaryCity.id,
+                            isInitialDbLoaded = true,
+                            isLocationSetupOpen = false,
+                            isLocatingGps = false
                         )
                     }
                     loadWeatherForCity(primaryCity)
@@ -184,10 +192,13 @@ class WeatherViewModel(
                     _uiState.update {
                         it.copy(
                             savedCities = emptyList(),
-                            selectedCityId = -1L
+                            selectedCityId = -1L,
+                            isInitialDbLoaded = true
                         )
                     }
                 }
+            }.onFailure {
+                _uiState.update { it.copy(isInitialDbLoaded = true) }
             }
         }
 
@@ -426,16 +437,24 @@ class WeatherViewModel(
         }
     }
 
+    fun buildFallbackPreviewForUi(city: SavedCityEntity): CityWeatherBundle {
+        return repository.buildInstantPreviewBundle(city, _uiState.value.selectedProvider)
+    }
+
     fun selectCity(city: SavedCityEntity, switchToForecastTab: Boolean = true) {
         preferences?.saveSelectedCityId(city.id)
+        val instantBundle = repository.buildInstantPreviewBundle(city, _uiState.value.selectedProvider)
         _uiState.update {
             it.copy(
+                loadingState = LoadingState.Success(instantBundle),
+                primaryBundle = instantBundle,
                 selectedCityId = city.id,
                 selectedHourIndex = 0,
                 expandedDayIndex = null,
                 isLocationSetupOpen = false,
+                isLocatingGps = false,
                 activeTab = if (switchToForecastTab) WeatherNavTab.FORECAST else it.activeTab,
-                isRefreshing = true,
+                isRefreshing = false,
                 dismissedAlertIds = emptySet()
             )
         }
@@ -808,6 +827,7 @@ class WeatherViewModel(
             preferences?.removeDeletedCityName(city.name)
             preferences?.removeDeletedCityName(cleanName)
             preferences?.saveSelectedCityId(city.id)
+            preferences?.markInitialGpsSetupCompleted()
             val saved = city.copy(
                 name = cleanName,
                 isCurrentGps = false,
@@ -815,14 +835,18 @@ class WeatherViewModel(
                 lastUpdatedEpochMs = System.currentTimeMillis()
             )
             repository.saveCity(saved)
+            val instantBundle = repository.buildInstantPreviewBundle(saved, _uiState.value.selectedProvider)
             _uiState.update {
                 it.copy(
+                    loadingState = LoadingState.Success(instantBundle),
+                    primaryBundle = instantBundle,
                     searchQuery = "",
                     searchResults = emptyList(),
                     selectedCityId = saved.id,
                     isLocationSetupOpen = false,
+                    isLocatingGps = false,
                     activeTab = WeatherNavTab.FORECAST,
-                    isRefreshing = true
+                    isRefreshing = false
                 )
             }
             loadWeatherForCity(saved)
@@ -1112,10 +1136,30 @@ class WeatherViewModel(
             }
             if (saved.isNotEmpty()) {
                 preferences?.markInitialGpsSetupCompleted()
+                val activeCity = saved.find { it.id == _uiState.value.selectedCityId }
+                    ?: saved.first()
                 if (_uiState.value.primaryBundle == null) {
-                    val activeCity = saved.find { it.id == _uiState.value.selectedCityId }
-                        ?: saved.first()
+                    val instantBundle = repository.buildInstantPreviewBundle(activeCity, _uiState.value.selectedProvider)
+                    _uiState.update {
+                        it.copy(
+                            loadingState = LoadingState.Success(instantBundle),
+                            primaryBundle = instantBundle,
+                            savedCities = saved,
+                            selectedCityId = activeCity.id,
+                            isInitialDbLoaded = true,
+                            isLocationSetupOpen = false,
+                            isLocatingGps = false
+                        )
+                    }
                     loadWeatherForCity(activeCity)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isInitialDbLoaded = true,
+                            isLocationSetupOpen = false,
+                            isLocatingGps = false
+                        )
+                    }
                 }
                 return@launch
             }
@@ -1127,6 +1171,7 @@ class WeatherViewModel(
             } else {
                 _uiState.update {
                     it.copy(
+                        isInitialDbLoaded = true,
                         isLocatingGps = false,
                         isLocationSetupOpen = true
                     )
@@ -1679,7 +1724,7 @@ class WeatherViewModel(
 
     companion object {
         const val FEEDBACK_RECIPIENT_EMAIL = ""
-        const val CURRENT_APP_VERSION_TAG = "v2.8.0"
+        const val CURRENT_APP_VERSION_TAG = "v2.9.0"
 
         fun isRemoteVersionNewer(remoteTag: String, currentTag: String): Boolean {
             val remoteParts = remoteTag.trim().removePrefix("v").removePrefix("V")

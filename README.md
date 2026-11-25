@@ -2,7 +2,7 @@
 
 <img src="app/src/main/res/drawable/ic_launcher_foreground.png" width="124" height="124" alt="Zephyr Weather Icon" />
 
-# 🌤️ Zephyr Weather for Android (`v2.8.0`)
+# 🌤️ Zephyr Weather for Android (`v2.9.0`)
 ### **4-Model Super-Ensemble Forecasting • Instant GPS • Best Performance for All Android Devices • Live Doppler Radar • Bilingual (EN / ΕΛ)**
 
 ---
@@ -13,11 +13,11 @@
   <tr>
     <td align="center" width="540">
       <br/>
-      <h2>🚀 <b>OFFICIAL ANDROID APK INSTALLER (v2.8.0 • Build 28)</b></h2>
+      <h2>🚀 <b>OFFICIAL ANDROID APK INSTALLER (v2.9.0 • Build 28)</b></h2>
       <p><b>Tap either button below on your Android phone or tablet to download & install <code>ZephyrWeather.apk</code> immediately:</b></p>
       <p>
         <a href="../../releases/latest/download/ZephyrWeather.apk">
-          <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK_NOW-ZephyrWeather.apk_(v2.8.0)-10B981?style=for-the-badge&logo=android&logoColor=white" height="54" alt="Download APK from Releases" />
+          <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK_NOW-ZephyrWeather.apk_(v2.9.0)-10B981?style=for-the-badge&logo=android&logoColor=white" height="54" alt="Download APK from Releases" />
         </a>
       </p>
       <p>
@@ -26,7 +26,7 @@
         </a>
       </p>
       <p>
-        🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v2.8.0)</b></a> &nbsp;•&nbsp;
+        🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v2.9.0)</b></a> &nbsp;•&nbsp;
         📥 <a href="./ZephyrWeather.apk"><b>Direct File: <code>/ZephyrWeather.apk</code></b></a>
       </p>
       <br/>
@@ -36,7 +36,7 @@
 
 ---
 
-[![Latest Release](https://img.shields.io/badge/GitHub_Release-v2.8.0-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Latest Release](https://img.shields.io/badge/GitHub_Release-v2.9.0-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
 [![Universal Performance](https://img.shields.io/badge/All_Android_Devices-60Hz_%2F_90Hz_%2F_120Hz_Optimized-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-changelog--all-device-performance-engine-v280)
 [![4-Model Ensemble](https://img.shields.io/badge/NWP_Ensemble-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
 
@@ -44,7 +44,7 @@
 
 ---
 
-## 📋 Changelog & All-Device Performance Engine (`v2.8.0`)
+## 📋 Changelog & All-Device Performance Engine (`v2.9.0`)
 
 - **Universal Best Performance Across All Android Devices**: Engineered for smooth 60Hz, 90Hz, and 120Hz rendering on all Android phones and tablets with draw-phase Compose animations, zero per-frame list recompositions, and a lightweight `~70 MB` memory footprint.
 - **Ultra-Low Battery Consumption**: Uses Android's Doze-aware `JobScheduler` and automatic `ON_STOP` lifecycle pausing so all particle canvases, clocks, and background tasks sleep completely when the screen is off.
@@ -83,8 +83,8 @@ When **Multi-Model Ensemble (`BEST_MATCH`)** is selected, Zephyr Weather queries
 
 ```text
 .
-├── .github/workflows/build-apk.yml   # Automated APK Build & GitHub Releases Publisher (v2.8.0)
-├── ZephyrWeather.apk                 # Direct-download Android APK package (v2.8.0, Build 28)
+├── .github/workflows/build-apk.yml   # Automated APK Build & GitHub Releases Publisher (v2.9.0)
+├── ZephyrWeather.apk                 # Direct-download Android APK package (v2.9.0, Build 28)
 └── app/src/main/
     ├── AndroidManifest.xml
     ├── java/com/example/
