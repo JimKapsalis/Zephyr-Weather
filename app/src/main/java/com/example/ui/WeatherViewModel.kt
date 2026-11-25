@@ -106,10 +106,10 @@ data class WeatherUiState(
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v2.7.0 (Build 27)",
+    val appVersionLabel: String = "v2.8.0 (Build 28)",
     val lastUpdateCheckStatus: String? = null,
     val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
-    val latestReleaseTag: String = "v2.7.0",
+    val latestReleaseTag: String = "v2.8.0",
     val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.apk",
     val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
     val latestReleaseNotes: String? = null,
@@ -1329,9 +1329,31 @@ class WeatherViewModel(
             context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
         }.getOrNull()
 
-        // 1. Check fast last-known location from both FusedLocationProviderClient and Android LocationManager
+        // 1. Check fast last-known location from Android LocationManager (< 5ms) and FusedLocationProviderClient (< 350ms)
+        val managerLast = runCatching {
+            if (locManager == null) return@runCatching null
+            val providers = buildList {
+                if (hasFine) {
+                    add(LocationManager.GPS_PROVIDER)
+                    add(LocationManager.PASSIVE_PROVIDER)
+                }
+                add(LocationManager.NETWORK_PROVIDER)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    add(LocationManager.FUSED_PROVIDER)
+                }
+            }
+            providers.mapNotNull { provider ->
+                runCatching { locManager.getLastKnownLocation(provider) }.getOrNull()
+            }.filter { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
+                .maxByOrNull { it.time }
+        }.getOrNull()
+
+        if (managerLast != null && (System.currentTimeMillis() - managerLast.time) < 6 * 60 * 60 * 1000L) {
+            return managerLast
+        }
+
         val fusedLast = if (fusedClient != null) {
-            withTimeoutOrNull(1000L) {
+            withTimeoutOrNull(350L) {
                 suspendCancellableCoroutine<Location?> { cont ->
                     val resumed = AtomicBoolean(false)
                     fun safeResume(loc: Location?) {
@@ -1353,34 +1375,16 @@ class WeatherViewModel(
             null
         }
 
-        val managerLast = runCatching {
-            if (locManager == null) return@runCatching null
-            val providers = buildList {
-                if (hasFine) {
-                    add(LocationManager.GPS_PROVIDER)
-                    add(LocationManager.PASSIVE_PROVIDER)
-                }
-                add(LocationManager.NETWORK_PROVIDER)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    add(LocationManager.FUSED_PROVIDER)
-                }
-            }
-            providers.mapNotNull { provider ->
-                runCatching { locManager.getLastKnownLocation(provider) }.getOrNull()
-            }.filter { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
-                .maxByOrNull { it.time }
-        }.getOrNull()
-
         val validFusedLast = fusedLast?.takeIf { !isDefaultEmulatorMockCoords(it.latitude, it.longitude) }
         val bestCached = listOfNotNull(validFusedLast, managerLast).maxByOrNull { it.time }
 
-        if (bestCached != null && (System.currentTimeMillis() - bestCached.time) < 30 * 60 * 1000L) {
+        if (bestCached != null) {
             return bestCached
         }
 
         // 2. Request a live fix using high accuracy, balanced accuracy, and LocationManager in parallel,
         // completing immediately as soon as the fastest provider returns a valid fix.
-        val freshFix = withTimeoutOrNull(4800L) {
+        val freshFix = withTimeoutOrNull(2600L) {
             coroutineScope {
                 val firstValidFix = CompletableDeferred<Location?>()
                 val remainingSources = java.util.concurrent.atomic.AtomicInteger(3)
@@ -1554,7 +1558,7 @@ class WeatherViewModel(
         lon: Double,
         locale: Locale
     ): Address? = withContext(Dispatchers.IO) {
-        withTimeoutOrNull(2500L) {
+        withTimeoutOrNull(1200L) {
             runCatching {
                 val geocoder = Geocoder(context, locale)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1592,7 +1596,7 @@ class WeatherViewModel(
 
         val localDeferred = async { reverseGeocodeWithAndroidGeocoder(context, lat, lon, locale) }
         val remoteDeferred = async {
-            withTimeoutOrNull(2500L) {
+            withTimeoutOrNull(1300L) {
                 repository.reverseGeocodeCoordinates(lat, lon, lang.code)
             }
         }
@@ -1675,7 +1679,7 @@ class WeatherViewModel(
 
     companion object {
         const val FEEDBACK_RECIPIENT_EMAIL = ""
-        const val CURRENT_APP_VERSION_TAG = "v2.7.0"
+        const val CURRENT_APP_VERSION_TAG = "v2.8.0"
 
         fun isRemoteVersionNewer(remoteTag: String, currentTag: String): Boolean {
             val remoteParts = remoteTag.trim().removePrefix("v").removePrefix("V")

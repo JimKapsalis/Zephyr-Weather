@@ -105,9 +105,10 @@ class ExampleRobolectricTest {
     @Test
     fun `verify weather providers count and model queries`() {
         val providers = com.example.model.WeatherProvider.entries
-        assertEquals(3, providers.size)
+        assertEquals(4, providers.size)
         assertEquals(null, com.example.model.WeatherProvider.BEST_MATCH.modelQuery)
         assertEquals("ecmwf_ifs025", com.example.model.WeatherProvider.ECMWF.modelQuery)
+        assertEquals("icon_seamless", com.example.model.WeatherProvider.DWD_ICON.modelQuery)
         assertEquals("gfs_seamless", com.example.model.WeatherProvider.NOAA_GFS.modelQuery)
     }
 
@@ -664,47 +665,9 @@ class ExampleRobolectricTest {
         if (sourceApk != null) {
             val apkBytes = sourceApk.readBytes()
             val rootDir = java.io.File("/app/applet").takeIf { it.exists() } ?: java.io.File("..").canonicalFile
-
-            // 1. Write fresh raw APK to root and public/ with current timestamp
-            val rootApk = java.io.File(rootDir, "ZephyrWeather-debug.apk")
+            val rootApk = java.io.File(rootDir, "ZephyrWeather.apk")
             rootApk.writeBytes(apkBytes)
-
-            val publicDir = java.io.File(rootDir, "public")
-            if (publicDir.exists()) {
-                java.io.File(publicDir, "ZephyrWeather-debug.apk").writeBytes(apkBytes)
-            }
-
-            // 2. Write .bin copy in root (guaranteed synced by binary .bin rules)
-            val binApk = java.io.File(rootDir, "ZephyrWeather-debug-RENAME-TO-APK.bin")
-            binApk.writeBytes(apkBytes)
-
-            // 3. Write chunked pure-ASCII JS parts (<= 2.2 MB each) + 4 KB DOWNLOAD_APK_HERE.html
-            val base64Apk = java.util.Base64.getEncoder().encodeToString(apkBytes)
-            val partsDir = java.io.File(rootDir, "apk_parts")
-            if (partsDir.exists()) {
-                partsDir.listFiles()?.forEach { it.delete() }
-            } else {
-                partsDir.mkdirs()
-            }
-
-            val chunkSize = 2_000_000 // 2.0 MB per pure-ASCII JS file
-            val chunkFiles = mutableListOf<String>()
-            var offset = 0
-            var partIndex = 1
-            while (offset < base64Apk.length) {
-                val end = minOf(offset + chunkSize, base64Apk.length)
-                val slice = base64Apk.substring(offset, end)
-                val fileName = "apk_part_$partIndex.js"
-                val partFile = java.io.File(partsDir, fileName)
-                partFile.writeText("window.ZEPHYR_APK_PARTS = window.ZEPHYR_APK_PARTS || []; // part $partIndex\nwindow.ZEPHYR_APK_PARTS.push(\"$slice\");\n")
-                chunkFiles.add("apk_parts/$fileName")
-                offset = end
-                partIndex++
-            }
-
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
-            assertTrue(binApk.exists() && binApk.length() > 100_000L)
-            assertTrue(chunkFiles.isNotEmpty())
         }
     }
 }

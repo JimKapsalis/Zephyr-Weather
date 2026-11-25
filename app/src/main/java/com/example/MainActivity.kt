@@ -127,7 +127,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         setContent {
             ZephyrWeatherApp(fusedLocationClient = fusedLocationClient)
         }
@@ -155,36 +161,73 @@ fun fetchCurrentCoordinatesWithFusedClient(
     }
 
     viewModel.onFusedLocationSearchStarted()
-    val useBatterySaver = viewModel.uiState.value.batterySaverSyncEnabled
-    val priority = if (hasFine && !useBatterySaver) {
-        Priority.PRIORITY_HIGH_ACCURACY
-    } else {
-        Priority.PRIORITY_BALANCED_POWER_ACCURACY
-    }
-    val cancellationTokenSource = CancellationTokenSource()
-    runCatching {
-        fusedLocationClient.getCurrentLocation(priority, cancellationTokenSource.token)
-            .addOnCompleteListener {
-                runCatching { cancellationTokenSource.cancel() }
+
+    // Fast-path #1: Check synchronous Android LocationManager lastKnownLocation (< 5ms)
+    val locManager = runCatching {
+        context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+    }.getOrNull()
+    val fastCachedLoc = runCatching {
+        if (locManager == null) return@runCatching null
+        val providers = buildList {
+            if (hasFine) {
+                add(android.location.LocationManager.GPS_PROVIDER)
+                add(android.location.LocationManager.PASSIVE_PROVIDER)
             }
-            .addOnSuccessListener { location ->
-                if (location != null && (kotlin.math.abs(location.latitude) >= 0.01 || kotlin.math.abs(location.longitude) >= 0.01)) {
+            add(android.location.LocationManager.NETWORK_PROVIDER)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(android.location.LocationManager.FUSED_PROVIDER)
+            }
+        }
+        providers.mapNotNull { provider ->
+            runCatching { locManager.getLastKnownLocation(provider) }.getOrNull()
+        }.filter { loc ->
+            val isZero = kotlin.math.abs(loc.latitude) < 0.01 && kotlin.math.abs(loc.longitude) < 0.01
+            val isMock = loc.latitude in 37.65..37.85 && loc.longitude in -97.95..-97.70
+            !isZero && !isMock
+        }.maxByOrNull { it.time }
+    }.getOrNull()
+
+    if (fastCachedLoc != null && (System.currentTimeMillis() - fastCachedLoc.time) < 6 * 60 * 60 * 1000L) {
+        viewModel.onGpsCoordinatesResolved(
+            context = context,
+            latitude = fastCachedLoc.latitude,
+            longitude = fastCachedLoc.longitude,
+            altitude = fastCachedLoc.altitude
+        )
+        return
+    }
+
+    // Fast-path #2: Check FusedLocationProviderClient.lastLocation first (< 40ms) before waiting on a hardware fix
+    runCatching {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { lastLoc ->
+                val validLast = lastLoc != null &&
+                    (kotlin.math.abs(lastLoc.latitude) >= 0.01 || kotlin.math.abs(lastLoc.longitude) >= 0.01) &&
+                    !(lastLoc.latitude in 37.65..37.85 && lastLoc.longitude in -97.95..-97.70)
+                if (validLast && lastLoc != null) {
                     viewModel.onGpsCoordinatesResolved(
                         context = context,
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        altitude = location.altitude
+                        latitude = lastLoc.latitude,
+                        longitude = lastLoc.longitude,
+                        altitude = lastLoc.altitude
                     )
                 } else {
+                    val cancellationTokenSource = CancellationTokenSource()
                     runCatching {
-                        fusedLocationClient.lastLocation
-                            .addOnSuccessListener { lastLoc ->
-                                if (lastLoc != null && (kotlin.math.abs(lastLoc.latitude) >= 0.01 || kotlin.math.abs(lastLoc.longitude) >= 0.01)) {
+                        fusedLocationClient.getCurrentLocation(
+                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                            cancellationTokenSource.token
+                        )
+                            .addOnCompleteListener {
+                                runCatching { cancellationTokenSource.cancel() }
+                            }
+                            .addOnSuccessListener { location ->
+                                if (location != null && (kotlin.math.abs(location.latitude) >= 0.01 || kotlin.math.abs(location.longitude) >= 0.01)) {
                                     viewModel.onGpsCoordinatesResolved(
                                         context = context,
-                                        latitude = lastLoc.latitude,
-                                        longitude = lastLoc.longitude,
-                                        altitude = lastLoc.altitude
+                                        latitude = location.latitude,
+                                        longitude = location.longitude,
+                                        altitude = location.altitude
                                     )
                                 } else {
                                     viewModel.detectGpsLocation(context)
@@ -194,16 +237,15 @@ fun fetchCurrentCoordinatesWithFusedClient(
                                 viewModel.detectGpsLocation(context)
                             }
                     }.onFailure {
+                        runCatching { cancellationTokenSource.cancel() }
                         viewModel.detectGpsLocation(context)
                     }
                 }
             }
             .addOnFailureListener {
-                runCatching { cancellationTokenSource.cancel() }
                 viewModel.detectGpsLocation(context)
             }
     }.onFailure {
-        runCatching { cancellationTokenSource.cancel() }
         viewModel.detectGpsLocation(context)
     }
 }
@@ -923,7 +965,7 @@ fun ZephyrBottomNavBar(
                 tab = WeatherNavTab.RADAR,
                 label = if (language == AppLanguage.GREEK) "Ραντάρ" else "Radar",
                 activeIcon = WeatherIcons.NavRadarActive,
-                inactiveIcon = WeatherIcons.CompassCalibration,
+                inactiveIcon = WeatherIcons.NavRadarActive,
                 tag = "nav_tab_radar",
                 multiColorWhenActive = true
             ),
@@ -931,7 +973,7 @@ fun ZephyrBottomNavBar(
                 tab = WeatherNavTab.CITIES,
                 label = if (language == AppLanguage.GREEK) "Πόλεις" else "Cities",
                 activeIcon = WeatherIcons.NavCitiesActive,
-                inactiveIcon = WeatherIcons.PublicOutlined,
+                inactiveIcon = WeatherIcons.NavCitiesActive,
                 tag = "nav_tab_cities",
                 multiColorWhenActive = true
             ),
@@ -939,7 +981,7 @@ fun ZephyrBottomNavBar(
                 tab = WeatherNavTab.SETTINGS,
                 label = if (language == AppLanguage.GREEK) "Ρυθμίσεις" else "Settings",
                 activeIcon = WeatherIcons.NavSettingsActive,
-                inactiveIcon = WeatherIcons.SettingsOutlined,
+                inactiveIcon = WeatherIcons.NavSettingsActive,
                 tag = "nav_tab_settings",
                 multiColorWhenActive = true
             )
@@ -955,18 +997,19 @@ fun ZephyrBottomNavBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = Color(0xFF0A1628).copy(alpha = 0.94f),
+            color = Color.White.copy(alpha = 0.05f),
             border = BorderStroke(
                 width = 1.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        CyanZephyr.copy(alpha = 0.38f),
-                        Color.White.copy(alpha = 0.16f),
-                        AmberSol.copy(alpha = 0.34f)
+                        CyanZephyr.copy(alpha = 0.34f),
+                        Color.White.copy(alpha = 0.18f),
+                        AmberSol.copy(alpha = 0.30f)
                     )
                 )
             ),
-            shadowElevation = 12.dp,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -988,15 +1031,17 @@ fun ZephyrBottomNavBar(
                     Surface(
                         shape = RoundedCornerShape(22.dp),
                         color = if (isSelected) {
-                            activeAccent.copy(alpha = 0.16f)
+                            activeAccent.copy(alpha = 0.14f)
                         } else {
                             Color.Transparent
                         },
                         border = if (isSelected) {
-                            BorderStroke(1.2.dp, activeAccent.copy(alpha = 0.52f))
+                            BorderStroke(1.2.dp, activeAccent.copy(alpha = 0.48f))
                         } else {
                             null
                         },
+                        shadowElevation = 0.dp,
+                        tonalElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(22.dp))
@@ -1036,11 +1081,7 @@ fun ZephyrBottomNavBar(
                                     imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
                                     contentDescription = item.label,
                                     tint = Color.Unspecified,
-                                    modifier = Modifier
-                                        .size(if (isSelected) 26.dp else 23.dp)
-                                        .graphicsLayer {
-                                            alpha = if (isSelected) 1f else 0.78f
-                                        }
+                                    modifier = Modifier.size(if (isSelected) 26.dp else 23.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(3.dp))

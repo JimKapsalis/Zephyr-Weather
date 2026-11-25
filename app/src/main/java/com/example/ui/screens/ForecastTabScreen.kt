@@ -185,11 +185,12 @@ fun ForecastTabScreen(
     modifier: Modifier = Modifier
 ) {
     val resolvedAlerts = remember(activeSevereAlerts, activeSevereAlert) {
-        if (activeSevereAlerts.isNotEmpty()) {
+        val raw = if (activeSevereAlerts.isNotEmpty()) {
             activeSevereAlerts
         } else {
             listOfNotNull(activeSevereAlert)
         }
+        raw.filter { it.isSevereOrRainActive }
     }
 
     val pullToRefreshState = rememberPullToRefreshState()
@@ -1373,20 +1374,7 @@ fun CurrentWeatherHeroSection(
                     modifier = Modifier.testTag("hero_condition_description")
                 )
 
-                // CurrentWeather Composable Row: Temperature, Conditions, Humidity & Location Coordinates
-                if (bundle != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    CurrentWeather(
-                        temperatureText = temperatureDisplay,
-                        conditionText = conditionLabel,
-                        humidityPercent = bundle.current.humidity,
-                        latitude = bundle.latitude,
-                        longitude = bundle.longitude,
-                        elevationMeters = bundle.elevationMeters,
-                        language = language,
-                        visualSpec = visualSpec
-                    )
-                }
+                // Clean Hero Weather summary without embedded Live Location Weather sub-box
 
                 if (bundle != null && bundle.rainOutlook.hasRainInNext48h) {
                     Spacer(modifier = Modifier.height(8.dp))

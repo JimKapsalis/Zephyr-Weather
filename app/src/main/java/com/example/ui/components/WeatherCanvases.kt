@@ -1684,7 +1684,7 @@ fun AnimatedWeatherStatusIcon(
     visualSpec: WeatherVisualSpec,
     iconSize: Dp = 22.dp,
     contentDescription: String? = visualSpec.label,
-    animateContinuous: Boolean = false,
+    animateContinuous: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()

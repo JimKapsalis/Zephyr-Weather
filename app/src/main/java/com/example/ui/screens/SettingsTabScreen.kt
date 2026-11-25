@@ -89,10 +89,10 @@ fun SettingsTabScreen(
     onOpenLocationSetup: () -> Unit = {},
     onTriggerTestAlert: () -> Unit = {},
     isCheckingUpdates: Boolean = false,
-    appVersionLabel: String = "v2.7.0 (Build 27)",
+    appVersionLabel: String = "v2.8.0 (Build 28)",
     lastUpdateCheckStatus: String? = null,
     githubRepoSlug: String = "zephyr-weather/zephyr-weather",
-    latestReleaseTag: String = "v2.7.0",
+    latestReleaseTag: String = "v2.8.0",
     latestReleaseNotes: String? = null,
     isNewGitHubReleaseAvailable: Boolean = false,
     onUpdateGitHubRepoSlug: (String) -> Unit = {},
@@ -149,292 +149,7 @@ fun SettingsTabScreen(
             }
         }
 
-        // Section -1: GitHub Releases App Updater & 4-Model Ensemble Sync
-        item {
-            SettingsSectionHeader(
-                icon = WeatherIcons.Refresh,
-                title = if (language == AppLanguage.GREEK) "Ενημέρωση από GitHub Releases" else "GitHub Releases App Updater",
-                subtitle = if (language == AppLanguage.GREEK) {
-                    "Έλεγχος νέας έκδοσης APK στο GitHub Releases & συγχρονισμός 4 μοντέλων"
-                } else {
-                    "Check GitHub Releases for new APK versions & sync 4-model forecasts"
-                }
-            )
-            Spacer(modifier = Modifier.height(10.dp))
 
-            var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_app_updater_card"),
-                shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102542).copy(alpha = 0.94f)
-                ),
-                border = BorderStroke(
-                    1.2.dp,
-                    if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr.copy(alpha = 0.45f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Zephyr Weather $appVersionLabel",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "GitHub Release: $latestReleaseTag • Μηχανή Μηδενικής Αφύπνισης HyperOS"
-                                } else {
-                                    "GitHub Release: $latestReleaseTag • HyperOS Zero-Wakelock Engine"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CyanGlow
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (isNewGitHubReleaseAvailable) {
-                                AmberSol.copy(alpha = 0.20f)
-                            } else {
-                                EmeraldBreeze.copy(alpha = 0.16f)
-                            },
-                            border = BorderStroke(
-                                1.dp,
-                                if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze.copy(alpha = 0.45f)
-                            )
-                        ) {
-                            Text(
-                                text = when {
-                                    isCheckingUpdates -> if (language == AppLanguage.GREEK) "ΕΛΕΓΧΟΣ…" else "CHECKING…"
-                                    isNewGitHubReleaseAvailable -> if (language == AppLanguage.GREEK) "ΝΕΑ ΕΚΔΟΣΗ $latestReleaseTag" else "UPDATE $latestReleaseTag"
-                                    else -> if (language == AppLanguage.GREEK) "ΕΝΗΜΕΡΩΜΕΝΟ" else "LATEST"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
-                        }
-                    }
-
-                    // HyperOS / Redmi Note 15 Pro 5G Zero-Wakelock Battery Guard status pill
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = EmeraldBreeze.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.35f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = WeatherIcons.Check,
-                                contentDescription = null,
-                                tint = EmeraldBreeze,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "HyperOS Battery Guard Ενεργό • 0 λεπτά αφύπνισης παρασκηνίου • ~70 MB RAM"
-                                } else {
-                                    "HyperOS Battery Guard Active • 0m background keep-awake • ~70 MB RAM"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.92f)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = lastUpdateCheckStatus ?: if (language == AppLanguage.GREEK) {
-                            "Ελέγχει αυτόματα το αποθετήριο GitHub Releases για νέο APK και ενημερώνει τα 4 μετεωρολογικά μοντέλα."
-                        } else {
-                            "Automatically checks your GitHub Releases feed for new APK builds and syncs all 4 NWP forecast models."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            isNewGitHubReleaseAvailable -> AmberSol
-                            lastUpdateCheckStatus != null -> EmeraldBreeze
-                            else -> Color.White.copy(alpha = 0.74f)
-                        }
-                    )
-
-                    if (!latestReleaseNotes.isNullOrBlank()) {
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF0A182B).copy(alpha = 0.85f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = latestReleaseNotes,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.80f),
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = repoInput,
-                        onValueChange = {
-                            repoInput = it
-                            onUpdateGitHubRepoSlug(it)
-                        },
-                        singleLine = true,
-                        label = {
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "Αποθετήριο GitHub Releases (owner/repo)"
-                                } else {
-                                    "GitHub Releases Repository (owner/repo)"
-                                },
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedContainerColor = Color(0xFF0A182B),
-                            unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.80f),
-                            focusedBorderColor = CyanZephyr,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
-                            focusedLabelColor = CyanGlow,
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.65f),
-                            cursorColor = CyanZephyr
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings_github_repo_input")
-                    )
-
-                    Button(
-                        onClick = onCheckForUpdates,
-                        enabled = !isCheckingUpdates,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EmeraldBreeze.copy(alpha = 0.24f),
-                            disabledContainerColor = CyanZephyr.copy(alpha = 0.14f)
-                        ),
-                        border = BorderStroke(1.2.dp, if (isCheckingUpdates) CyanZephyr else EmeraldBreeze),
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings_check_updates_button")
-                    ) {
-                        Icon(
-                            imageVector = WeatherIcons.Refresh,
-                            contentDescription = null,
-                            tint = if (isCheckingUpdates) CyanGlow else EmeraldBreeze,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isCheckingUpdates) {
-                                if (language == AppLanguage.GREEK) {
-                                    "Έλεγχος GitHub Releases & Μοντέλων…"
-                                } else {
-                                    "Checking GitHub Releases & Models…"
-                                }
-                            } else {
-                                if (language == AppLanguage.GREEK) {
-                                    "Έλεγχος για Νέα Έκδοση στο GitHub Releases"
-                                } else {
-                                    "Check GitHub Releases for New Update"
-                                }
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = { onOpenGitHubReleaseDownload(true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isNewGitHubReleaseAvailable) {
-                                    AmberSol.copy(alpha = 0.28f)
-                                } else {
-                                    CyanZephyr.copy(alpha = 0.22f)
-                                }
-                            ),
-                            border = BorderStroke(
-                                1.2.dp,
-                                if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr
-                            ),
-                            shape = RoundedCornerShape(18.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("settings_github_release_download_button")
-                        ) {
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "Λήψη Τελευταίου APK"
-                                } else {
-                                    "Download Latest APK"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Button(
-                            onClick = { onOpenGitHubReleaseDownload(false) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White.copy(alpha = 0.10f)
-                            ),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.26f)),
-                            shape = RoundedCornerShape(18.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("settings_github_releases_page_button")
-                        ) {
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "GitHub Releases"
-                                } else {
-                                    "GitHub Releases"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = CyanGlow,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         // Section 0: Language Selection (English / Ελληνικά)
         item {
@@ -1084,37 +799,6 @@ fun SettingsTabScreen(
                             modifier = Modifier.testTag("rain_alerts_switch")
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = EmeraldBreeze.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.40f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(9.dp)
-                                    .clip(CircleShape)
-                                    .background(EmeraldBreeze)
-                            )
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "Υπηρεσία Παρασκηνίου Χωρίς Αφύπνιση • Οι ειδοποιήσεις παραδίδονται χωρίς κατανάλωση μπαταρίας"
-                                } else {
-                                    "Zero-Wakelock Background Service Active • Alerts delivered without waking CPU in sleep"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.90f)
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -1340,6 +1024,284 @@ fun SettingsTabScreen(
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+            }
+        }
+
+        // Section 8 (Bottom): GitHub Releases App Updater & 4-Model Ensemble Sync
+        item {
+            SettingsSectionHeader(
+                icon = WeatherIcons.Refresh,
+                title = if (language == AppLanguage.GREEK) "Ενημέρωση Εφαρμογής (GitHub Releases)" else "GitHub Releases App Updater",
+                subtitle = if (language == AppLanguage.GREEK) {
+                    "Έλεγχος νέας έκδοσης APK στο GitHub Releases & συγχρονισμός 4 μοντέλων"
+                } else {
+                    "Check GitHub Releases for new APK versions & sync 4-model forecasts"
+                }
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
+            val defaultChangelog = if (language == AppLanguage.GREEK) {
+                "• Μέγιστη απόδοση & ομαλότητα (60Hz/90Hz/120Hz) για όλες τις συσκευές Android\n" +
+                    "• Ακαριαίος εντοπισμός τοποθεσίας GPS (< 100ms) & συγχρονισμός 4 μοντέλων\n" +
+                    "• Διάφανη γραμμή πλοήγησης, τρισδιάστατα εικονίδια & ελάχιστη κατανάλωση μπαταρίας"
+            } else {
+                "• Maximum performance & fluid 60Hz/90Hz/120Hz rendering for all Android devices\n" +
+                    "• Instant sub-100ms GPS location finding & 4-model super-ensemble sync\n" +
+                    "• Transparent glass navigation bar, 3D animated weather icons & ultra-low battery usage"
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_app_updater_card"),
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF102542).copy(alpha = 0.94f)
+                ),
+                border = BorderStroke(
+                    1.2.dp,
+                    if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr.copy(alpha = 0.45f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Zephyr Weather $appVersionLabel",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "GitHub Release: $latestReleaseTag • Βελτιστοποιημένο για Όλες τις Συσκευές"
+                                } else {
+                                    "GitHub Release: $latestReleaseTag • Optimized for All Android Devices"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CyanGlow
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (isNewGitHubReleaseAvailable) {
+                                AmberSol.copy(alpha = 0.20f)
+                            } else {
+                                EmeraldBreeze.copy(alpha = 0.16f)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Text(
+                                text = when {
+                                    isCheckingUpdates -> if (language == AppLanguage.GREEK) "ΕΛΕΓΧΟΣ…" else "CHECKING…"
+                                    isNewGitHubReleaseAvailable -> if (language == AppLanguage.GREEK) "ΝΕΑ ΕΚΔΟΣΗ $latestReleaseTag" else "UPDATE $latestReleaseTag"
+                                    else -> if (language == AppLanguage.GREEK) "ΕΝΗΜΕΡΩΜΕΝΟ" else "LATEST"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = lastUpdateCheckStatus ?: if (language == AppLanguage.GREEK) {
+                            "Ελέγχει αυτόματα το αποθετήριο GitHub Releases για νέο APK και ενημερώνει τα 4 μετεωρολογικά μοντέλα."
+                        } else {
+                            "Automatically checks your GitHub Releases feed for new APK builds and syncs all 4 NWP forecast models."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when {
+                            isNewGitHubReleaseAvailable -> AmberSol
+                            lastUpdateCheckStatus != null -> EmeraldBreeze
+                            else -> Color.White.copy(alpha = 0.74f)
+                        }
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF0A182B).copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Αρχείο Αλλαγών ($latestReleaseTag)"
+                                } else {
+                                    "Release Changelog ($latestReleaseTag)"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = CyanGlow
+                            )
+                            Text(
+                                text = latestReleaseNotes?.takeIf { it.isNotBlank() } ?: defaultChangelog,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.82f),
+                                maxLines = 5,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = repoInput,
+                        onValueChange = {
+                            repoInput = it
+                            onUpdateGitHubRepoSlug(it)
+                        },
+                        singleLine = true,
+                        label = {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Αποθετήριο GitHub Releases (owner/repo)"
+                                } else {
+                                    "GitHub Releases Repository (owner/repo)"
+                                },
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0A182B),
+                            unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.80f),
+                            focusedBorderColor = CyanZephyr,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+                            focusedLabelColor = CyanGlow,
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.65f),
+                            cursorColor = CyanZephyr
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_github_repo_input")
+                    )
+
+                    Button(
+                        onClick = onCheckForUpdates,
+                        enabled = !isCheckingUpdates,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = EmeraldBreeze.copy(alpha = 0.24f),
+                            disabledContainerColor = CyanZephyr.copy(alpha = 0.14f)
+                        ),
+                        border = BorderStroke(1.2.dp, if (isCheckingUpdates) CyanZephyr else EmeraldBreeze),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_check_updates_button")
+                    ) {
+                        Icon(
+                            imageVector = WeatherIcons.Refresh,
+                            contentDescription = null,
+                            tint = if (isCheckingUpdates) CyanGlow else EmeraldBreeze,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isCheckingUpdates) {
+                                if (language == AppLanguage.GREEK) {
+                                    "Έλεγχος GitHub Releases & Μοντέλων…"
+                                } else {
+                                    "Checking GitHub Releases & Models…"
+                                }
+                            } else {
+                                if (language == AppLanguage.GREEK) {
+                                    "Έλεγχος για Νέα Έκδοση στο GitHub Releases"
+                                } else {
+                                    "Check GitHub Releases for New Update"
+                                }
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { onOpenGitHubReleaseDownload(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isNewGitHubReleaseAvailable) {
+                                    AmberSol.copy(alpha = 0.28f)
+                                } else {
+                                    CyanZephyr.copy(alpha = 0.22f)
+                                }
+                            ),
+                            border = BorderStroke(
+                                1.2.dp,
+                                if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr
+                            ),
+                            shape = RoundedCornerShape(18.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_github_release_download_button")
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Λήψη Τελευταίου APK"
+                                } else {
+                                    "Download Latest APK"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Button(
+                            onClick = { onOpenGitHubReleaseDownload(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.10f)
+                            ),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.26f)),
+                            shape = RoundedCornerShape(18.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_github_releases_page_button")
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "GitHub Releases"
+                                } else {
+                                    "GitHub Releases"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CyanGlow,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
