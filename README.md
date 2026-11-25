@@ -6,6 +6,7 @@
 ### **4-Model Super-Ensemble Forecasting • Instant GPS • Live Doppler Radar • 3D Atmospheric UI • Bilingual (EN / ΕΛ)**
 
 [![Latest Release](https://img.shields.io/badge/Latest_Release-v3.0.0_(Build_30)-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Total APK Downloads](https://img.shields.io/github/downloads/JimKapsalis/Zephyr-Weather/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](../../releases)
 [![Android Platform](https://img.shields.io/badge/Android-7.0%2B_(60Hz_%2F_90Hz_%2F_120Hz)-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-whats-new-in-v300--changelog)
 [![4-Model Ensemble](https://img.shields.io/badge/NWP_Models-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
 

@@ -91,7 +91,7 @@ fun SettingsTabScreen(
     isCheckingUpdates: Boolean = false,
     appVersionLabel: String = "v3.0.0 (Build 30)",
     lastUpdateCheckStatus: String? = null,
-    githubRepoSlug: String = "zephyr-weather/zephyr-weather",
+    githubRepoSlug: String = "JimKapsalis/Zephyr-Weather",
     latestReleaseTag: String = "v3.0.0",
     latestReleaseNotes: String? = null,
     isNewGitHubReleaseAvailable: Boolean = false,

@@ -277,7 +277,11 @@ class WeatherPreferences(context: Context) {
         val raw = runCatching {
             prefs.getString(KEY_GITHUB_REPO_SLUG, DEFAULT_GITHUB_REPO_SLUG)
         }.getOrNull()?.trim().orEmpty()
-        return if (raw.contains("/") && raw.length >= 3) raw else DEFAULT_GITHUB_REPO_SLUG
+        return if (raw.contains("/") && raw.length >= 3 && !raw.equals("zephyr-weather/zephyr-weather", ignoreCase = true)) {
+            raw
+        } else {
+            DEFAULT_GITHUB_REPO_SLUG
+        }
     }
 
     fun saveGitHubRepoSlug(slug: String) {
@@ -293,7 +297,7 @@ class WeatherPreferences(context: Context) {
 
     companion object {
         const val DEFAULT_LARISSA_CITY_ID = 258576L
-        const val DEFAULT_GITHUB_REPO_SLUG = "zephyr-weather/zephyr-weather"
+        const val DEFAULT_GITHUB_REPO_SLUG = "JimKapsalis/Zephyr-Weather"
         private const val KEY_USE_FAHRENHEIT = "use_fahrenheit"
         private const val KEY_USE_MPH = "use_mph"
         private const val KEY_USE_INHG = "use_inhg"
