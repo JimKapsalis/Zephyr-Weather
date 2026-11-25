@@ -107,10 +107,10 @@ data class WeatherUiState(
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v2.9.0 (Build 29)",
+    val appVersionLabel: String = "v3.0.0 (Build 30)",
     val lastUpdateCheckStatus: String? = null,
     val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
-    val latestReleaseTag: String = "v2.9.0",
+    val latestReleaseTag: String = "v3.0.0",
     val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.apk",
     val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
     val latestReleaseNotes: String? = null,
@@ -344,9 +344,9 @@ class WeatherViewModel(
             state.copy(
                 batterySaverSyncEnabled = next,
                 statusBanner = if (lang == AppLanguage.GREEK) {
-                    if (next) "Εξοικονόμηση μπαταρίας HyperOS ενεργή (0 λεπτά αφύπνισης)" else "Κανονικός συγχρονισμός παρασκηνίου"
+                    if (next) "Έξυπνη εξοικονόμηση μπαταρίας ενεργή" else "Κανονικός συγχρονισμός παρασκηνίου"
                 } else {
-                    if (next) "HyperOS Zero-Wakelock Battery Guard enabled" else "Standard background sync active"
+                    if (next) "Smart Battery Saver enabled" else "Standard background sync active"
                 }
             )
         }
@@ -1724,7 +1724,7 @@ class WeatherViewModel(
 
     companion object {
         const val FEEDBACK_RECIPIENT_EMAIL = ""
-        const val CURRENT_APP_VERSION_TAG = "v2.9.0"
+        const val CURRENT_APP_VERSION_TAG = "v3.0.0"
 
         fun isRemoteVersionNewer(remoteTag: String, currentTag: String): Boolean {
             val remoteParts = remoteTag.trim().removePrefix("v").removePrefix("V")

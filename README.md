@@ -1,9 +1,13 @@
 <div align="center">
 
-<img src="app/src/main/res/drawable/ic_launcher_foreground.png" width="124" height="124" alt="Zephyr Weather Icon" />
+<img src="app/src/main/res/drawable/ic_launcher_foreground.png" width="128" height="128" alt="Zephyr Weather Icon" />
 
-# 🌤️ Zephyr Weather for Android (`v2.9.0`)
-### **4-Model Super-Ensemble Forecasting • Instant GPS • Best Performance for All Android Devices • Live Doppler Radar • Bilingual (EN / ΕΛ)**
+# 🌤️ Zephyr Weather for Android (`v3.0.0`)
+### **4-Model Super-Ensemble Forecasting • Instant GPS • Live Doppler Radar • 3D Atmospheric UI • Bilingual (EN / ΕΛ)**
+
+[![Latest Release](https://img.shields.io/badge/Latest_Release-v3.0.0_(Build_30)-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Android Platform](https://img.shields.io/badge/Android-7.0%2B_(60Hz_%2F_90Hz_%2F_120Hz)-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-whats-new-in-v300--changelog)
+[![4-Model Ensemble](https://img.shields.io/badge/NWP_Models-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
 
 ---
 
@@ -11,71 +15,116 @@
 
 <table>
   <tr>
-    <td align="center" width="540">
+    <td align="center" width="600">
       <br/>
-      <h2>🚀 <b>OFFICIAL ANDROID APK INSTALLER (v2.9.0 • Build 28)</b></h2>
+      <h2>🚀 <b>OFFICIAL ANDROID APK INSTALLER — <code>v3.0.0</code> (Build 30)</b></h2>
       <p><b>Tap either button below on your Android phone or tablet to download & install <code>ZephyrWeather.apk</code> immediately:</b></p>
       <p>
         <a href="../../releases/latest/download/ZephyrWeather.apk">
-          <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK_NOW-ZephyrWeather.apk_(v2.9.0)-10B981?style=for-the-badge&logo=android&logoColor=white" height="54" alt="Download APK from Releases" />
+          <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK_FROM_RELEASES-ZephyrWeather.apk_(v3.0.0)-10B981?style=for-the-badge&logo=android&logoColor=white" height="56" alt="Download APK from Releases" />
         </a>
       </p>
       <p>
         <a href="./ZephyrWeather.apk">
-          <img src="https://img.shields.io/badge/%F0%9F%93%A6_DIRECT_REPO_DOWNLOAD-Click_Here_%E2%86%92_Download_Raw_APK-00E5FF?style=for-the-badge&logo=github&logoColor=black" height="46" alt="Direct Repo APK Download" />
+          <img src="https://img.shields.io/badge/%F0%9F%93%A6_DIRECT_REPO_APK-Click_Here_%E2%86%92_Download_Raw_File-00E5FF?style=for-the-badge&logo=github&logoColor=black" height="48" alt="Direct Repo APK Download" />
         </a>
       </p>
       <p>
-        🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v2.9.0)</b></a> &nbsp;•&nbsp;
-        📥 <a href="./ZephyrWeather.apk"><b>Direct File: <code>/ZephyrWeather.apk</code></b></a>
+        🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v3.0.0)</b></a> &nbsp;•&nbsp;
+        📥 <a href="./ZephyrWeather.apk"><b>Direct Repository File: <code>/ZephyrWeather.apk</code></b></a>
       </p>
       <br/>
     </td>
   </tr>
 </table>
 
----
-
-[![Latest Release](https://img.shields.io/badge/GitHub_Release-v2.9.0-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
-[![Universal Performance](https://img.shields.io/badge/All_Android_Devices-60Hz_%2F_90Hz_%2F_120Hz_Optimized-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-changelog--all-device-performance-engine-v280)
-[![4-Model Ensemble](https://img.shields.io/badge/NWP_Ensemble-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
-
 </div>
 
 ---
 
-## 📋 Changelog & All-Device Performance Engine (`v2.9.0`)
+## 📸 App Screenshots Gallery
 
-- **Universal Best Performance Across All Android Devices**: Engineered for smooth 60Hz, 90Hz, and 120Hz rendering on all Android phones and tablets with draw-phase Compose animations, zero per-frame list recompositions, and a lightweight `~70 MB` memory footprint.
-- **Ultra-Low Battery Consumption**: Uses Android's Doze-aware `JobScheduler` and automatic `ON_STOP` lifecycle pausing so all particle canvases, clocks, and background tasks sleep completely when the screen is off.
-- **Instant Sub-100ms GPS Location Finding**: Resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates first before racing live providers, paired with fast parallel 1.2s reverse-geocoding.
-- **Crystal-Transparent Navigation Bar & 3D Animated Icons**: Full-color 3D navigation bar icons over a transparent glass navigation bar and smooth animated weather condition icons.
-- **Built-In GitHub Releases App Updater**: Located at the bottom of the **Settings** tab for one-tap update checking and direct APK downloads from GitHub Releases.
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="33%">
+        <a href="https://iili.io/ofDBecB.jpg">
+          <img src="https://iili.io/ofDBecB.jpg" width="260" alt="Zephyr Weather 10-Day & Hourly Forecast" />
+        </a>
+        <br/>
+        <b>🌤️ 10-Day & Hourly Forecast</b>
+        <br/>
+        <sub>Photorealistic sky backdrop, 3D weather icons & temperature range bars</sub>
+      </td>
+      <td align="center" width="33%">
+        <a href="https://iili.io/ofDoz8B.jpg">
+          <img src="https://iili.io/ofDoz8B.jpg" width="260" alt="Zephyr Weather Live Doppler Radar" />
+        </a>
+        <br/>
+        <b>📡 Live Doppler Radar</b>
+        <br/>
+        <sub>High-resolution satellite tiles, precipitation sweep & storm tracking</sub>
+      </td>
+      <td align="center" width="33%">
+        <a href="https://iili.io/ofDoG9I.jpg">
+          <img src="https://iili.io/ofDoG9I.jpg" width="260" alt="Zephyr Weather 3D Meteorological Widgets" />
+        </a>
+        <br/>
+        <b>🧭 3D Telemetry Widgets</b>
+        <br/>
+        <sub>Helios 24h sun/moon chrono-dial, analog barometer, UV & AQI</sub>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
-## ✨ Highlights & Key Features
+## 🚀 What's New in `v3.0.0` — Changelog
+
+### ⚡ Instant Startup & Fast-Path GPS
+- **Instant Saved-City Startup (`0ms` Wait)**: Opens directly into your saved city's forecast on the very first frame while refreshing live data silently in the background — never shows loading skeletons or repeated location prompts when reopening the app.
+- **Sub-100ms Fast-Path GPS Location**: Immediately resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates before racing live GNSS/Network providers, paired with parallel `1.2s` reverse-geocoding.
+
+### 🎨 Transparent Glass UI & 3D Animated Icons
+- **Crystal-Transparent Bottom Navigation Bar**: Floating transparent glass navigation bar with full-color 3D icons across all four tabs (**Forecast**, **Radar**, **Cities**, **Settings**) and edge-to-edge system bar transparency.
+- **Dynamic Draw-Phase Weather Animations**: Smooth Compose canvas animations for sun rays, drifting clouds, falling rain, snow storms, and thunderstorms that render directly in the GPU draw phase.
+- **Clean Hero Weather Card**: Streamlined top weather card displaying your city, live local time, current temperature, feels-like temperature, condition summary, and imminent rain onset alerts.
+
+### 🔋 Universal High Performance & Ultra-Low Battery Usage (All Android Devices)
+- **Smooth 60Hz / 90Hz / 120Hz Rendering**: Optimized for all Android phones and tablets with zero per-frame list recompositions and a lightweight `~70 MB` RAM footprint.
+- **Zero Background Keep-Awake Drain**: Uses Android's Doze-aware `JobScheduler` without wakeup alarms and automatically pauses all canvas animations, timers, and clocks the moment the screen turns off or the app enters the background.
+
+### 🔄 Built-In GitHub Releases App Updater
+- **One-Tap In-App Update Checker**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases/latest`), compares version tags, displays the release changelog, and downloads the latest `ZephyrWeather.apk` in one tap.
+
+---
+
+## ✨ Core Features
 
 | Feature | Description |
 | :--- | :--- |
-| ⚡ **Instant Sub-100ms GPS Location** | Checks cached OS `LocationManager` & `FusedLocationProviderClient.lastLocation` first for near-instant city detection, backed by a parallel live GNSS/Network race and 1.2s reverse-geocoding. |
 | 🛰️ **4-Model Super-Ensemble Engine** | Fuses **HR-LAM Best-Match (1–2 km)**, **ECMWF IFS 0.25° (9 km)**, **DWD ICON Seamless (2–7 km)**, and **NOAA GFS Seamless (13–25 km)** in parallel with outlier dampening, altitude lapse-rate calibration (`-6.5°C / 1000m`), and wet-bulb snow physics. |
-| 🚀 **Universal All-Device Performance Engine** | Smooth 60Hz/90Hz/120Hz GPU draw-phase rendering, `~70 MB RAM`, zero background wake alarms, and instant lifecycle suspension when the screen turns off across all Android phones and tablets. |
-| 🔄 **Built-In GitHub Releases App Updater** | Checks the **GitHub Releases API** (`/repos/{owner}/{repo}/releases/latest`) from the bottom of **Settings**, compares semantic version tags, displays the release changelog, and downloads new APK builds in one tap. |
-| 🏔️ **Precision Mountain, Village & Snow Telemetry** | Covers all cities, towns, islands, and mountain villages across Greece and worldwide with live elevation meters, freezing level (`0°C` isotherm), snow depth, and snow accumulation alerts. |
-| 🧭 **Photorealistic Sky, Transparent Nav Bar & 3D Glass Widgets** | Photorealistic multi-layered atmospheric sky canvas (`WeatherSkyBackdrop`), crystal-transparent bottom navigation bar with 3D icons, **Helios 24h Chrono-Dial**, **Smart Comfort & Outfit Advisor**, **Analog Barometer**, and a 4×2 Home Screen AppWidget. |
-| 🇬🇷 **Bilingual English & Greek (`EN` / `ΕΛ`)** | Instant one-tap switching between English and Greek with localized Beaufort wind scales, EMY severe weather bulletins, and metric/imperial units (`°C / °F`, `km/h / mph`, `hPa / inHg`). |
+| ⚡ **Instant Sub-100ms GPS & Global Search** | Instant GPS coordinate resolution plus fuzzy search across all cities, islands, towns, and mountain villages in Greece and worldwide (supports English, Greek, and Greeklish). |
+| 📡 **Live Doppler Radar & Satellite Map** | Interactive Web Mercator satellite map with real-time precipitation, wind stream particles, cloud cover, and temperature layers. |
+| 🏔️ **Mountain, Village & Snow Telemetry** | Displays live station elevation (`m`), `0°C` freezing level height, snow depth, and snowfall accumulation alerts for high-altitude villages and mountain passes. |
+| 🧭 **3D Meteorological Instruments & Widget** | Includes the **Helios 24h Sun/Moon Chrono-Dial**, **Smart Comfort & Outfit Advisor**, **Analog Barometer**, **Wind Compass Rose**, **Air Quality (US/EU AQI)**, and a **4×2 Home Screen AppWidget**. |
+| 🇬🇷 **Bilingual English & Greek (`EN` / `ΕΛ`)** | Instant one-tap switching between English and Greek with localized Beaufort wind scales, EMY severe weather warnings, and metric/imperial units (`°C / °F`, `km/h / mph`, `hPa / inHg`). |
 
 ---
 
 ## 🛰️ 4-Model Super-Ensemble Meteorological Engine
 
-When **Multi-Model Ensemble (`BEST_MATCH`)** is selected, Zephyr Weather queries 4 independent Numerical Weather Prediction (NWP) models simultaneously and blends their outputs:
+When **Multi-Model Ensemble (`BEST_MATCH`)** is active, Zephyr Weather queries 4 independent Numerical Weather Prediction (NWP) models simultaneously and blends their forecasts:
 
 1. **HR-LAM Best-Match (1–2 km micro-grid)** — `38%` weight
 2. **ECMWF IFS HRES 0.25° (9 km European Centre)** — `27%` weight
 3. **DWD ICON-EU / Seamless (2–7 km German Weather Service)** — `22%` weight
 4. **NOAA GFS Seamless (13–25 km Global Forecast System)** — `13%` weight
+
+- **Outlier Dampening**: Automatically down-weights any model deviating by `> 2.2°C` from the 4-model median.
+- **Orographic Lapse-Rate Calibration**: Corrects 2m temperature and apparent temperature for elevation differences (`-6.5°C / 1000m`).
+- **Wet-Bulb & Freezing-Level Snow Detection**: Cross-checks relative humidity, dew point, and the `0°C` freezing level against station altitude for accurate rain/snow classification.
 
 ---
 
@@ -83,8 +132,9 @@ When **Multi-Model Ensemble (`BEST_MATCH`)** is selected, Zephyr Weather queries
 
 ```text
 .
-├── .github/workflows/build-apk.yml   # Automated APK Build & GitHub Releases Publisher (v2.9.0)
-├── ZephyrWeather.apk                 # Direct-download Android APK package (v2.9.0, Build 28)
+├── .github/workflows/build-apk.yml   # Automated APK Build & GitHub Releases Publisher (v3.0.0)
+├── ZephyrWeather.apk                 # Direct-download Android APK package (v3.0.0, Build 30)
+├── public/assets/                    # High-resolution store screenshots (screenshot_1..3.jpg)
 └── app/src/main/
     ├── AndroidManifest.xml
     ├── java/com/example/
@@ -94,6 +144,6 @@ When **Multi-Model Ensemble (`BEST_MATCH`)** is selected, Zephyr Weather queries
     │   ├── network/                  # Open-Meteo NWP, Air Quality, Nominatim & GitHub Releases APIs
     │   ├── ui/                       # WeatherViewModel, Forecast/Radar/Cities/Settings screens & 3D widgets
     │   ├── util/                     # Doze-safe JobScheduler sync & SevereWeatherNotifier
-    │   └── widget/                   # 4x2 Glance-style RemoteViews Home Screen Widget
+    │   └── widget/                   # 4x2 Frosted-Glass Home Screen AppWidget
     └── res/                          # Custom adaptive launcher icon & Material 3 vector drawables
 ```

@@ -89,10 +89,10 @@ fun SettingsTabScreen(
     onOpenLocationSetup: () -> Unit = {},
     onTriggerTestAlert: () -> Unit = {},
     isCheckingUpdates: Boolean = false,
-    appVersionLabel: String = "v2.9.0 (Build 29)",
+    appVersionLabel: String = "v3.0.0 (Build 30)",
     lastUpdateCheckStatus: String? = null,
     githubRepoSlug: String = "zephyr-weather/zephyr-weather",
-    latestReleaseTag: String = "v2.9.0",
+    latestReleaseTag: String = "v3.0.0",
     latestReleaseNotes: String? = null,
     isNewGitHubReleaseAvailable: Boolean = false,
     onUpdateGitHubRepoSlug: (String) -> Unit = {},
@@ -1044,13 +1044,15 @@ fun SettingsTabScreen(
 
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (language == AppLanguage.GREEK) {
-                "• Μέγιστη απόδοση & ομαλότητα (60Hz/90Hz/120Hz) για όλες τις συσκευές Android\n" +
-                    "• Ακαριαίος εντοπισμός τοποθεσίας GPS (< 100ms) & συγχρονισμός 4 μοντέλων\n" +
-                    "• Διάφανη γραμμή πλοήγησης, τρισδιάστατα εικονίδια & ελάχιστη κατανάλωση μπαταρίας"
+                "• Άμεση εκκίνηση με την αποθηκευμένη πόλη σας χωρίς οθόνες αναμονής\n" +
+                    "• Ακαριαίος εντοπισμός τοποθεσίας GPS (< 100ms) & πρόγνωση 4 μοντέλων (ECMWF, ICON, GFS, HR-LAM)\n" +
+                    "• Μέγιστη απόδοση 60Hz/90Hz/120Hz & ελάχιστη κατανάλωση μπαταρίας για όλες τις συσκευές Android\n" +
+                    "• Διάφανη γραμμή πλοήγησης με 3D εικονίδια & ζωντανές κινούμενες απεικονίσεις καιρού"
             } else {
-                "• Maximum performance & fluid 60Hz/90Hz/120Hz rendering for all Android devices\n" +
-                    "• Instant sub-100ms GPS location finding & 4-model super-ensemble sync\n" +
-                    "• Transparent glass navigation bar, 3D animated weather icons & ultra-low battery usage"
+                "• Instant startup with your saved city — zero loading screens or repeated location prompts\n" +
+                    "• Sub-100ms fast-path GPS location & 4-model NWP super-ensemble (ECMWF, ICON, GFS, HR-LAM)\n" +
+                    "• Smooth 60Hz/90Hz/120Hz rendering & ultra-low battery consumption across all Android devices\n" +
+                    "• Crystal-transparent navigation bar with 3D icons & dynamic weather animations"
             }
 
             Card(

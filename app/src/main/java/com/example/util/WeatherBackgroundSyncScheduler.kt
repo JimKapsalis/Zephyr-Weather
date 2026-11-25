@@ -26,8 +26,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Ultra-low-power background weather synchronization using Android's Doze-aware [JobScheduler]
  * without any CPU wakelocks or [AlarmManager.ELAPSED_REALTIME_WAKEUP] alarms.
  *
- * Specifically tuned for Xiaomi HyperOS / MIUI (e.g., Redmi Note 15 Pro 5G) to prevent background
- * keep-awake time while still delivering severe weather notifications during standard OS maintenance windows.
+ * Engineered for all Android devices to prevent background keep-awake drain while still
+ * delivering severe weather notifications during standard OS maintenance windows.
  */
 object WeatherBackgroundSyncScheduler {
 
