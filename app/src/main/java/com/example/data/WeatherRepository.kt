@@ -1314,8 +1314,12 @@ class WeatherRepository(
         val todaySunsetClock = extractClockTime(dailyDto.sunset?.firstOrNull().orEmpty(), "18:00")
 
         val tz = TimeZone.getTimeZone(effectiveTimezone)
+        val nowCalendar = Calendar.getInstance(tz)
+        val currentMinuteOfHour = nowCalendar.get(Calendar.MINUTE).coerceIn(0, 59)
+        val quarterMinute = (currentMinuteOfHour / 15) * 15
         val liveHourPrefix = SimpleDateFormat("yyyy-MM-dd'T'HH", Locale.US).apply { timeZone = tz }
-            .format(java.util.Date())
+            .format(nowCalendar.time)
+        val liveQuarterPrefix = String.format(Locale.US, "%s:%02d", liveHourPrefix, quarterMinute)
         val currentTimeStr = currentDto.time.orEmpty()
 
         val hourlyTimes = hourlyDto?.time.orEmpty()
@@ -1327,9 +1331,12 @@ class WeatherRepository(
 
         val resolvedCurrentIsDay = (currentDto.isDay ?: 1) == 1
 
-        // Assimilate 15-minute high-resolution nowcast slice if available
-        val minutelyIndex = minutely15Dto?.time?.indexOfFirst { it.startsWith(liveHourPrefix) }
-            ?.takeIf { it >= 0 } ?: 0
+        // Assimilate exact 15-minute high-resolution nowcast slice (:00, :15, :30, :45)
+        val minutelyTimes = minutely15Dto?.time.orEmpty()
+        val minutelyIndex = minutelyTimes.indexOfFirst { it.startsWith(liveQuarterPrefix) }
+            .takeIf { it >= 0 }
+            ?: minutelyTimes.indexOfFirst { it.startsWith(liveHourPrefix) }.takeIf { it >= 0 }
+            ?: 0
         val nowcastPrecipMm = minutely15Dto?.precipitation?.getOrNull(minutelyIndex) ?: 0.0
         val nowcastSnowCm = minutely15Dto?.snowfall?.getOrNull(minutelyIndex) ?: 0.0
         val nowcastCode = minutely15Dto?.weatherCode?.getOrNull(minutelyIndex)
@@ -1765,12 +1772,19 @@ class WeatherRepository(
 
         val currentVisibilityMeters = currentDto.visibility
             ?: hourlyDto?.visibility?.getOrNull(startIndex)
-            ?: (if (fusedCurrentCode >= 51) 9000.0 else 16000.0)
+            ?: when {
+                fusedCurrentCode in setOf(45, 48) -> 1800.0
+                fusedCurrentCode >= 71 -> 3800.0
+                fusedCurrentCode >= 51 -> 8500.0
+                currentHumidity >= 90 -> 9500.0
+                else -> (24000.0 - airQuality.pm25 * 140.0).coerceIn(10000.0, 24000.0)
+            }
         val currentUv = currentDto.uvIndex
             ?: hourlyDto?.uvIndex?.getOrNull(startIndex)
             ?: (if (resolvedCurrentIsDay) 4.2 else 0.0)
-        val exactDewPointC = currentDto.dewPoint2m
-            ?: calculateDewPointCelsius(currentTempC, currentHumidity)
+        val exactDewPointC = ((currentDto.dewPoint2m?.let { it + lapseRateCorrectionC })
+            ?: calculateDewPointCelsius(currentTempC, currentHumidity))
+            .coerceAtMost(currentTempC)
 
         val currentTelemetry = CurrentWeatherTelemetry(
             tempC = currentTempC,

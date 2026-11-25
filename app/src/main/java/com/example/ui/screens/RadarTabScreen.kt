@@ -27,6 +27,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -34,6 +36,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -62,6 +66,8 @@ import com.example.ui.theme.EmeraldBreeze
 import com.example.ui.theme.WeatherIcons
 import com.example.util.SatelliteMapStyle
 import java.util.Locale
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,8 +91,27 @@ fun RadarTabScreen(
 
     var showSatellitePhoto by remember { mutableStateOf(true) }
     var satelliteOnlyMode by remember { mutableStateOf(false) }
-    var satelliteZoom by remember { mutableIntStateOf(13) }
+    var satelliteZoom by remember { mutableIntStateOf(14) }
     var mapStyle by remember { mutableStateOf(SatelliteMapStyle.HYBRID_SATELLITE) }
+    var zoomScale by remember { mutableFloatStateOf(1.0f) }
+    var panOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Marshall-Palmer physical radar reflectivity equation: Z = 200 * R^1.6 -> dBZ = 10 * log10(Z)
+    val activePrecipRateMmH = (activeHour?.precipMm ?: bundle.current.precipitationMm).coerceAtLeast(0.0)
+    val activeCloudPct = activeHour?.cloudCoverPercent ?: bundle.current.cloudCoverPercent
+    val activeRainProb = activeHour?.precipProbability ?: 0
+    val liveReflectivityDbz = remember(activePrecipRateMmH, activeCloudPct, activeRainProb) {
+        when {
+            activePrecipRateMmH >= 0.05 -> {
+                val z = 200.0 * activePrecipRateMmH.pow(1.6)
+                (10.0 * log10(z.coerceAtLeast(1.0))).coerceIn(8.0, 62.0).roundToInt()
+            }
+            activeRainProb >= 30 || activeCloudPct >= 65 -> {
+                (6.0 + activeRainProb * 0.14 + activeCloudPct * 0.06).roundToInt().coerceIn(5, 22)
+            }
+            else -> (activeCloudPct * 0.08).roundToInt().coerceIn(0, 10)
+        }
+    }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -114,7 +139,7 @@ fun RadarTabScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Circular Live Doppler Weather Radar Card (with Satellite Town Photo & Street Map Base Layer)
+            // 1. Circular Live Doppler Weather Radar Card (with Satellite Town Photo & Interactive Zoom)
             item {
                 Card(
                     modifier = Modifier
@@ -176,7 +201,7 @@ fun RadarTabScreen(
                                 border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
                             ) {
                                 Text(
-                                    text = activeHour?.displayHour ?: "LIVE",
+                                    text = "${activeHour?.displayHour ?: "LIVE"} • ${String.format(Locale.US, "%.1fx", zoomScale)}",
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
@@ -221,13 +246,14 @@ fun RadarTabScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 listOf(
-                                    15 to (if (isGreek) "15x Γειτονιά" else "15x Town Streets"),
-                                    13 to (if (isGreek) "13x Πόλη" else "13x City Aerial"),
-                                    10 to (if (isGreek) "10x Περιοχή" else "10x Region")
+                                    16 to (if (isGreek) "16x Οδοί" else "16x Streets"),
+                                    14 to (if (isGreek) "14x Γειτονιά" else "14x Town"),
+                                    12 to (if (isGreek) "12x Πόλη" else "12x City"),
+                                    9 to (if (isGreek) "9x Περιοχή" else "9x Region")
                                 ).forEach { (zoomVal, label) ->
                                     val isZoomSelected = satelliteZoom == zoomVal
                                     Surface(
@@ -240,12 +266,16 @@ fun RadarTabScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(50))
-                                            .clickable { satelliteZoom = zoomVal }
+                                            .clickable {
+                                                satelliteZoom = zoomVal
+                                                zoomScale = 1.0f
+                                                panOffset = Offset.Zero
+                                            }
                                             .testTag("radar_satellite_zoom_$zoomVal")
                                     ) {
                                         Box(
                                             contentAlignment = Alignment.Center,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)
                                         ) {
                                             Text(
                                                 text = label,
@@ -305,26 +335,177 @@ fun RadarTabScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // Circular Doppler Radar Viewport (with Centered Satellite / Street Town Map Base)
-                        LiveWeatherRadarCanvas(
-                            bundle = bundle,
-                            layerMode = selectedLayer,
-                            timelineIndex = safeTimelineIdx,
-                            language = language,
-                            showSatellitePhoto = showSatellitePhoto,
-                            satelliteOnlyMode = satelliteOnlyMode,
-                            satelliteZoom = satelliteZoom,
-                            mapStyle = mapStyle,
-                            modifier = Modifier
-                                .size(284.dp)
-                                .testTag("radar_sweep_canvas")
-                        )
+                        // Circular Doppler Radar Viewport with Floating + / - / 1x Zoom Controls
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LiveWeatherRadarCanvas(
+                                bundle = bundle,
+                                layerMode = selectedLayer,
+                                timelineIndex = safeTimelineIdx,
+                                language = language,
+                                showSatellitePhoto = showSatellitePhoto,
+                                satelliteOnlyMode = satelliteOnlyMode,
+                                satelliteZoom = satelliteZoom,
+                                mapStyle = mapStyle,
+                                zoomScale = zoomScale,
+                                panOffset = panOffset,
+                                onZoomPanChange = { newScale, newPan ->
+                                    zoomScale = newScale.coerceIn(1.0f, 5.0f)
+                                    panOffset = if (zoomScale <= 1.01f) Offset.Zero else newPan
+                                },
+                                modifier = Modifier
+                                    .size(284.dp)
+                                    .testTag("radar_sweep_canvas")
+                            )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            // Floating Glass + / 1x / - Zoom Buttons on the right edge
+                            Column(
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF0A1B2E).copy(alpha = 0.88f),
+                                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.55f)),
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            zoomScale = (zoomScale + 0.6f).coerceIn(1.0f, 5.0f)
+                                        }
+                                        .testTag("radar_zoom_in_button")
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "+",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
 
-                        // dBZ Radar Reflectivity Legend Bar
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (zoomScale > 1.05f) CyanZephyr.copy(alpha = 0.25f) else Color(0xFF0A1B2E).copy(alpha = 0.82f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (zoomScale > 1.05f) CyanGlow else Color.White.copy(alpha = 0.22f)
+                                    ),
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            zoomScale = 1.0f
+                                            panOffset = Offset.Zero
+                                        }
+                                        .testTag("radar_zoom_reset_button")
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "1×",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF0A1B2E).copy(alpha = 0.88f),
+                                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.55f)),
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            val next = (zoomScale - 0.6f).coerceIn(1.0f, 5.0f)
+                                            zoomScale = next
+                                            if (next <= 1.05f) panOffset = Offset.Zero
+                                        }
+                                        .testTag("radar_zoom_out_button")
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "−",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Interactive Zoom Slider Bar + Gesture Hint
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White.copy(alpha = 0.05f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.11f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isGreek) {
+                                            "Ζουμ Ραντάρ (${String.format(Locale.US, "%.1fx", zoomScale)})"
+                                        } else {
+                                            "Radar Zoom (${String.format(Locale.US, "%.1fx", zoomScale)})"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = if (isGreek) {
+                                            "Τσιμπήστε, διπλό πάτημα ή σύρετε"
+                                        } else {
+                                            "Pinch, double-tap, or drag to pan"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = CyanGlow,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Slider(
+                                    value = zoomScale,
+                                    onValueChange = { newVal ->
+                                        zoomScale = newVal.coerceIn(1.0f, 5.0f)
+                                        if (zoomScale <= 1.03f) panOffset = Offset.Zero
+                                    },
+                                    valueRange = 1.0f..5.0f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = CyanGlow,
+                                        activeTrackColor = CyanZephyr,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.16f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(28.dp)
+                                        .testTag("radar_zoom_slider")
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // dBZ Radar Reflectivity Legend Bar with Live Marshall-Palmer dBZ Telemetry
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -333,9 +514,14 @@ fun RadarTabScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (isGreek) "Ανακλαστικότητα dBZ" else "dBZ Reflectivity",
+                                text = if (isGreek) {
+                                    "Ανακλαστικότητα: $liveReflectivityDbz dBZ"
+                                } else {
+                                    "Reflectivity: $liveReflectivityDbz dBZ"
+                                },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.72f),
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -361,7 +547,7 @@ fun RadarTabScreen(
                                         )
                                 )
                                 Text(
-                                    text = if (isGreek) "Ελαφριά → Καταιγίδα" else "Light → Storm",
+                                    text = if (isGreek) "5 → 60 dBZ" else "5 → 60 dBZ",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = CyanGlow,
                                     maxLines = 1

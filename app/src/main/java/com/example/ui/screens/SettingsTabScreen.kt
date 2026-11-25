@@ -1044,15 +1044,15 @@ fun SettingsTabScreen(
 
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (language == AppLanguage.GREEK) {
-                "• Άμεση εκκίνηση με την αποθηκευμένη πόλη σας χωρίς οθόνες αναμονής\n" +
-                    "• Ακαριαίος εντοπισμός τοποθεσίας GPS (< 100ms) & πρόγνωση 4 μοντέλων (ECMWF, ICON, GFS, HR-LAM)\n" +
-                    "• Μέγιστη απόδοση 60Hz/90Hz/120Hz & ελάχιστη κατανάλωση μπαταρίας για όλες τις συσκευές Android\n" +
-                    "• Διάφανη γραμμή πλοήγησης με 3D εικονίδια & ζωντανές κινούμενες απεικονίσεις καιρού"
+                "• Ζουμ στο Ζωντανό Ραντάρ (1.0× – 5.0× pinch/double-tap, κουμπιά +/− & μπάρα ζουμ)\n" +
+                    "• Μετρητής Ορατών Άστρων (0 – 3.500 άστρα) & Ακρίβεια Καιρού 15 Λεπτών (4 Μοντέλα)\n" +
+                    "• Άμεση εκκίνηση με την αποθηκευμένη πόλη σας & ακαριαίο GPS (< 100ms)\n" +
+                    "• Διάφανη γραμμή πλοήγησης με 3D εικονίδια & μέγιστη απόδοση 60Hz/90Hz/120Hz"
             } else {
-                "• Instant startup with your saved city — zero loading screens or repeated location prompts\n" +
-                    "• Sub-100ms fast-path GPS location & 4-model NWP super-ensemble (ECMWF, ICON, GFS, HR-LAM)\n" +
-                    "• Smooth 60Hz/90Hz/120Hz rendering & ultra-low battery consumption across all Android devices\n" +
-                    "• Crystal-transparent navigation bar with 3D icons & dynamic weather animations"
+                "• Interactive Doppler Radar Zoom (1.0× – 5.0× pinch/double-tap, +/− buttons & zoom slider)\n" +
+                    "• Live Night Sky Visible Star Count (0 – 3,500 stars) & 15-Minute Nowcast Data Fusion\n" +
+                    "• Instant saved-city startup & sub-100ms fast-path GPS location\n" +
+                    "• Crystal-transparent navigation bar with 3D icons & smooth 60Hz/90Hz/120Hz performance"
             }
 
             Card(
@@ -1140,27 +1140,47 @@ fun SettingsTabScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = Color(0xFF0A182B).copy(alpha = 0.85f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                        modifier = Modifier.fillMaxWidth()
+                        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.40f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onOpenGitHubReleaseDownload(true) }
+                            .testTag("settings_changelog_download_box")
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "Αρχείο Αλλαγών ($latestReleaseTag)"
-                                } else {
-                                    "Release Changelog ($latestReleaseTag)"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = CyanGlow
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (language == AppLanguage.GREEK) {
+                                        "Αρχείο Αλλαγών ($latestReleaseTag)"
+                                    } else {
+                                        "Release Changelog ($latestReleaseTag)"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CyanGlow
+                                )
+                                Text(
+                                    text = if (language == AppLanguage.GREEK) {
+                                        "⬇ Πατήστε για Λήψη APK"
+                                    } else {
+                                        "⬇ Tap to Download APK"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldBreeze
+                                )
+                            }
                             Text(
                                 text = latestReleaseNotes?.takeIf { it.isNotBlank() } ?: defaultChangelog,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.82f),
+                                color = Color.White.copy(alpha = 0.85f),
                                 maxLines = 5,
                                 overflow = TextOverflow.Ellipsis
                             )

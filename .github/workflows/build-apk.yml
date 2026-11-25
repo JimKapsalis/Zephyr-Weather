@@ -1,81 +1,65 @@
-name: Build & Publish Zephyr Weather APK to GitHub Releases
+name: Publish Zephyr Weather APK to GitHub Releases
 
 on:
   push:
     branches: [ main, master ]
     tags: [ 'v*' ]
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Release version tag (e.g., v3.0.0)'
-        required: false
-        default: 'v3.0.0'
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release-apk:
+  publish-release-apk:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Build Installable APK (ZephyrWeather.apk)
+      - name: Verify Prebuilt ZephyrWeather.1.apk
         run: |
-          gradle assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather.apk
-          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather-v3.0.0.apk
+          if [ -f "ZephyrWeather.1.apk" ]; then
+            ls -lh ZephyrWeather.1.apk
+          elif [ -f "ZephyrWeather.apk" ]; then
+            cp ZephyrWeather.apk ZephyrWeather.1.apk
+            ls -lh ZephyrWeather.1.apk
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZephyrWeather-APK
-          path: |
-            ZephyrWeather.apk
-            ZephyrWeather-v3.0.0.apk
+          name: ZephyrWeather-1-APK
+          path: ZephyrWeather.1.apk
 
-      - name: Update Direct Download APK in Repository Root
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      - name: Clean Old ZephyrWeather.apk & Publish New ZephyrWeather.1.apk to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ZephyrWeather.apk
-          git diff --staged --quiet || git commit -m "chore: update direct download ZephyrWeather.apk (v3.0.0) [skip ci]"
-          git push
+          cat << 'EOF' > release_notes.md
+          ## 🌤️ Zephyr Weather v3.0.0 (Build 30) — Official Release
 
-      - name: Publish APK to GitHub Releases (v3.0.0 / Latest)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.release_tag || 'v3.0.0' }}
-          name: "Zephyr Weather v3.0.0 — 4-Model Ensemble, Instant Startup & Universal High Performance"
-          make_latest: true
-          files: |
-            ZephyrWeather.apk
-            ZephyrWeather-v3.0.0.apk
-          body: |
-            ## 🌤️ Zephyr Weather v3.0.0 (Build 30) — Official Release
+          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
 
-            ### 📲 Direct APK Download
-            Tap **`ZephyrWeather.apk`** under **Assets** below to install or update on any Android phone or tablet.
+          [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.apk_(v3.0.0)-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
 
-            ---
+          ---
 
-            ### 🚀 What's New in v3.0.0 (Changelog)
-            - **Instant Saved-City Startup**: Launches immediately into your saved city's forecast on frame 1 while refreshing in the background — no loading skeletons or repeated location prompts when reopening the app.
-            - **Sub-100ms Fast-Path GPS Location**: Resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates first before racing live providers, paired with fast parallel 1.2s reverse-geocoding.
-            - **Universal 60Hz / 90Hz / 120Hz High-Performance Rendering**: Smooth draw-phase Compose weather animations, zero per-frame list recompositions, and a lightweight `~70 MB` RAM footprint across all Android devices.
-            - **Ultra-Low Battery Usage**: Uses Android's Doze-aware `JobScheduler` and automatic `ON_STOP` lifecycle pausing so all particle canvases, clocks, and background tasks sleep completely when your screen is off.
-            - **Crystal-Transparent Navigation Bar & 3D Animated Icons**: Full-color 3D navigation bar icons (`Forecast`, `Radar`, `Cities`, `Settings`) over a transparent glass navigation bar.
-            - **4-Model Super-Ensemble Forecasting**: Blends **HR-LAM Best-Match (1–2 km)** + **ECMWF IFS 0.25° (9 km)** + **DWD ICON Seamless (2–7 km)** + **NOAA GFS Seamless (13–25 km)** with outlier dampening, altitude lapse-rate calibration (`-6.5°C / 1000m`), and wet-bulb snow physics.
-            - **Built-In GitHub Releases App Updater**: Check for new versions and download the latest `ZephyrWeather.apk` directly inside **Settings → GitHub Releases App Updater**.
+          ### 🚀 [What's New in v3.0.0 — Full Changelog (Tap to Download `ZephyrWeather.1.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          - **[Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `1×` / `−` buttons, continuous zoom slider, 4 satellite tile detail levels (`16x` Streets to `9x` Region), and live Marshall-Palmer dBZ reflectivity telemetry.
+          - **[Night Sky Visible Star Count (`0` – `3,500` Stars)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time naked-eye visible star counter, sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and best stargazing window calculated from cloud cover, humidity, PM2.5 aerosols, visibility, and altitude.
+          - **[15-Minute Sub-Hourly Forecast Accuracy & 4-Model Super-Ensemble](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Fuses **HR-LAM Best-Match (1–2 km)** + **ECMWF IFS 0.25° (9 km)** + **DWD ICON Seamless (2–7 km)** + **NOAA GFS Seamless (13–25 km)** with exact 15-minute sub-hourly nowcast matching (`:00`, `:15`, `:30`, `:45`).
+          - **[Instant Saved-City Startup & Sub-100ms GPS](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Launches immediately into your saved city on frame 1 with zero loading screens or repeated location prompts.
+          - **[Transparent Glass Navigation Bar & Universal High Performance](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Full-color 3D navigation bar icons over a transparent glass bar, smooth 60Hz/90Hz/120Hz rendering, and ultra-low battery usage across all Android devices.
+
+          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.apk` (v3.0.0)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          EOF
+
+          # If existing 'zephyrweather' release exists, remove old ZephyrWeather.apk (keep ZephyrWeather.1.apk) and update notes
+          if gh release view zephyrweather >/dev/null 2>&1; then
+            gh release delete-asset zephyrweather ZephyrWeather.apk --yes || true
+            gh release upload zephyrweather ZephyrWeather.1.apk --clobber
+            gh release edit zephyrweather --title "Zephyr Weather v3.0.0 — Radar Zoom, Star Count & 4-Model Ensemble" --notes-file release_notes.md --latest
+          else
+            gh release create zephyrweather ZephyrWeather.1.apk --title "Zephyr Weather v3.0.0 — Radar Zoom, Star Count & 4-Model Ensemble" --notes-file release_notes.md --latest
+          fi

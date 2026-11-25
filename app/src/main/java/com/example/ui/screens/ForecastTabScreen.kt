@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -528,6 +530,17 @@ fun ForecastTabScreen(
                     units = units,
                     language = language,
                     onNavigateToRadar = onNavigateToRadar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 6b. Live Night Sky Visible Star Count & Stargazing Telemetry Card
+            item(key = "night_sky_star_count_section") {
+                NightSkyStarCountCard(
+                    bundle = bundle,
+                    language = language,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -2247,5 +2260,338 @@ private fun CityElevationBottomFooterCard(
         }
     }
 }
+
+@Composable
+private fun NightSkyStarCountCard(
+    bundle: CityWeatherBundle,
+    language: AppLanguage,
+    modifier: Modifier = Modifier
+) {
+    val isGreek = language == AppLanguage.GREEK
+
+    // Select current night hour if currently night, or best upcoming night hour tonight if daytime
+    val nightHours = remember(bundle.hourly) {
+        bundle.hourly.filter { !it.isDay }
+    }
+    val evaluatedHour = remember(bundle.current, nightHours) {
+        if (!bundle.current.isDay) {
+            bundle.hourly.firstOrNull()
+        } else {
+            nightHours.minByOrNull { it.cloudCoverPercent + it.precipProbability } ?: bundle.hourly.firstOrNull()
+        }
+    }
+
+    val cloudCoverPct = (evaluatedHour?.cloudCoverPercent ?: bundle.current.cloudCoverPercent).coerceIn(0, 100)
+    val humidityPct = (evaluatedHour?.humidity ?: bundle.current.humidity).coerceIn(5, 100)
+    val precipProb = (evaluatedHour?.precipProbability ?: 0).coerceIn(0, 100)
+    val visibilityKm = bundle.current.visibilityKm.coerceIn(0.5, 45.0)
+    val pm25 = bundle.airQuality.pm25.coerceIn(1.0, 150.0)
+    val elevationM = bundle.elevationMeters.coerceAtLeast(1.0)
+
+    // Astronomical Synodic Lunar Cycle (29.530588853 days from J2000 New Moon epoch 947182440000L)
+    val moonIlluminationPct = remember(bundle.fetchedAtEpochMs) {
+        val synodicMs = 29.530588853 * 86_400_000.0
+        val ageRatio = (((System.currentTimeMillis() - 947182440000L) % synodicMs) + synodicMs) % synodicMs / synodicMs
+        val illum = (1.0 - kotlin.math.cos(2.0 * Math.PI * ageRatio)) / 2.0
+        (illum * 100.0).roundToInt().coerceIn(0, 100)
+    }
+
+    // Physical visible naked-eye star count model (hemisphere max ~3,500 stars at Bortle 1-2 alpine site)
+    val starMetrics = remember(cloudCoverPct, humidityPct, precipProb, visibilityKm, pm25, elevationM, moonIlluminationPct) {
+        val cloudTransmission = ((100.0 - cloudCoverPct) / 100.0).let { it * it }
+        val aerosolFactor = (1.0 - (pm25 / 135.0)).coerceIn(0.38, 1.0)
+        val humidityFactor = (1.0 - ((humidityPct - 40).coerceAtLeast(0) / 155.0)).coerceIn(0.52, 1.0)
+        val visibilityFactor = (visibilityKm / 20.0).coerceIn(0.30, 1.08)
+        val altitudeBonus = (1.0 + (elevationM / 3200.0).coerceAtMost(0.24))
+        val moonlightDampening = (1.0 - (moonIlluminationPct / 100.0) * 0.34)
+        val rainSuppression = if (precipProb >= 65) 0.25 else if (precipProb >= 35) 0.65 else 1.0
+
+        val compositeClarity = (cloudTransmission * aerosolFactor * humidityFactor * visibilityFactor * moonlightDampening * rainSuppression)
+            .coerceIn(0.0, 1.0)
+        val visibleStars = (2950.0 * compositeClarity * altitudeBonus).roundToInt().coerceIn(0, 3500)
+        val clarityScorePct = (compositeClarity * 100.0).roundToInt().coerceIn(2, 100)
+        val limitingMag = (3.2 + compositeClarity * 3.1 + (elevationM / 2500.0).coerceAtMost(0.35))
+            .coerceIn(2.5, 6.6)
+        Triple(visibleStars, clarityScorePct, limitingMag)
+    }
+
+    val visibleStarCount = starMetrics.first
+    val skyClarityPct = starMetrics.second
+    val limitingMagnitude = starMetrics.third
+
+    val qualityBadgeText = when {
+        visibleStarCount >= 2100 -> if (isGreek) "Εξαιρετικός Έναστρος Ουρανός" else "Crystal Stargazing Sky"
+        visibleStarCount >= 1200 -> if (isGreek) "Καλή Ορατότητα Άστρων" else "Good Star Visibility"
+        visibleStarCount >= 450 -> if (isGreek) "Μερική Νέφωση / Φεγγάρι" else "Partial Clouds / Moonlight"
+        else -> if (isGreek) "Χαμηλή Ορατότητα Άστρων" else "Low Star Visibility"
+    }
+
+    val bestNightWindowLabel = remember(nightHours, bundle.daily) {
+        val sunset = bundle.daily.firstOrNull()?.sunsetTime ?: "20:00"
+        val bestH = nightHours.minByOrNull { it.cloudCoverPercent }?.displayHour
+        if (!bestH.isNullOrBlank() && bestH != "Now") "$sunset – $bestH" else "21:30 – 03:30"
+    }
+
+    Card(
+        modifier = modifier.testTag("night_sky_star_count_card"),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0C1D33).copy(alpha = 0.92f)
+        ),
+        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.30f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isGreek) {
+                            "ΜΕΤΡΗΤΗΣ ΑΣΤΡΩΝ & ΝΥΧΤΕΡΙΝΟΣ ΟΥΡΑΝΟΣ"
+                        } else {
+                            "VISIBLE STAR COUNT & NIGHT SKY"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = CyanGlow,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = qualityBadgeText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = CyanZephyr.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
+                ) {
+                    Text(
+                        text = if (!bundle.current.isDay) {
+                            if (isGreek) "ΖΩΝΤΑΝΑ ΤΩΡΑ" else "LIVE NOW"
+                        } else {
+                            if (isGreek) "ΑΠΟΨΕ" else "TONIGHT"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Starfield Preview Banner + Big Visible Star Counter
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = Color(0xFF071324),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(94.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val starSeeds = listOf(
+                            Triple(0.08f, 0.24f, 2.3f),
+                            Triple(0.15f, 0.68f, 1.7f),
+                            Triple(0.22f, 0.35f, 2.8f),
+                            Triple(0.29f, 0.18f, 1.5f),
+                            Triple(0.36f, 0.52f, 2.5f),
+                            Triple(0.44f, 0.28f, 2.1f),
+                            Triple(0.51f, 0.74f, 1.8f),
+                            Triple(0.58f, 0.22f, 3.0f),
+                            Triple(0.64f, 0.58f, 2.2f),
+                            Triple(0.71f, 0.32f, 2.6f),
+                            Triple(0.78f, 0.72f, 1.6f),
+                            Triple(0.84f, 0.26f, 2.9f),
+                            Triple(0.91f, 0.54f, 2.0f),
+                            Triple(0.95f, 0.19f, 1.7f)
+                        )
+                        val activeRatio = (visibleStarCount / 2800f).coerceIn(0.15f, 1f)
+                        val drawCount = (starSeeds.size * activeRatio).roundToInt().coerceAtLeast(3)
+
+                        // Subtle constellation lines
+                        for (idx in 0 until (drawCount - 1).coerceAtMost(6)) {
+                            val s1 = starSeeds[idx]
+                            val s2 = starSeeds[idx + 1]
+                            drawLine(
+                                color = CyanGlow.copy(alpha = 0.18f * activeRatio),
+                                start = Offset(s1.first * w, s1.second * h),
+                                end = Offset(s2.first * w, s2.second * h),
+                                strokeWidth = 1.2f
+                            )
+                        }
+
+                        for (idx in 0 until drawCount) {
+                            val (sx, sy, radiusPx) = starSeeds[idx]
+                            val center = Offset(sx * w, sy * h)
+                            drawCircle(
+                                color = CyanGlow.copy(alpha = 0.24f * activeRatio),
+                                radius = radiusPx * 2.8f,
+                                center = center
+                            )
+                            drawCircle(
+                                color = Color.White.copy(alpha = (0.55f + 0.45f * activeRatio).coerceIn(0.3f, 1f)),
+                                radius = radiusPx,
+                                center = center
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = String.format(Locale.US, "%,d", visibleStarCount),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White,
+                                modifier = Modifier.testTag("visible_star_count_value")
+                            )
+                            Text(
+                                text = if (isGreek) {
+                                    "Ορατά άστρα με γυμνό μάτι"
+                                } else {
+                                    "Naked-eye visible stars"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CyanGlow
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "$skyClarityPct%",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = EmeraldBreeze
+                            )
+                            Text(
+                                text = if (isGreek) "Διαύγεια Ουρανού" else "Sky Clarity",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.75f)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = String.format(Locale.US, "Mag %.1f", limitingMagnitude),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AmberSol
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3 Mini Astronomy Pill Metrics: Cloud Cover, Moon Illumination, Best Viewing Window
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΝΕΦΩΣΗ" else "CLOUDS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$cloudCoverPct%",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΣΕΛΗΝΗ" else "MOONLIGHT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$moonIlluminationPct%",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberSol,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                    modifier = Modifier.weight(1.2f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΙΔΑΝΙΚΗ ΩΡΑ" else "BEST WINDOW",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = bestNightWindowLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanGlow,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -2030,6 +2031,9 @@ fun LiveWeatherRadarCanvas(
     satelliteOnlyMode: Boolean = false,
     satelliteZoom: Int = 13,
     mapStyle: com.example.util.SatelliteMapStyle = com.example.util.SatelliteMapStyle.HYBRID_SATELLITE,
+    zoomScale: Float = 1f,
+    panOffset: Offset = Offset.Zero,
+    onZoomPanChange: ((Float, Offset) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()
@@ -2061,6 +2065,8 @@ fun LiveWeatherRadarCanvas(
     }
     val sweepAngle = sweepAngleState.value
     val cellPulse = cellPulseState.value
+    val currentScaleState = rememberUpdatedState(zoomScale)
+    val currentPanState = rememberUpdatedState(panOffset)
 
     val liveSatelliteBitmap = if (showSatellitePhoto) {
         rememberTownSatelliteImageBitmap(
@@ -2083,34 +2089,96 @@ fun LiveWeatherRadarCanvas(
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(Color(0xFF061527)),
+            .background(Color(0xFF061527))
+            .then(
+                if (onZoomPanChange != null) {
+                    Modifier
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = { tapOffset ->
+                                    val curScale = currentScaleState.value
+                                    val nextScale = when {
+                                        curScale < 1.8f -> 2.2f
+                                        curScale < 3.2f -> 3.6f
+                                        else -> 1.0f
+                                    }
+                                    if (nextScale <= 1.01f) {
+                                        onZoomPanChange(1.0f, Offset.Zero)
+                                    } else {
+                                        val center = Offset(size.width / 2f, size.height / 2f)
+                                        val minDim = minOf(size.width, size.height).toFloat()
+                                        val maxPan = (minDim / 2f) * (nextScale - 1f) * 0.72f
+                                        val focusShift = (center - tapOffset) * 0.45f
+                                        val clampedPan = Offset(
+                                            focusShift.x.coerceIn(-maxPan, maxPan),
+                                            focusShift.y.coerceIn(-maxPan, maxPan)
+                                        )
+                                        onZoomPanChange(nextScale, clampedPan)
+                                    }
+                                }
+                            )
+                        }
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val curScale = currentScaleState.value
+                                val curPan = currentPanState.value
+                                val nextScale = (curScale * zoom).coerceIn(1.0f, 5.0f)
+                                if (nextScale <= 1.01f) {
+                                    onZoomPanChange(1.0f, Offset.Zero)
+                                } else {
+                                    val minDim = minOf(size.width, size.height).toFloat()
+                                    val maxPan = (minDim / 2f) * (nextScale - 1f) * 0.75f
+                                    val rawPan = curPan + pan
+                                    val clampedPan = Offset(
+                                        rawPan.x.coerceIn(-maxPan, maxPan),
+                                        rawPan.y.coerceIn(-maxPan, maxPan)
+                                    )
+                                    onZoomPanChange(nextScale, clampedPan)
+                                }
+                            }
+                        }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
-        if (showSatellitePhoto) {
-            if (liveSatelliteBitmap != null) {
-                Image(
-                    bitmap = liveSatelliteBitmap,
-                    contentDescription = "Satellite photo of ${bundle.cityName}",
-                    contentScale = ContentScale.Crop,
-                    alpha = if (satelliteOnlyMode) 0.98f else 0.88f,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.img_satellite_town),
-                    contentDescription = "Satellite aerial photo of ${bundle.cityName}",
-                    contentScale = ContentScale.Crop,
-                    alpha = if (satelliteOnlyMode) 0.96f else 0.74f,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = zoomScale
+                    scaleY = zoomScale
+                    translationX = panOffset.x
+                    translationY = panOffset.y
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            if (showSatellitePhoto) {
+                if (liveSatelliteBitmap != null) {
+                    Image(
+                        bitmap = liveSatelliteBitmap,
+                        contentDescription = "Satellite photo of ${bundle.cityName}",
+                        contentScale = ContentScale.Crop,
+                        alpha = if (satelliteOnlyMode) 0.98f else 0.88f,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_satellite_town),
+                        contentDescription = "Satellite aerial photo of ${bundle.cityName}",
+                        contentScale = ContentScale.Crop,
+                        alpha = if (satelliteOnlyMode) 0.96f else 0.74f,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                }
             }
-        }
 
-        Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val maxRadius = (size.minDimension / 2f) - 3.dp.toPx()
 
@@ -2375,6 +2443,7 @@ fun LiveWeatherRadarCanvas(
                 radius = 3.5.dp.toPx(),
                 center = center
             )
+        }
         }
 
         // Cardinal compass labels around the circular radar perimeter

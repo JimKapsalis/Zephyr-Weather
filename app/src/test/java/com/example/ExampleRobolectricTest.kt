@@ -665,7 +665,8 @@ class ExampleRobolectricTest {
         if (sourceApk != null) {
             val apkBytes = sourceApk.readBytes()
             val rootDir = java.io.File("/app/applet").takeIf { it.exists() } ?: java.io.File("..").canonicalFile
-            val rootApk = java.io.File(rootDir, "ZephyrWeather.apk")
+            java.io.File(rootDir, "ZephyrWeather.apk").delete()
+            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.apk")
             rootApk.writeBytes(apkBytes)
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
         }
