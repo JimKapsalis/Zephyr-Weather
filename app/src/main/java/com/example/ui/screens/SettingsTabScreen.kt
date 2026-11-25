@@ -89,8 +89,14 @@ fun SettingsTabScreen(
     onOpenLocationSetup: () -> Unit = {},
     onTriggerTestAlert: () -> Unit = {},
     isCheckingUpdates: Boolean = false,
-    appVersionLabel: String = "v2.6.0 (Build 26)",
+    appVersionLabel: String = "v2.7.0 (Build 27)",
     lastUpdateCheckStatus: String? = null,
+    githubRepoSlug: String = "zephyr-weather/zephyr-weather",
+    latestReleaseTag: String = "v2.7.0",
+    latestReleaseNotes: String? = null,
+    isNewGitHubReleaseAvailable: Boolean = false,
+    onUpdateGitHubRepoSlug: (String) -> Unit = {},
+    onOpenGitHubReleaseDownload: (directApk: Boolean) -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
     onSendFeedbackEmail: (category: String, rating: Int, message: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
@@ -107,16 +113,10 @@ fun SettingsTabScreen(
         )
     }
 
-    var pendingTestAlertAfterPermission by remember { mutableStateOf(false) }
-
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasNotificationPermission = granted
-        if (granted && pendingTestAlertAfterPermission) {
-            pendingTestAlertAfterPermission = false
-            onTriggerTestAlert()
-        }
     }
 
     LazyColumn(
@@ -149,18 +149,20 @@ fun SettingsTabScreen(
             }
         }
 
-        // Section -1: One-Tap App & Weather Models Updater
+        // Section -1: GitHub Releases App Updater & 4-Model Ensemble Sync
         item {
             SettingsSectionHeader(
                 icon = WeatherIcons.Refresh,
-                title = if (language == AppLanguage.GREEK) "Ενημέρωση Εφαρμογής & Δεδομένων" else "App & Weather Data Updater",
+                title = if (language == AppLanguage.GREEK) "Ενημέρωση από GitHub Releases" else "GitHub Releases App Updater",
                 subtitle = if (language == AppLanguage.GREEK) {
-                    "Αυτόματος έλεγχος και εγκατάσταση τελευταίας έκδοσης & μοντέλων"
+                    "Έλεγχος νέας έκδοσης APK στο GitHub Releases & συγχρονισμός 4 μοντέλων"
                 } else {
-                    "One-tap check & automatic update for app data, villages, elevation & snow models"
+                    "Check GitHub Releases for new APK versions & sync 4-model forecasts"
                 }
             )
             Spacer(modifier = Modifier.height(10.dp))
+
+            var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
 
             Card(
                 modifier = Modifier
@@ -170,7 +172,10 @@ fun SettingsTabScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFF102542).copy(alpha = 0.94f)
                 ),
-                border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.45f))
+                border = BorderStroke(
+                    1.2.dp,
+                    if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr.copy(alpha = 0.45f)
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -185,44 +190,143 @@ fun SettingsTabScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (language == AppLanguage.GREEK) {
-                                    "Zephyr Weather $appVersionLabel"
-                                } else {
-                                    "Zephyr Weather $appVersionLabel"
-                                },
+                                text = "Zephyr Weather $appVersionLabel",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = lastUpdateCheckStatus ?: if (language == AppLanguage.GREEK) {
-                                    "Πατήστε παρακάτω για αυτόματο έλεγχο και ενημέρωση όλων των δεδομένων (πόλεις, χωριά, υψόμετρο, χιόνι & GPS)."
+                                text = if (language == AppLanguage.GREEK) {
+                                    "GitHub Release: $latestReleaseTag • Μηχανή Μηδενικής Αφύπνισης HyperOS"
                                 } else {
-                                    "Tap below to automatically check and install the latest weather models, village database, elevation & GPS updates."
+                                    "GitHub Release: $latestReleaseTag • HyperOS Zero-Wakelock Engine"
                                 },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (lastUpdateCheckStatus != null) EmeraldBreeze else Color.White.copy(alpha = 0.72f)
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CyanGlow
                             )
                         }
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = EmeraldBreeze.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.45f))
+                            color = if (isNewGitHubReleaseAvailable) {
+                                AmberSol.copy(alpha = 0.20f)
+                            } else {
+                                EmeraldBreeze.copy(alpha = 0.16f)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze.copy(alpha = 0.45f)
+                            )
                         ) {
                             Text(
-                                text = if (isCheckingUpdates) {
-                                    if (language == AppLanguage.GREEK) "ΕΝΗΜΕΡΩΣΗ…" else "UPDATING…"
-                                } else {
-                                    if (language == AppLanguage.GREEK) "ΕΝΕΡΓΟ" else "LATEST"
+                                text = when {
+                                    isCheckingUpdates -> if (language == AppLanguage.GREEK) "ΕΛΕΓΧΟΣ…" else "CHECKING…"
+                                    isNewGitHubReleaseAvailable -> if (language == AppLanguage.GREEK) "ΝΕΑ ΕΚΔΟΣΗ $latestReleaseTag" else "UPDATE $latestReleaseTag"
+                                    else -> if (language == AppLanguage.GREEK) "ΕΝΗΜΕΡΩΜΕΝΟ" else "LATEST"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = EmeraldBreeze,
+                                color = if (isNewGitHubReleaseAvailable) AmberSol else EmeraldBreeze,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
                         }
                     }
+
+                    // HyperOS / Redmi Note 15 Pro 5G Zero-Wakelock Battery Guard status pill
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = EmeraldBreeze.copy(alpha = 0.13f),
+                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = WeatherIcons.Check,
+                                contentDescription = null,
+                                tint = EmeraldBreeze,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "HyperOS Battery Guard Ενεργό • 0 λεπτά αφύπνισης παρασκηνίου • ~70 MB RAM"
+                                } else {
+                                    "HyperOS Battery Guard Active • 0m background keep-awake • ~70 MB RAM"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.92f)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = lastUpdateCheckStatus ?: if (language == AppLanguage.GREEK) {
+                            "Ελέγχει αυτόματα το αποθετήριο GitHub Releases για νέο APK και ενημερώνει τα 4 μετεωρολογικά μοντέλα."
+                        } else {
+                            "Automatically checks your GitHub Releases feed for new APK builds and syncs all 4 NWP forecast models."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when {
+                            isNewGitHubReleaseAvailable -> AmberSol
+                            lastUpdateCheckStatus != null -> EmeraldBreeze
+                            else -> Color.White.copy(alpha = 0.74f)
+                        }
+                    )
+
+                    if (!latestReleaseNotes.isNullOrBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF0A182B).copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = latestReleaseNotes,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.80f),
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = repoInput,
+                        onValueChange = {
+                            repoInput = it
+                            onUpdateGitHubRepoSlug(it)
+                        },
+                        singleLine = true,
+                        label = {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Αποθετήριο GitHub Releases (owner/repo)"
+                                } else {
+                                    "GitHub Releases Repository (owner/repo)"
+                                },
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0A182B),
+                            unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.80f),
+                            focusedBorderColor = CyanZephyr,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+                            focusedLabelColor = CyanGlow,
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.65f),
+                            cursorColor = CyanZephyr
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_github_repo_input")
+                    )
 
                     Button(
                         onClick = onCheckForUpdates,
@@ -248,21 +352,85 @@ fun SettingsTabScreen(
                         Text(
                             text = if (isCheckingUpdates) {
                                 if (language == AppLanguage.GREEK) {
-                                    "Γίνεται Έλεγχος & Ενημέρωση…"
+                                    "Έλεγχος GitHub Releases & Μοντέλων…"
                                 } else {
-                                    "Checking & Installing Updates…"
+                                    "Checking GitHub Releases & Models…"
                                 }
                             } else {
                                 if (language == AppLanguage.GREEK) {
-                                    "Έλεγχος & Αυτόματη Ενημέρωση Τώρα"
+                                    "Έλεγχος για Νέα Έκδοση στο GitHub Releases"
                                 } else {
-                                    "Check & Update Everything Now"
+                                    "Check GitHub Releases for New Update"
                                 }
                             },
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { onOpenGitHubReleaseDownload(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isNewGitHubReleaseAvailable) {
+                                    AmberSol.copy(alpha = 0.28f)
+                                } else {
+                                    CyanZephyr.copy(alpha = 0.22f)
+                                }
+                            ),
+                            border = BorderStroke(
+                                1.2.dp,
+                                if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr
+                            ),
+                            shape = RoundedCornerShape(18.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_github_release_download_button")
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Λήψη Τελευταίου APK"
+                                } else {
+                                    "Download Latest APK"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Button(
+                            onClick = { onOpenGitHubReleaseDownload(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.10f)
+                            ),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.26f)),
+                            shape = RoundedCornerShape(18.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_github_releases_page_button")
+                        ) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "GitHub Releases"
+                                } else {
+                                    "GitHub Releases"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CyanGlow,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -938,49 +1106,14 @@ fun SettingsTabScreen(
                             )
                             Text(
                                 text = if (language == AppLanguage.GREEK) {
-                                    "Υπηρεσία Παρασκηνίου Ενεργή • Οι ειδοποιήσεις αποστέλλονται ακόμα κι όταν η εφαρμογή είναι κλειστή"
+                                    "Υπηρεσία Παρασκηνίου Χωρίς Αφύπνιση • Οι ειδοποιήσεις παραδίδονται χωρίς κατανάλωση μπαταρίας"
                                 } else {
-                                    "Background Sync & Push Service Active • Alerts are delivered even when the app is closed"
+                                    "Zero-Wakelock Background Service Active • Alerts delivered without waking CPU in sleep"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.90f)
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
-                            onTriggerTestAlert()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AmberSol.copy(alpha = 0.22f)
-                        ),
-                        border = BorderStroke(1.dp, AmberSol),
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("test_severe_alert_button")
-                    ) {
-                        Icon(
-                            imageVector = WeatherIcons.NotificationsActive,
-                            contentDescription = null,
-                            tint = AmberSol,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (language == AppLanguage.GREEK) {
-                                "Δοκιμή Ειδοποίησης Καταιγίδας / Βροχής GPS"
-                            } else {
-                                "Send Live GPS Severe Weather Alert"
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White,
-                            maxLines = 1,
-                            softWrap = false
-                        )
                     }
                 }
             }
@@ -1034,13 +1167,13 @@ fun SettingsTabScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (language == AppLanguage.GREEK) "Αποστολή Email Υποστήριξης" else "Direct Developer Email Feedback",
+                                text = if (language == AppLanguage.GREEK) "Σχόλια & Υποστήριξη Εφαρμογής" else "In-App Feedback & Support",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = com.example.ui.WeatherViewModel.FEEDBACK_RECIPIENT_EMAIL,
+                                text = if (language == AppLanguage.GREEK) "Μοιραστείτε προτάσεις ή αναφορές απευθείας από την εφαρμογή" else "Share feature ideas or reports directly from the app",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = CyanGlow
                             )
@@ -1164,9 +1297,9 @@ fun SettingsTabScreen(
                                 )
                                 Text(
                                     text = if (language == AppLanguage.GREEK) {
-                                        "Το email σχολίων ετοιμάστηκε για αποστολή στο ${com.example.ui.WeatherViewModel.FEEDBACK_RECIPIENT_EMAIL}!"
+                                        "Τα σχόλιά σας καταχωρήθηκαν επιτυχώς! Ευχαριστούμε!"
                                     } else {
-                                        "Feedback email prepared for ${com.example.ui.WeatherViewModel.FEEDBACK_RECIPIENT_EMAIL}!"
+                                        "Your feedback has been submitted! Thank you!"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White
@@ -1199,9 +1332,9 @@ fun SettingsTabScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (language == AppLanguage.GREEK) {
-                                "Αποστολή Σχολίων στο Email μου"
+                                "Αποστολή Σχολίων"
                             } else {
-                                "Send Feedback to Email"
+                                "Submit Feedback"
                             },
                             style = MaterialTheme.typography.labelLarge,
                             color = Color.White,

@@ -1,89 +1,98 @@
-# 🌦️ Zephyr Weather — Multi-Model Android Weather & Live Radar
+<div align="center">
 
-[![Build & Release APK](https://img.shields.io/badge/Android-APK%20Ready-38BDF8?style=for-the-badge&logo=android&logoColor=white)](./ZephyrWeather.apk)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
-[![Models](https://img.shields.io/badge/Forecast-ECMWF%20%2B%20ICON%20%2B%20GFS-10B981?style=for-the-badge)](https://open-meteo.com/)
+<img src="app/src/main/res/drawable/ic_launcher_foreground.png" width="118" height="118" alt="Zephyr Weather Icon" />
 
-**Zephyr Weather** is a bilingual (**English / Ελληνικά**) Android weather application built with **Kotlin** and **Jetpack Compose**. It fuses the world's top numerical weather prediction (NWP) models with 15-minute live Doppler nowcast data, hardware GPS location detection (`FusedLocationProviderClient`), and high-precision elevation (`Υψόμετρο`) telemetry for every city, town, and mountain village worldwide.
+# 🌤️ Zephyr Weather for Android
+### **4-Model Super-Ensemble Forecasting • HyperOS Zero-Wakelock Battery Engine • Live Doppler Radar • Bilingual (EN / ΕΛ)**
 
----
-
-## 📲 Direct APK Download (GitHub)
-
-You can download and install the Android APK directly from this repository in two ways:
-
-1. **Direct Repository File**:
-   - Click **[`ZephyrWeather.apk`](./ZephyrWeather.apk)** in the root of this repository and tap **"Download raw file"** (or **"View raw"**) to download the installable `.apk` directly to your Android phone or PC.
-2. **GitHub Releases**:
-   - Open the **[Releases](../../releases)** tab on the right side of GitHub and tap **`ZephyrWeather.apk`** under **Assets**.
+[![Latest Release](https://img.shields.io/badge/GitHub_Release-v2.7.0-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Direct APK Download](https://img.shields.io/badge/Download_APK-ZephyrWeather.apk-10B981?style=for-the-badge&logo=android&logoColor=white)](../../releases/latest/download/ZephyrWeather.apk)
+[![HyperOS Battery Guard](https://img.shields.io/badge/Battery_Keep--Awake-0_Minutes-22C55E?style=for-the-badge&logo=xiaomi&logoColor=white)](#-hyperos--miui-zero-wakelock-battery-engine)
+[![4-Model Ensemble](https://img.shields.io/badge/NWP_Ensemble-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
 
 ---
 
-## ✨ Key Features
+### 📲 **[⬇️ Download Latest `ZephyrWeather.apk` from GitHub Releases](../../releases/latest/download/ZephyrWeather.apk)**
+*(Or download [`ZephyrWeather.apk`](./ZephyrWeather.apk) directly from the repository root)*
 
-- **🛰️ 3-Model Ensemble Consensus + 15-Min Nowcast**:
-  - Automatically blends **Open-Meteo High-Resolution Best-Match**, **ECMWF IFS (0.25°)**, and **DWD ICON Seamless (2–7 km Europe & Terrain)** in parallel, plus **15-minute Nowcast (`minutely_15`)** precipitation and snowfall assimilation.
-  - Or switch manually in **Settings** between:
-    - **Multi-Model + Live Radar (Best)** (`1–2 km Radar + 3-Model Ensemble`)
-    - **ECMWF IFS (European Centre)** (`0.25° Global #1`)
-    - **DWD ICON (German Weather Service)** (`2–7 km Europe & Mountain Terrain HD`)
-    - **Météo-France AROME / ARPEGE** (`1.3–10 km Mediterranean HD`)
-    - **NOAA GFS + HRRR (US Weather Service)** (`3–13 km Seamless`)
-    - **UK Met Office (UKMO Seamless)** (`1.5–10 km Global`)
-- **📍 True Hardware GPS Location (`FusedLocationProviderClient`)**:
-  - Requests runtime `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` permissions and resolves live GPS coordinates + altitude without any hardcoded default city.
-- **⛰️ Global City, Town & Mountain Village Search with Elevation (`Υψόμετρο`)**:
-  - Supports Greek, English, and Greeklish search across global cities and small mountain villages (e.g., *Κάτω Παλαιοκαρυά*, *Άνω Παλαιοκαρυά*, *Περτούλι*, *Ελάτη*, *Μέτσοβο*, *Αράχωβα*) with exact elevation in meters (`m`) / feet (`ft`) and freezing-level snow detection.
-- **📊 Compact 24-Hour & 10-Day Forecast**:
-  - Interactive 24-hour temperature, feels-like, precipitation, wind, and UV charts.
-  - Clean 10-day forecast cards that stay compact by default and expand into an hourly day breakdown only when tapped.
-- **🗺️ Live Interactive Rain, Wind, Cloud & Thermal Radar**:
-  - Real-time RainViewer Doppler radar tiles + atmospheric wind particle streamlines.
-- **🔄 Built-in App & Weather Data Updater**:
-  - One-tap updater in **Settings** (`Check & Install Updates`) to sync the latest village catalog, elevation telemetry, and multi-model forecasts.
+</div>
 
 ---
 
-## 🗂️ Clean Repository Structure
+## ✨ Highlights & Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| 🛰️ **4-Model Super-Ensemble Engine** | Fuses **HR-LAM Best-Match (1–2 km)**, **ECMWF IFS 0.25° (9 km)**, **DWD ICON Seamless (2–7 km)**, and **NOAA GFS Seamless (13–25 km)** in parallel with outlier dampening, altitude lapse-rate calibration (`-6.5°C / 1000m`), and wet-bulb snow physics. |
+| 🔋 **HyperOS / MIUI Zero-Wakelock Battery Engine** | Specifically engineered for **Redmi Note 15 Pro 5G** and 120Hz AMOLED phones: **0 minutes background keep-awake**, `~70 MB RAM`, zero `ELAPSED_REALTIME_WAKEUP` alarms, and automatic lifecycle pausing of all 120Hz canvas & clock animations when the screen turns off. |
+| 🔄 **Built-In GitHub Releases App Updater** | Checks the **GitHub Releases API** (`/repos/{owner}/{repo}/releases/latest`) directly from **Settings → GitHub Releases App Updater**, compares semantic version tags, displays release notes, and lets you download new APK releases in one tap. |
+| 🏔️ **Precision Mountain, Village & Snow Telemetry** | Covers all cities, towns, islands, and mountain villages across Greece and worldwide with live elevation meters, freezing level (`0°C` isotherm), snow depth, and snow accumulation alerts. |
+| 🧭 **Photorealistic Sky & 3D Glass Widgets** | Photorealistic multi-layered atmospheric sky canvas (`WeatherSkyBackdrop`), 3D navigation bar icons, **Helios 24h Chrono-Dial**, **Smart Comfort & Outfit Advisor**, **Analog Barometer**, and a 4×2 Home Screen AppWidget. |
+| 🇬🇷 **Bilingual English & Greek (`EN` / `ΕΛ`)** | Instant one-tap switching between English and Greek with localized Beaufort wind scales, EMY severe weather bulletins, and metric/imperial units (`°C / °F`, `km/h / mph`, `hPa / inHg`). |
+
+---
+
+## 🔋 HyperOS / MIUI Zero-Wakelock Battery Engine
+
+Tested and optimized for **Xiaomi Redmi Note 15 Pro 5G** (HyperOS / 120Hz display):
+- **Zero Wakeup Alarms (`0m Keep-Awake`)**: Uses Android's Doze-batched `JobScheduler` (`setRequiresBatteryNotLow(true)`) without `AlarmManager.ELAPSED_REALTIME_WAKEUP` or recursive job rescheduling, allowing the CPU to stay in deep sleep when the screen is off.
+- **Zero Per-Frame List Recompositions**: Forecast list icons render in the Compose draw/layer phase without spawning per-item `InfiniteTransition` tickers.
+- **Instant `ON_STOP` Teardown**: All foreground refresh timers, search jobs, minute-aligned clocks, and 120Hz particle canvases pause the instant the app leaves `Lifecycle.State.RESUMED`.
+- **Bounded GNSS Hardware Access**: `FusedLocationProviderClient` tokens are automatically cancelled upon completion and default to balanced power accuracy when Battery Saver is enabled.
+
+---
+
+## 🛰️ 4-Model Super-Ensemble Meteorological Engine
+
+When **Multi-Model Ensemble (`BEST_MATCH`)** is selected, Zephyr Weather queries 4 independent Numerical Weather Prediction (NWP) models simultaneously and blends their outputs:
+
+1. **HR-LAM Best-Match (1–2 km micro-grid)** — `38%` weight
+2. **ECMWF IFS HRES 0.25° (9 km European Centre)** — `27%` weight
+3. **DWD ICON-EU / Seamless (2–7 km German Weather Service)** — `22%` weight
+4. **NOAA GFS Seamless (13–25 km Global Forecast System)** — `13%` weight
+
+- **Outlier Dampening**: Automatically down-weights any model that deviates by `> 2.2°C` from the 4-model median.
+- **Orographic Lapse-Rate Calibration**: Adjusts 2m temperature and apparent temperature for high-altitude villages and mountain passes (`-6.5°C / 1000m`).
+- **Wet-Bulb & Freezing-Level Snow Detection**: Cross-checks relative humidity, dew point, and the `0°C` freezing level height against station elevation to prevent false rain/snow classifications.
+
+---
+
+## 📦 How to Install & Use the GitHub Releases App Updater
+
+### Option 1 — Download from GitHub Releases (Recommended)
+1. Open the [**Releases**](../../releases/latest) page of this repository on your Android phone.
+2. Tap **`ZephyrWeather.apk`** under **Assets** to download and install.
+
+### Option 2 — In-App GitHub Releases Updater
+1. Open **Zephyr Weather** and go to the **Settings (Ρυθμίσεις)** tab.
+2. In the **GitHub Releases App Updater** card at the top:
+   - Enter your GitHub repository slug (`owner/repo`) if you forked or published your own repository.
+   - Tap **Check GitHub Releases for New Update** to query `/releases/latest`.
+   - Tap **Download Latest APK** to download the newest `ZephyrWeather.apk` directly from GitHub Releases.
+
+### Option 3 — Automatic GitHub Actions Release Pipeline
+Every push to `main`/`master` or tag matching `v*` triggers `.github/workflows/build-apk.yml`, which:
+1. Compiles `ZephyrWeather.apk` and `ZephyrWeather-v2.7.0.apk` with JDK 17 and Gradle.
+2. Commits the updated `ZephyrWeather.apk` to the repository root.
+3. Publishes a new **GitHub Release (`v2.7.0`)** with the installable APK attached under **Assets**.
+
+---
+
+## 🛠️ Project Structure
 
 ```text
-├── .github/workflows/build-apk.yml   # Automated GitHub Actions APK builder & release publisher
-├── app/
-│   ├── build.gradle.kts              # Android app module Gradle configuration
-│   └── src/main/
-│       ├── AndroidManifest.xml       # Permissions, MainActivity, Widget & Boot receivers
-│       ├── java/com/example/
-│       │   ├── MainActivity.kt       # FusedLocationProviderClient GPS + App shell + Setup screen
-│       │   ├── data/                 # Room Database (v8), WeatherRepository 3-model ensemble engine
-│       │   ├── model/                # WeatherModels, WMO weather mapper, multi-model providers
-│       │   ├── network/              # Retrofit + Moshi Open-Meteo, AQI & Geocoding services
-│       │   ├── ui/                   # WeatherViewModel + Forecast, Radar, Cities & Settings screens
-│       │   ├── util/                 # Severe weather notifier & WorkManager background sync
-│       │   └── widget/               # Home screen Glance / AppWidget provider
-│       └── res/                      # Adaptive launcher icons, widgets & bilingual strings
-├── gradle/libs.versions.toml         # Version catalog
-├── ZephyrWeather.apk                 # Direct-downloadable Android APK
-├── build.gradle.kts                  # Root Gradle configuration
-└── settings.gradle.kts               # Project settings
+.
+├── .github/workflows/build-apk.yml   # Automated APK Build & GitHub Releases Publisher
+├── ZephyrWeather.apk                 # Direct-download Android APK package (v2.7.0)
+└── app/src/main/
+    ├── AndroidManifest.xml
+    ├── java/com/example/
+    │   ├── MainActivity.kt           # Edge-to-edge Compose shell & GPS permission flow
+    │   ├── data/                     # Room Database, Preferences & 4-Model WeatherRepository
+    │   ├── model/                    # Domain models, WMO mapper & bilingual localization
+    │   ├── network/                  # Open-Meteo NWP, Air Quality, Nominatim & GitHub Releases APIs
+    │   ├── ui/                       # WeatherViewModel, Forecast/Radar/Cities/Settings screens & 3D widgets
+    │   ├── util/                     # Zero-Wakelock JobScheduler sync & SevereWeatherNotifier
+    │   └── widget/                   # 4x2 Glance-style RemoteViews Home Screen Widget
+    └── res/                          # Custom adaptive launcher icon & Material 3 vector drawables
 ```
-
----
-
-## 🛠️ Building from Source
-
-### Prerequisites
-- **JDK 17**
-- **Android SDK** (API 35 / compileSdk 35, minSdk 26)
-
-### Build Commands
-```bash
-# Build Debug APK
-gradle assembleDebug
-
-# Run Unit & Robolectric Tests
-gradle :app:testDebugUnitTest
-```
-
-The compiled APK will be generated at:
-`app/build/outputs/apk/debug/app-debug.apk`

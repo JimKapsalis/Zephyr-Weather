@@ -10,7 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.SystemClock
+import android.os.Build
 import com.example.data.WeatherDatabase
 import com.example.data.WeatherPreferences
 import com.example.data.WeatherRepository
@@ -20,153 +20,188 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Coordinates background weather synchronization and push notifications using both
- * Android's [JobScheduler] ([WeatherBackgroundJobService]) and [AlarmManager] ([WeatherAlarmReceiver])
- * so severe weather and rain notifications are reliably delivered even when the app is in the background.
+ * Ultra-low-power background weather synchronization using Android's Doze-aware [JobScheduler]
+ * without any CPU wakelocks or [AlarmManager.ELAPSED_REALTIME_WAKEUP] alarms.
+ *
+ * Specifically tuned for Xiaomi HyperOS / MIUI (e.g., Redmi Note 15 Pro 5G) to prevent background
+ * keep-awake time while still delivering severe weather notifications during standard OS maintenance windows.
  */
 object WeatherBackgroundSyncScheduler {
 
     const val ACTION_BACKGROUND_WEATHER_SYNC = "com.example.action.BACKGROUND_WEATHER_SYNC"
     private const val JOB_ID_WEATHER_SYNC = 4901
     private const val ALARM_REQUEST_CODE = 4902
+    private const val MIN_BACKGROUND_FETCH_GAP_MS = 25 * 60 * 1000L
 
     fun scheduleBackgroundSync(
         context: Context,
-        intervalMs: Long? = null
+        intervalMs: Long? = null,
+        forceReschedule: Boolean = false
     ) {
         val appContext = context.applicationContext ?: context
         SevereWeatherNotifier.ensureChannelsCreated(appContext)
         val prefs = WeatherPreferences(appContext)
-        val effectiveIntervalMs = (intervalMs ?: prefs.loadRefreshInterval().intervalMs)
-            .coerceAtLeast(15 * 60 * 1000L)
+        val batterySaver = prefs.loadBatterySaverSync()
+        val requestedInterval = intervalMs ?: prefs.loadRefreshInterval().intervalMs
+        val minAllowedInterval = if (batterySaver) 30 * 60 * 1000L else 15 * 60 * 1000L
+        val effectiveIntervalMs = requestedInterval.coerceAtLeast(minAllowedInterval)
 
-        // 1. Schedule JobScheduler Periodic Background Sync
+        // 1. Always cancel any legacy AlarmManager wakeup alarms so the phone never holds CPU wakelocks
+        cancelLegacyWakeupAlarms(appContext)
+
+        // 2. Schedule Doze-batched JobScheduler Periodic Sync (only if not already registered with same interval)
         runCatching {
             val jobScheduler = appContext.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
-            if (jobScheduler != null) {
-                val component = ComponentName(appContext, WeatherBackgroundJobService::class.java)
-                val jobInfo = JobInfo.Builder(JOB_ID_WEATHER_SYNC, component)
-                    .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                    .setPersisted(true)
-                    .setPeriodic(effectiveIntervalMs)
-                    .build()
-                jobScheduler.schedule(jobInfo)
+                ?: return@runCatching
+            val existingJob = jobScheduler.allPendingJobs.firstOrNull { it.id == JOB_ID_WEATHER_SYNC }
+            if (!forceReschedule && existingJob != null && existingJob.intervalMillis == effectiveIntervalMs) {
+                return@runCatching
             }
-        }
 
-        // 2. Schedule AlarmManager wakeup so background notifications fire reliably during idle/background
+            val component = ComponentName(appContext, WeatherBackgroundJobService::class.java)
+            val builder = JobInfo.Builder(JOB_ID_WEATHER_SYNC, component)
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setPersisted(true)
+                .setPeriodic(effectiveIntervalMs)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                builder.setRequiresBatteryNotLow(true)
+            }
+
+            jobScheduler.schedule(builder.build())
+        }
+    }
+
+    private fun cancelLegacyWakeupAlarms(appContext: Context) {
         runCatching {
             val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
                 ?: return@runCatching
             val intent = Intent(appContext, WeatherAlarmReceiver::class.java).apply {
                 action = ACTION_BACKGROUND_WEATHER_SYNC
             }
-            val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            val pendingFlags = PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             val pendingIntent = PendingIntent.getBroadcast(
                 appContext,
                 ALARM_REQUEST_CODE,
                 intent,
                 pendingFlags
             )
-            val triggerAtElapsed = SystemClock.elapsedRealtime() + effectiveIntervalMs
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                triggerAtElapsed,
-                pendingIntent
-            )
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
         }
     }
 
     /**
-     * Executes a single background weather fetch + alert evaluation + system notification dispatch.
+     * Executes a single bounded background weather fetch + alert evaluation + system notification dispatch.
      */
     suspend fun performBackgroundWeatherCheckAndNotify(
         context: Context,
         forceNotification: Boolean = false
     ): Boolean {
         val appContext = context.applicationContext ?: context
-        return runCatching {
-            SevereWeatherNotifier.ensureChannelsCreated(appContext)
-            val prefs = WeatherPreferences(appContext)
-            val emyEnabled = prefs.loadEmyAlerts()
-            val rainEnabled = prefs.loadRainAlerts()
-            val units = prefs.loadUnits()
-            val language = prefs.loadLanguage()
-            val provider = prefs.loadProvider()
+        return withTimeoutOrNull(10_000L) {
+            runCatching {
+                SevereWeatherNotifier.ensureChannelsCreated(appContext)
+                val prefs = WeatherPreferences(appContext)
+                val emyEnabled = prefs.loadEmyAlerts()
+                val rainEnabled = prefs.loadRainAlerts()
+                val batterySaver = prefs.loadBatterySaverSync()
 
-            val db = WeatherDatabase.getInstance(appContext)
-            val repo = WeatherRepository(db.cityDao())
-            val cities = repo.ensureDefaultCitiesSeeded(prefs)
-            val selectedId = prefs.loadSelectedCityId()
-            val targetCity = cities.find { it.id == selectedId }
-                ?: cities.firstOrNull()
-                ?: return@runCatching false
+                // If user disabled all background alerts and battery saver is active, skip background radio wake
+                if (!forceNotification && batterySaver && !emyEnabled && !rainEnabled) {
+                    return@runCatching false
+                }
 
-            val bundle = repo.fetchWeatherForCity(
-                city = targetCity,
-                provider = provider,
-                forceRefresh = true
-            )
+                val units = prefs.loadUnits()
+                val language = prefs.loadLanguage()
+                val provider = prefs.loadProvider()
 
-            val alerts = SevereWeatherNotifier.evaluateAllActiveAlerts(
-                bundle = bundle,
-                units = units,
-                language = language,
-                emyAlertsEnabled = emyEnabled,
-                rainAlertsEnabled = rainEnabled
-            )
-            val primaryAlert = alerts.firstOrNull {
-                it.type == SevereAlertType.THUNDERSTORM ||
-                    it.type == SevereAlertType.HEAVY_RAIN ||
-                    it.type == SevereAlertType.RAIN_ONSET ||
-                    it.type == SevereAlertType.GALE_WIND
-            } ?: alerts.firstOrNull()
+                val db = WeatherDatabase.getInstance(appContext)
+                val repo = WeatherRepository(db.cityDao())
+                val cities = repo.ensureDefaultCitiesSeeded(prefs)
+                val selectedId = prefs.loadSelectedCityId()
+                val targetCity = cities.find { it.id == selectedId }
+                    ?: cities.firstOrNull()
+                    ?: return@runCatching false
 
-            ZephyrWeatherWidgetProvider.updateAllWidgetsFromBundle(
-                context = appContext,
-                bundle = bundle,
-                units = units,
-                language = language,
-                alert = primaryAlert
-            )
+                val now = System.currentTimeMillis()
+                if (!forceNotification && targetCity.lastUpdatedEpochMs > 0L &&
+                    (now - targetCity.lastUpdatedEpochMs) < MIN_BACKGROUND_FETCH_GAP_MS
+                ) {
+                    return@runCatching false
+                }
 
-            if (primaryAlert != null && (emyEnabled || rainEnabled || forceNotification)) {
-                SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
-                    context = appContext,
-                    alert = primaryAlert,
-                    forceDispatch = forceNotification || primaryAlert.isSevereOrRainActive
+                val bundle = repo.fetchWeatherForCity(
+                    city = targetCity,
+                    provider = provider,
+                    forceRefresh = false
                 )
-            } else {
-                false
-            }
-        }.getOrDefault(false)
+
+                val alerts = SevereWeatherNotifier.evaluateAllActiveAlerts(
+                    bundle = bundle,
+                    units = units,
+                    language = language,
+                    emyAlertsEnabled = emyEnabled,
+                    rainAlertsEnabled = rainEnabled
+                )
+                val primaryAlert = alerts.firstOrNull {
+                    it.type == SevereAlertType.THUNDERSTORM ||
+                        it.type == SevereAlertType.HEAVY_RAIN ||
+                        it.type == SevereAlertType.RAIN_ONSET ||
+                        it.type == SevereAlertType.GALE_WIND
+                } ?: alerts.firstOrNull()
+
+                ZephyrWeatherWidgetProvider.updateAllWidgetsFromBundle(
+                    context = appContext,
+                    bundle = bundle,
+                    units = units,
+                    language = language,
+                    alert = primaryAlert
+                )
+
+                if (primaryAlert != null && (emyEnabled || rainEnabled || forceNotification)) {
+                    SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
+                        context = appContext,
+                        alert = primaryAlert,
+                        forceDispatch = forceNotification || primaryAlert.isSevereOrRainActive
+                    )
+                } else {
+                    false
+                }
+            }.getOrDefault(false)
+        } ?: false
     }
 }
 
 /**
- * Background [JobService] that keeps weather forecasts and severe weather notifications active
- * when the application is in the background.
+ * Doze-friendly [JobService] that releases its job wakelock immediately after a bounded check
+ * without recursively re-scheduling itself.
  */
 class WeatherBackgroundJobService : JobService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onStartJob(params: JobParameters?): Boolean {
         serviceScope.launch {
-            WeatherBackgroundSyncScheduler.performBackgroundWeatherCheckAndNotify(
-                context = applicationContext,
-                forceNotification = false
-            )
-            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(applicationContext)
-            jobFinished(params, false)
+            try {
+                WeatherBackgroundSyncScheduler.performBackgroundWeatherCheckAndNotify(
+                    context = applicationContext,
+                    forceNotification = false
+                )
+            } finally {
+                jobFinished(params, false)
+            }
         }
         return true
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
         serviceScope.cancel()
-        return true
+        return false
     }
 
     override fun onDestroy() {
@@ -176,24 +211,15 @@ class WeatherBackgroundJobService : JobService() {
 }
 
 /**
- * [BroadcastReceiver] triggered by [AlarmManager] and device boot to fetch weather in the background
- * and post notifications when the user is outside the app.
+ * Boot/Broadcast receiver that ensures periodic [JobScheduler] sync is registered after reboot
+ * without scheduling any wakeup alarms.
  */
 class WeatherAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        val pendingResult = goAsync()
         val appContext = context.applicationContext ?: context
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                val isExplicitSync = intent?.action == WeatherBackgroundSyncScheduler.ACTION_BACKGROUND_WEATHER_SYNC
-                WeatherBackgroundSyncScheduler.performBackgroundWeatherCheckAndNotify(
-                    context = appContext,
-                    forceNotification = isExplicitSync
-                )
-                WeatherBackgroundSyncScheduler.scheduleBackgroundSync(appContext)
-            } finally {
-                runCatching { pendingResult.finish() }
-            }
-        }
+        WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+            context = appContext,
+            forceReschedule = false
+        )
     }
 }

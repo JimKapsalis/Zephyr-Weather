@@ -131,7 +131,7 @@ object WeatherIcons {
     }
 
     /**
-     * 2. SUN WITH CLOUDS (Ήλιος με Σύννεφα) — Radiant Golden Sun + Sculpted 2-Tone White Cloud.
+     * 2. SUN WITH CLOUDS (Ήλιος με Σύννεφα) — Radiant 3D Golden Sun with Outer Corona + Sculpted 3-Layer Volumetric Cloud.
      */
     val PartlySunny: ImageVector by lazy {
         ImageVector.Builder(
@@ -141,49 +141,79 @@ object WeatherIcons {
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
+            // Outer warm solar corona glow
+            path(fill = SolidColor(Color(0xFFF59E0B).copy(alpha = 0.28f))) {
+                moveTo(8.4f, 2.2f)
+                curveTo(5.09f, 2.2f, 2.4f, 4.89f, 2.4f, 8.2f)
+                curveTo(2.4f, 11.51f, 5.09f, 14.2f, 8.4f, 14.2f)
+                curveTo(11.71f, 14.2f, 14.4f, 11.51f, 14.4f, 8.2f)
+                curveTo(14.4f, 4.89f, 11.71f, 2.2f, 8.4f, 2.2f)
+                close()
+            }
             // Sun rays
             path(
                 stroke = SolidColor(Color(0xFFF59E0B)),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.9f,
                 strokeLineCap = StrokeCap.Round
             ) {
-                moveTo(8.5f, 1.5f); lineTo(8.5f, 3.3f)
-                moveTo(1.5f, 8.5f); lineTo(3.3f, 8.5f)
-                moveTo(3.55f, 3.55f); lineTo(4.85f, 4.85f)
-                moveTo(13.45f, 3.55f); lineTo(12.15f, 4.85f)
-                moveTo(3.55f, 13.45f); lineTo(4.85f, 12.15f)
+                moveTo(8.4f, 1.3f); lineTo(8.4f, 3.0f)
+                moveTo(1.3f, 8.2f); lineTo(3.0f, 8.2f)
+                moveTo(3.35f, 3.25f); lineTo(4.65f, 4.55f)
+                moveTo(13.45f, 3.25f); lineTo(12.15f, 4.55f)
+                moveTo(3.35f, 13.15f); lineTo(4.65f, 11.85f)
             }
-            // Golden Sun disc
-            path(fill = SolidColor(Color(0xFFFBBF24))) {
-                moveTo(8.5f, 4.6f)
-                curveTo(6.35f, 4.6f, 4.6f, 6.35f, 4.6f, 8.5f)
-                curveTo(4.6f, 10.65f, 6.35f, 12.4f, 8.5f, 12.4f)
-                curveTo(10.65f, 12.4f, 12.4f, 10.65f, 12.4f, 8.5f)
-                curveTo(12.4f, 6.35f, 10.65f, 4.6f, 8.5f, 4.6f)
+            // Golden Sun outer sphere
+            path(fill = SolidColor(Color(0xFFF59E0B))) {
+                moveTo(8.4f, 4.1f)
+                curveTo(6.14f, 4.1f, 4.3f, 5.94f, 4.3f, 8.2f)
+                curveTo(4.3f, 10.46f, 6.14f, 12.3f, 8.4f, 12.3f)
+                curveTo(10.66f, 12.3f, 12.5f, 10.46f, 12.5f, 8.2f)
+                curveTo(12.5f, 5.94f, 10.66f, 4.1f, 8.4f, 4.1f)
                 close()
             }
-            // Soft cloud base shadow
+            // Bright yellow-white sun core highlight
+            path(fill = SolidColor(Color(0xFFFEF08A))) {
+                moveTo(8.0f, 5.1f)
+                curveTo(6.56f, 5.1f, 5.4f, 6.26f, 5.4f, 7.7f)
+                curveTo(5.4f, 9.14f, 6.56f, 10.3f, 8.0f, 10.3f)
+                curveTo(9.44f, 10.3f, 10.6f, 9.14f, 10.6f, 7.7f)
+                curveTo(10.6f, 6.26f, 9.44f, 5.1f, 8.0f, 5.1f)
+                close()
+            }
+            // Deep atmospheric cloud underside shadow
+            path(fill = SolidColor(Color(0xFF94A3B8))) {
+                moveTo(19.5f, 13.8f)
+                curveTo(18.9f, 10.8f, 16.4f, 8.7f, 13.3f, 8.7f)
+                curveTo(10.8f, 8.7f, 8.6f, 10.1f, 7.5f, 12.2f)
+                curveTo(5.1f, 12.5f, 3.3f, 14.5f, 3.3f, 17.0f)
+                curveTo(3.3f, 19.8f, 5.5f, 22.0f, 8.3f, 22.0f)
+                horizontalLineTo(19.2f)
+                curveTo(21.6f, 22.0f, 23.5f, 20.1f, 23.5f, 17.7f)
+                curveTo(23.5f, 15.5f, 21.7f, 13.9f, 19.5f, 13.8f)
+                close()
+            }
+            // Soft silver-blue mid cloud volume
             path(fill = SolidColor(Color(0xFFE2E8F0))) {
-                moveTo(19.4f, 13.5f)
-                curveTo(18.8f, 10.6f, 16.3f, 8.5f, 13.3f, 8.5f)
-                curveTo(10.8f, 8.5f, 8.7f, 9.9f, 7.6f, 12.0f)
-                curveTo(5.2f, 12.3f, 3.4f, 14.3f, 3.4f, 16.8f)
-                curveTo(3.4f, 19.5f, 5.6f, 21.7f, 8.3f, 21.7f)
-                horizontalLineTo(19.1f)
-                curveTo(21.5f, 21.7f, 23.4f, 19.8f, 23.4f, 17.4f)
-                curveTo(23.4f, 15.2f, 21.6f, 13.6f, 19.4f, 13.5f)
+                moveTo(19.3f, 13.3f)
+                curveTo(18.7f, 10.4f, 16.3f, 8.4f, 13.3f, 8.4f)
+                curveTo(10.8f, 8.4f, 8.7f, 9.8f, 7.6f, 11.9f)
+                curveTo(5.2f, 12.2f, 3.5f, 14.1f, 3.5f, 16.6f)
+                curveTo(3.5f, 19.2f, 5.6f, 21.2f, 8.3f, 21.2f)
+                horizontalLineTo(19.0f)
+                curveTo(21.4f, 21.2f, 23.2f, 19.4f, 23.2f, 17.1f)
+                curveTo(23.2f, 14.9f, 21.5f, 13.4f, 19.3f, 13.3f)
                 close()
             }
-            // Pure snow-white cloud top highlight
+            // Pure snow-white sunlit cloud top dome
             path(fill = SolidColor(Color.White)) {
-                moveTo(19.2f, 13.0f)
-                curveTo(18.6f, 10.2f, 16.2f, 8.2f, 13.3f, 8.2f)
-                curveTo(10.8f, 8.2f, 8.7f, 9.6f, 7.7f, 11.6f)
-                curveTo(5.4f, 11.9f, 3.7f, 13.8f, 3.7f, 16.2f)
-                curveTo(3.7f, 18.7f, 5.7f, 20.6f, 8.2f, 20.6f)
-                horizontalLineTo(18.9f)
-                curveTo(21.2f, 20.6f, 23.0f, 18.8f, 23.0f, 16.6f)
-                curveTo(23.0f, 14.6f, 21.3f, 13.1f, 19.2f, 13.0f)
+                moveTo(19.0f, 12.8f)
+                curveTo(18.4f, 10.0f, 16.1f, 8.1f, 13.3f, 8.1f)
+                curveTo(10.9f, 8.1f, 8.8f, 9.4f, 7.8f, 11.4f)
+                curveTo(5.6f, 11.7f, 3.9f, 13.5f, 3.9f, 15.9f)
+                curveTo(3.9f, 18.3f, 5.8f, 20.1f, 8.3f, 20.1f)
+                horizontalLineTo(18.8f)
+                curveTo(21.0f, 20.1f, 22.8f, 18.4f, 22.8f, 16.3f)
+                curveTo(22.8f, 14.3f, 21.1f, 12.9f, 19.0f, 12.8f)
                 close()
             }
         }.build()
@@ -709,7 +739,8 @@ object WeatherIcons {
     }
 
     /**
-     * Navigation Bar Tab 2 (Active): Multi-Tone Doppler Radar Sweep Target Icon
+     * Navigation Bar Tab 2 (Active): Realistic 3D Doppler Weather Radar Console with Glowing Sweep,
+     * Deep Ocean CRT Glass Dome, Concentric Range Rings, and Multi-Tone Precipitation Storm Cells.
      */
     val NavRadarActive: ImageVector by lazy {
         ImageVector.Builder(
@@ -719,111 +750,119 @@ object WeatherIcons {
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
-            // Subtle glowing radar sweep sector (top-right quadrant)
-            path(fill = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.28f))) {
+            // Outer metallic titanium bezel shadow
+            path(fill = SolidColor(Color(0xFF0F2942))) {
+                moveTo(22.0f, 12f)
+                curveTo(22.0f, 17.52f, 17.52f, 22.0f, 12f, 22.0f)
+                curveTo(6.48f, 22.0f, 2.0f, 17.52f, 2.0f, 12f)
+                curveTo(2.0f, 6.48f, 6.48f, 2.0f, 12f, 2.0f)
+                curveTo(17.52f, 2.0f, 22.0f, 6.48f, 22.0f, 12f)
+                close()
+            }
+            // Deep Doppler radar screen base
+            path(fill = SolidColor(Color(0xFF06162A))) {
+                moveTo(20.6f, 12f)
+                curveTo(20.6f, 16.75f, 16.75f, 20.6f, 12f, 20.6f)
+                curveTo(7.25f, 20.6f, 3.4f, 16.75f, 3.4f, 12f)
+                curveTo(3.4f, 7.25f, 7.25f, 3.4f, 12f, 3.4f)
+                curveTo(16.75f, 3.4f, 20.6f, 7.25f, 20.6f, 12f)
+                close()
+            }
+            // Wide phosphor emerald-cyan radar sweep trail (top-right sector)
+            path(fill = SolidColor(Color(0xFF10B981).copy(alpha = 0.25f))) {
                 moveTo(12f, 12f)
-                lineTo(12f, 3.2f)
+                lineTo(12f, 3.4f)
+                curveTo(16.75f, 3.4f, 20.6f, 7.25f, 20.6f, 12f)
+                close()
+            }
+            // Bright leading edge of sweep cone
+            path(fill = SolidColor(Color(0xFF34D399).copy(alpha = 0.48f))) {
+                moveTo(12f, 12f)
+                lineTo(15.6f, 4.2f)
+                curveTo(17.8f, 5.2f, 19.4f, 7.1f, 20.1f, 9.4f)
+                close()
+            }
+            // Concentric radar range rings + cardinal crosshairs
+            path(
+                stroke = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.72f)),
+                strokeLineWidth = 1.15f,
+                strokeLineCap = StrokeCap.Round
+            ) {
+                // Middle range ring
+                moveTo(17.4f, 12f)
+                curveTo(17.4f, 14.98f, 14.98f, 17.4f, 12f, 17.4f)
+                curveTo(9.02f, 17.4f, 6.6f, 14.98f, 6.6f, 12f)
+                curveTo(6.6f, 9.02f, 9.02f, 6.6f, 12f, 6.6f)
+                curveTo(14.98f, 6.6f, 17.4f, 9.02f, 17.4f, 12f)
+                close()
+                // Inner range ring
+                moveTo(14.6f, 12f)
+                curveTo(14.6f, 13.44f, 13.44f, 14.6f, 12f, 14.6f)
+                curveTo(10.56f, 14.6f, 9.4f, 13.44f, 9.4f, 12f)
+                curveTo(9.4f, 10.56f, 10.56f, 9.4f, 12f, 9.4f)
+                curveTo(13.44f, 9.4f, 14.6f, 10.56f, 14.6f, 12f)
+                close()
+                // Crosshair grid lines
+                moveTo(12f, 3.6f); lineTo(12f, 20.4f)
+                moveTo(3.6f, 12f); lineTo(20.4f, 12f)
+            }
+            // Outer illuminated glass rim
+            path(
+                stroke = SolidColor(Color(0xFF7DD3FC)),
+                strokeLineWidth = 1.75f,
+                strokeLineCap = StrokeCap.Round
+            ) {
+                moveTo(20.8f, 12f)
+                curveTo(20.8f, 16.86f, 16.86f, 20.8f, 12f, 20.8f)
+                curveTo(7.14f, 20.8f, 3.2f, 16.86f, 3.2f, 12f)
+                curveTo(3.2f, 7.14f, 7.14f, 3.2f, 12f, 3.2f)
                 curveTo(16.86f, 3.2f, 20.8f, 7.14f, 20.8f, 12f)
                 close()
             }
-            // Outer radar ring + complete inner range ring + crosshair ticks
-            path(
-                stroke = SolidColor(Color(0xFF38BDF8)),
-                strokeLineWidth = 1.9f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            ) {
-                // Outer circle
-                moveTo(21f, 12f)
-                curveTo(21f, 16.97f, 16.97f, 21f, 12f, 21f)
-                curveTo(7.03f, 21f, 3f, 16.97f, 3f, 12f)
-                curveTo(3f, 7.03f, 7.03f, 3f, 12f, 3f)
-                curveTo(16.97f, 3f, 21f, 7.03f, 21f, 12f)
+            // Multi-layered Doppler storm cell echo (outer emerald + amber core + red eye)
+            path(fill = SolidColor(Color(0xFF10B981).copy(alpha = 0.65f))) {
+                moveTo(16.0f, 6.2f)
+                curveTo(14.6f, 6.2f, 13.5f, 7.2f, 13.5f, 8.5f)
+                curveTo(13.5f, 9.8f, 14.6f, 10.8f, 16.0f, 10.8f)
+                curveTo(17.4f, 10.8f, 18.5f, 9.8f, 18.5f, 8.5f)
+                curveTo(18.5f, 7.2f, 17.4f, 6.2f, 16.0f, 6.2f)
                 close()
-                // Complete inner circle
-                moveTo(16.4f, 12f)
-                curveTo(16.4f, 14.43f, 14.43f, 16.4f, 12f, 16.4f)
-                curveTo(9.57f, 16.4f, 7.6f, 14.43f, 7.6f, 12f)
-                curveTo(7.6f, 9.57f, 9.57f, 7.6f, 12f, 7.6f)
-                curveTo(14.43f, 7.6f, 16.4f, 9.57f, 16.4f, 12f)
-                close()
-                // Cardinal crosshair ticks
-                moveTo(12f, 3f); lineTo(12f, 5.2f)
-                moveTo(12f, 18.8f); lineTo(12f, 21f)
-                moveTo(3f, 12f); lineTo(5.2f, 12f)
-                moveTo(18.8f, 12f); lineTo(21f, 12f)
             }
-            // Radar sweep arm
+            path(fill = SolidColor(Color(0xFFFBBF24))) {
+                moveTo(16.1f, 7.1f)
+                curveTo(15.27f, 7.1f, 14.6f, 7.77f, 14.6f, 8.6f)
+                curveTo(14.6f, 9.43f, 15.27f, 10.1f, 16.1f, 10.1f)
+                curveTo(16.93f, 10.1f, 17.6f, 9.43f, 17.6f, 8.6f)
+                curveTo(17.6f, 7.77f, 16.93f, 7.1f, 16.1f, 7.1f)
+                close()
+            }
+            path(fill = SolidColor(Color(0xFFEF4444))) {
+                moveTo(16.1f, 7.8f)
+                curveTo(15.66f, 7.8f, 15.3f, 8.16f, 15.3f, 8.6f)
+                curveTo(15.3f, 9.04f, 15.66f, 9.4f, 16.1f, 9.4f)
+                curveTo(16.54f, 9.4f, 16.9f, 9.04f, 16.9f, 8.6f)
+                curveTo(16.9f, 8.16f, 16.54f, 7.8f, 16.1f, 7.8f)
+                close()
+            }
+            // Secondary rain cell in lower-left quadrant
+            path(fill = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.78f))) {
+                moveTo(8.2f, 14.4f)
+                curveTo(7.43f, 14.4f, 6.8f, 15.03f, 6.8f, 15.8f)
+                curveTo(6.8f, 16.57f, 7.43f, 17.2f, 8.2f, 17.2f)
+                curveTo(8.97f, 17.2f, 9.6f, 16.57f, 9.6f, 15.8f)
+                curveTo(9.6f, 15.03f, 8.97f, 14.4f, 8.2f, 14.4f)
+                close()
+            }
+            // Glowing emerald sweep laser beam
             path(
-                stroke = SolidColor(Color(0xFF34D399)),
-                strokeLineWidth = 2.1f,
+                stroke = SolidColor(Color(0xFF6EE7B7)),
+                strokeLineWidth = 2.0f,
                 strokeLineCap = StrokeCap.Round
             ) {
                 moveTo(12f, 12f)
-                lineTo(18.1f, 5.9f)
+                lineTo(18.6f, 6.2f)
             }
-            // Target storm blip in top-right quadrant
-            path(fill = SolidColor(Color(0xFFFBBF24))) {
-                moveTo(15.6f, 7.0f)
-                curveTo(14.94f, 7.0f, 14.4f, 7.54f, 14.4f, 8.2f)
-                curveTo(14.4f, 8.86f, 14.94f, 9.4f, 15.6f, 9.4f)
-                curveTo(16.26f, 9.4f, 16.8f, 8.86f, 16.8f, 8.2f)
-                curveTo(16.8f, 7.54f, 16.26f, 7.0f, 15.6f, 7.0f)
-                close()
-            }
-            // Center beacon dot
-            path(fill = SolidColor(Color.White)) {
-                moveTo(12f, 10.2f)
-                curveTo(11.0f, 10.2f, 10.2f, 11.0f, 10.2f, 12f)
-                curveTo(10.2f, 13.0f, 11.0f, 13.8f, 12f, 13.8f)
-                curveTo(13.0f, 13.8f, 13.8f, 13.0f, 13.8f, 12f)
-                curveTo(13.8f, 11.0f, 13.0f, 10.2f, 12f, 10.2f)
-                close()
-            }
-        }.build()
-    }
-
-    /**
-     * Navigation Bar Tab 2 (Inactive): Doppler Radar Sweep Target Icon
-     */
-    val CompassCalibration: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "DopplerRadar",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                stroke = SolidColor(Color.White),
-                strokeLineWidth = 1.9f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            ) {
-                // Outer radar circle
-                moveTo(21f, 12f)
-                curveTo(21f, 16.97f, 16.97f, 21f, 12f, 21f)
-                curveTo(7.03f, 21f, 3f, 16.97f, 3f, 12f)
-                curveTo(3f, 7.03f, 7.03f, 3f, 12f, 3f)
-                curveTo(16.97f, 3f, 21f, 7.03f, 21f, 12f)
-                close()
-                // Complete inner range ring
-                moveTo(16.4f, 12f)
-                curveTo(16.4f, 14.43f, 14.43f, 16.4f, 12f, 16.4f)
-                curveTo(9.57f, 16.4f, 7.6f, 14.43f, 7.6f, 12f)
-                curveTo(7.6f, 9.57f, 9.57f, 7.6f, 12f, 7.6f)
-                curveTo(14.43f, 7.6f, 16.4f, 9.57f, 16.4f, 12f)
-                close()
-                // Radar sweep needle to top-right
-                moveTo(12f, 12f)
-                lineTo(18.1f, 5.9f)
-                // Crosshair ticks
-                moveTo(12f, 3f); lineTo(12f, 5f)
-                moveTo(12f, 19f); lineTo(12f, 21f)
-                moveTo(3f, 12f); lineTo(5f, 12f)
-                moveTo(19f, 12f); lineTo(21f, 12f)
-            }
-            // Center radar pulse dot
+            // Center radar transmitter hub
             path(fill = SolidColor(Color.White)) {
                 moveTo(12f, 10.3f)
                 curveTo(11.06f, 10.3f, 10.3f, 11.06f, 10.3f, 12f)
@@ -836,7 +875,13 @@ object WeatherIcons {
     }
 
     /**
-     * Navigation Bar Tab 3 (Active): Multi-Tone World Cities Globe + Pin Badge
+     * Navigation Bar Tab 2 (Inactive): Realistic Multi-Tone Doppler Radar Console
+     */
+    val CompassCalibration: ImageVector by lazy { NavRadarActive }
+
+    /**
+     * Navigation Bar Tab 3 (Active): Realistic 3D Earth Globe with Deep Blue Ocean,
+     * Sculpted Emerald Continents, Atmospheric Rim Highlight, and Golden 3D Location Pin.
      */
     val NavCitiesActive: ImageVector by lazy {
         ImageVector.Builder(
@@ -846,99 +891,100 @@ object WeatherIcons {
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
-            // Subtle ocean tint inside globe
-            path(fill = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.22f))) {
-                moveTo(20.5f, 12f)
-                curveTo(20.5f, 16.69f, 16.69f, 20.5f, 12f, 20.5f)
-                curveTo(7.31f, 20.5f, 3.5f, 16.69f, 3.5f, 12f)
-                curveTo(3.5f, 7.31f, 7.31f, 3.5f, 12f, 3.5f)
-                curveTo(16.69f, 3.5f, 20.5f, 7.31f, 20.5f, 12f)
+            // Deep ocean sphere base
+            path(fill = SolidColor(Color(0xFF0284C7))) {
+                moveTo(20.6f, 12.2f)
+                curveTo(20.6f, 17.06f, 16.66f, 21.0f, 11.8f, 21.0f)
+                curveTo(6.94f, 21.0f, 3.0f, 17.06f, 3.0f, 12.2f)
+                curveTo(3.0f, 7.34f, 6.94f, 3.4f, 11.8f, 3.4f)
+                curveTo(16.66f, 3.4f, 20.6f, 7.34f, 20.6f, 12.2f)
                 close()
             }
-            // Globe meridians & parallels
+            // sunlit upper-left ocean hemisphere glow
+            path(fill = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.55f))) {
+                moveTo(11.8f, 3.4f)
+                curveTo(7.3f, 3.4f, 3.5f, 6.8f, 3.1f, 11.2f)
+                curveTo(5.6f, 13.0f, 9.5f, 13.2f, 13.2f, 11.0f)
+                curveTo(15.6f, 9.6f, 17.0f, 7.0f, 16.8f, 4.9f)
+                curveTo(15.3f, 3.9f, 13.6f, 3.4f, 11.8f, 3.4f)
+                close()
+            }
+            // Sculpted emerald continent landmass 1 (Europe / Africa silhouette)
+            path(fill = SolidColor(Color(0xFF34D399))) {
+                moveTo(11.2f, 5.4f)
+                curveTo(12.8f, 5.2f, 14.5f, 6.0f, 15.2f, 7.4f)
+                curveTo(15.8f, 8.6f, 15.0f, 10.2f, 16.2f, 11.4f)
+                curveTo(17.1f, 12.3f, 16.8f, 14.8f, 15.2f, 16.8f)
+                curveTo(14.1f, 18.1f, 12.6f, 17.8f, 12.1f, 16.2f)
+                curveTo(11.6f, 14.6f, 12.4f, 13.0f, 11.0f, 11.8f)
+                curveTo(9.8f, 10.8f, 9.6f, 9.2f, 10.3f, 7.6f)
+                curveTo(10.6f, 6.8f, 10.5f, 5.5f, 11.2f, 5.4f)
+                close()
+            }
+            // Sculpted emerald continent landmass 2 (Americas western landmass)
+            path(fill = SolidColor(Color(0xFF10B981))) {
+                moveTo(5.2f, 7.6f)
+                curveTo(6.6f, 7.2f, 7.8f, 8.2f, 8.1f, 9.6f)
+                curveTo(8.4f, 11.0f, 7.4f, 12.2f, 8.2f, 13.6f)
+                curveTo(8.9f, 14.8f, 8.7f, 16.9f, 7.5f, 18.2f)
+                curveTo(6.4f, 17.4f, 5.2f, 15.8f, 4.6f, 13.8f)
+                curveTo(4.0f, 11.6f, 4.3f, 9.2f, 5.2f, 7.6f)
+                close()
+            }
+            // Subtle latitude/longitude atmospheric grid & glowing outer atmosphere ring
             path(
-                stroke = SolidColor(Color(0xFF7DD3FC)),
-                strokeLineWidth = 1.85f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
+                stroke = SolidColor(Color(0xFFBAE6FD).copy(alpha = 0.65f)),
+                strokeLineWidth = 1.2f,
+                strokeLineCap = StrokeCap.Round
             ) {
-                moveTo(20.5f, 12f)
-                curveTo(20.5f, 16.69f, 16.69f, 20.5f, 12f, 20.5f)
-                curveTo(7.31f, 20.5f, 3.5f, 16.69f, 3.5f, 12f)
-                curveTo(3.5f, 7.31f, 7.31f, 3.5f, 12f, 3.5f)
-                curveTo(16.69f, 3.5f, 20.5f, 7.31f, 20.5f, 12f)
+                moveTo(20.6f, 12.2f)
+                curveTo(20.6f, 17.06f, 16.66f, 21.0f, 11.8f, 21.0f)
+                curveTo(6.94f, 21.0f, 3.0f, 17.06f, 3.0f, 12.2f)
+                curveTo(3.0f, 7.34f, 6.94f, 3.4f, 11.8f, 3.4f)
+                curveTo(16.66f, 3.4f, 20.6f, 7.34f, 20.6f, 12.2f)
                 close()
-                moveTo(4.1f, 9.2f); horizontalLineTo(19.9f)
-                moveTo(4.1f, 14.8f); horizontalLineTo(19.9f)
-                moveTo(12f, 3.5f)
-                curveTo(14.7f, 6.0f, 16.0f, 8.9f, 16.0f, 12f)
-                curveTo(16.0f, 15.1f, 14.7f, 18.0f, 12f, 20.5f)
-                moveTo(12f, 3.5f)
-                curveTo(9.3f, 6.0f, 8.0f, 8.9f, 8.0f, 12f)
-                curveTo(8.0f, 15.1f, 9.3f, 18.0f, 12f, 20.5f)
+                // Equator arc
+                moveTo(3.2f, 12.5f)
+                curveTo(6.0f, 14.0f, 17.6f, 14.0f, 20.4f, 12.5f)
             }
-            // Golden city location pin badge (top-right)
+            // 3D Golden-Amber Location Pin Badge (top-right) with drop shadow
+            path(fill = SolidColor(Color(0xFFD97706))) {
+                moveTo(18.5f, 1.8f)
+                curveTo(16.3f, 1.8f, 14.5f, 3.6f, 14.5f, 5.8f)
+                curveTo(14.5f, 8.6f, 18.5f, 12.2f, 18.5f, 12.2f)
+                curveTo(18.5f, 12.2f, 22.5f, 8.6f, 22.5f, 5.8f)
+                curveTo(22.5f, 3.6f, 20.7f, 1.8f, 18.5f, 1.8f)
+                close()
+            }
             path(fill = SolidColor(Color(0xFFFBBF24))) {
-                moveTo(18.2f, 2.2f)
-                curveTo(16.2f, 2.2f, 14.6f, 3.8f, 14.6f, 5.8f)
-                curveTo(14.6f, 8.3f, 18.2f, 11.6f, 18.2f, 11.6f)
-                curveTo(18.2f, 11.6f, 21.8f, 8.3f, 21.8f, 5.8f)
-                curveTo(21.8f, 3.8f, 20.2f, 2.2f, 18.2f, 2.2f)
+                moveTo(18.3f, 1.6f)
+                curveTo(16.2f, 1.6f, 14.5f, 3.3f, 14.5f, 5.4f)
+                curveTo(14.5f, 8.0f, 18.3f, 11.4f, 18.3f, 11.4f)
+                curveTo(18.3f, 11.4f, 22.1f, 8.0f, 22.1f, 5.4f)
+                curveTo(22.1f, 3.3f, 20.4f, 1.6f, 18.3f, 1.6f)
                 close()
             }
-            path(fill = SolidColor(Color(0xFF0A1628))) {
-                moveTo(18.2f, 4.4f)
-                curveTo(17.43f, 4.4f, 16.8f, 5.03f, 16.8f, 5.8f)
-                curveTo(16.8f, 6.57f, 17.43f, 7.2f, 18.2f, 7.2f)
-                curveTo(18.97f, 7.2f, 19.6f, 6.57f, 19.6f, 5.8f)
-                curveTo(19.6f, 5.03f, 18.97f, 4.4f, 18.2f, 4.4f)
+            path(fill = SolidColor(Color.White)) {
+                moveTo(18.3f, 3.8f)
+                curveTo(17.42f, 3.8f, 16.7f, 4.52f, 16.7f, 5.4f)
+                curveTo(16.7f, 6.28f, 17.42f, 7.0f, 18.3f, 7.0f)
+                curveTo(19.18f, 7.0f, 19.9f, 6.28f, 19.9f, 5.4f)
+                curveTo(19.9f, 4.52f, 19.18f, 3.8f, 18.3f, 3.8f)
                 close()
             }
         }.build()
     }
 
     /**
-     * Navigation Bar Tab 3 (Inactive): World Cities Meridian Globe Icon
+     * Navigation Bar Tab 3 (Inactive): Realistic 3D Earth Globe Icon
      */
-    val Public: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "CitiesGlobe",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                stroke = SolidColor(Color.White),
-                strokeLineWidth = 1.9f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            ) {
-                // Outer globe circle
-                moveTo(21f, 12f)
-                curveTo(21f, 16.97f, 16.97f, 21f, 12f, 21f)
-                curveTo(7.03f, 21f, 3f, 16.97f, 3f, 12f)
-                curveTo(3f, 7.03f, 7.03f, 3f, 12f, 3f)
-                curveTo(16.97f, 3f, 21f, 7.03f, 21f, 12f)
-                close()
-                // Equator & latitude lines
-                moveTo(3.6f, 9f); horizontalLineTo(20.4f)
-                moveTo(3.6f, 15f); horizontalLineTo(20.4f)
-                // Longitude meridian ellipse
-                moveTo(12f, 3f)
-                curveTo(14.8f, 5.6f, 16.2f, 8.7f, 16.2f, 12f)
-                curveTo(16.2f, 15.3f, 14.8f, 18.4f, 12f, 21f)
-                moveTo(12f, 3f)
-                curveTo(9.2f, 5.6f, 7.8f, 8.7f, 7.8f, 12f)
-                curveTo(7.8f, 15.3f, 9.2f, 18.4f, 12f, 21f)
-            }
-        }.build()
-    }
+    val Public: ImageVector by lazy { NavCitiesActive }
 
-    val PublicOutlined: ImageVector by lazy { Public }
+    val PublicOutlined: ImageVector by lazy { NavCitiesActive }
 
     /**
-     * Navigation Bar Tab 4 (Active): Multi-Tone Precision Tuning Sliders Icon
+     * Navigation Bar Tab 4 (Active): Realistic 3D Precision Metallic Control Deck
+     * with Illuminated Cyan/Amber Equalizer Tracks and Tactile 3D Knobs.
      */
     val NavSettingsActive: ImageVector by lazy {
         ImageVector.Builder(
@@ -948,101 +994,121 @@ object WeatherIcons {
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
+            // Frosted dark glass control console plate
+            path(fill = SolidColor(Color(0xFF0F2942))) {
+                moveTo(5.0f, 2.5f)
+                horizontalLineTo(19.0f)
+                curveTo(20.38f, 2.5f, 21.5f, 3.62f, 21.5f, 5.0f)
+                verticalLineTo(19.0f)
+                curveTo(21.5f, 20.38f, 20.38f, 21.5f, 19.0f, 21.5f)
+                horizontalLineTo(5.0f)
+                curveTo(3.62f, 21.5f, 2.5f, 20.38f, 2.5f, 19.0f)
+                verticalLineTo(5.0f)
+                curveTo(2.5f, 3.62f, 3.62f, 2.5f, 5.0f, 2.5f)
+                close()
+            }
+            // Outer glass bezel border
+            path(
+                stroke = SolidColor(Color(0xFF38BDF8).copy(alpha = 0.55f)),
+                strokeLineWidth = 1.2f
+            ) {
+                moveTo(5.0f, 2.5f)
+                horizontalLineTo(19.0f)
+                curveTo(20.38f, 2.5f, 21.5f, 3.62f, 21.5f, 5.0f)
+                verticalLineTo(19.0f)
+                curveTo(21.5f, 20.38f, 20.38f, 21.5f, 19.0f, 21.5f)
+                horizontalLineTo(5.0f)
+                curveTo(3.62f, 21.5f, 2.5f, 20.38f, 2.5f, 19.0f)
+                verticalLineTo(5.0f)
+                curveTo(2.5f, 3.62f, 3.62f, 2.5f, 5.0f, 2.5f)
+                close()
+            }
+            // Recessed unlit right-side slider grooves
+            path(
+                stroke = SolidColor(Color(0xFF1E3A5F)),
+                strokeLineWidth = 2.2f,
+                strokeLineCap = StrokeCap.Round
+            ) {
+                moveTo(15.0f, 6.8f); horizontalLineTo(18.8f)
+                moveTo(9.2f, 12.0f); horizontalLineTo(18.8f)
+                moveTo(15.6f, 17.2f); horizontalLineTo(18.8f)
+            }
+            // Active illuminated cyan & emerald left-side slider tracks
             path(
                 stroke = SolidColor(Color(0xFF38BDF8)),
-                strokeLineWidth = 2.0f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
+                strokeLineWidth = 2.3f,
+                strokeLineCap = StrokeCap.Round
             ) {
-                // Top track with clean gap around x=15
-                moveTo(3.5f, 6.5f); horizontalLineTo(12.2f)
-                moveTo(17.8f, 6.5f); horizontalLineTo(20.5f)
-                // Middle track with clean gap around x=9
-                moveTo(3.5f, 12f); horizontalLineTo(6.2f)
-                moveTo(11.8f, 12f); horizontalLineTo(20.5f)
-                // Bottom track with clean gap around x=15.5
-                moveTo(3.5f, 17.5f); horizontalLineTo(12.7f)
-                moveTo(18.3f, 17.5f); horizontalLineTo(20.5f)
+                moveTo(5.2f, 6.8f); horizontalLineTo(14.5f)
+                moveTo(5.2f, 17.2f); horizontalLineTo(15.2f)
             }
-            // Top & bottom cyan-white knobs
+            path(
+                stroke = SolidColor(Color(0xFFFBBF24)),
+                strokeLineWidth = 2.3f,
+                strokeLineCap = StrokeCap.Round
+            ) {
+                moveTo(5.2f, 12.0f); horizontalLineTo(9.2f)
+            }
+            // Top 3D Metallic Slider Knob (outer ring + bright core)
+            path(fill = SolidColor(Color(0xFFBAE6FD))) {
+                moveTo(14.8f, 4.5f)
+                curveTo(13.53f, 4.5f, 12.5f, 5.53f, 12.5f, 6.8f)
+                curveTo(12.5f, 8.07f, 13.53f, 9.1f, 14.8f, 9.1f)
+                curveTo(16.07f, 9.1f, 17.1f, 8.07f, 17.1f, 6.8f)
+                curveTo(17.1f, 5.53f, 16.07f, 4.5f, 14.8f, 4.5f)
+                close()
+            }
             path(fill = SolidColor(Color.White)) {
-                moveTo(15f, 4.2f)
-                curveTo(13.73f, 4.2f, 12.7f, 5.23f, 12.7f, 6.5f)
-                curveTo(12.7f, 7.77f, 13.73f, 8.8f, 15f, 8.8f)
-                curveTo(16.27f, 8.8f, 17.3f, 7.77f, 17.3f, 6.5f)
-                curveTo(17.3f, 5.23f, 16.27f, 4.2f, 15f, 4.2f)
-                close()
-
-                moveTo(15.5f, 15.2f)
-                curveTo(14.23f, 15.2f, 13.2f, 16.23f, 13.2f, 17.5f)
-                curveTo(13.2f, 18.77f, 14.23f, 19.8f, 15.5f, 19.8f)
-                curveTo(16.77f, 19.8f, 17.8f, 18.77f, 17.8f, 17.5f)
-                curveTo(17.8f, 16.23f, 16.77f, 15.2f, 15.5f, 15.2f)
+                moveTo(14.8f, 5.5f)
+                curveTo(14.08f, 5.5f, 13.5f, 6.08f, 13.5f, 6.8f)
+                curveTo(13.5f, 7.52f, 14.08f, 8.1f, 14.8f, 8.1f)
+                curveTo(15.52f, 8.1f, 16.1f, 7.52f, 16.1f, 6.8f)
+                curveTo(16.1f, 6.08f, 15.52f, 5.5f, 14.8f, 5.5f)
                 close()
             }
-            // Middle golden accent knob
-            path(fill = SolidColor(Color(0xFFFBBF24))) {
-                moveTo(9f, 9.7f)
-                curveTo(7.73f, 9.7f, 6.7f, 10.73f, 6.7f, 12f)
-                curveTo(6.7f, 13.27f, 7.73f, 14.3f, 9f, 14.3f)
-                curveTo(10.27f, 14.3f, 11.3f, 13.27f, 11.3f, 12f)
-                curveTo(11.3f, 10.73f, 10.27f, 9.7f, 9f, 9.7f)
+            // Middle 3D Golden Amber Slider Knob
+            path(fill = SolidColor(Color(0xFFF59E0B))) {
+                moveTo(9.2f, 9.7f)
+                curveTo(7.93f, 9.7f, 6.9f, 10.73f, 6.9f, 12.0f)
+                curveTo(6.9f, 13.27f, 7.93f, 14.3f, 9.2f, 14.3f)
+                curveTo(10.47f, 14.3f, 11.5f, 13.27f, 11.5f, 12.0f)
+                curveTo(11.5f, 10.73f, 10.47f, 9.7f, 9.2f, 9.7f)
+                close()
+            }
+            path(fill = SolidColor(Color(0xFFFEF08A))) {
+                moveTo(9.2f, 10.7f)
+                curveTo(8.48f, 10.7f, 7.9f, 11.28f, 7.9f, 12.0f)
+                curveTo(7.9f, 12.72f, 8.48f, 13.3f, 9.2f, 13.3f)
+                curveTo(9.92f, 13.3f, 10.5f, 12.72f, 10.5f, 12.0f)
+                curveTo(10.5f, 11.28f, 9.92f, 10.7f, 9.2f, 10.7f)
+                close()
+            }
+            // Bottom 3D Emerald-Cyan Slider Knob
+            path(fill = SolidColor(Color(0xFF34D399))) {
+                moveTo(15.4f, 14.9f)
+                curveTo(14.13f, 14.9f, 13.1f, 15.93f, 13.1f, 17.2f)
+                curveTo(13.1f, 18.47f, 14.13f, 19.5f, 15.4f, 19.5f)
+                curveTo(16.67f, 19.5f, 17.7f, 18.47f, 17.7f, 17.2f)
+                curveTo(17.7f, 15.93f, 16.67f, 14.9f, 15.4f, 14.9f)
+                close()
+            }
+            path(fill = SolidColor(Color.White)) {
+                moveTo(15.4f, 15.9f)
+                curveTo(14.68f, 15.9f, 14.1f, 16.48f, 14.1f, 17.2f)
+                curveTo(14.1f, 17.92f, 14.68f, 18.5f, 15.4f, 18.5f)
+                curveTo(16.12f, 18.5f, 16.7f, 17.92f, 16.7f, 17.2f)
+                curveTo(16.7f, 16.48f, 16.12f, 15.9f, 15.4f, 15.9f)
                 close()
             }
         }.build()
     }
 
     /**
-     * Navigation Bar Tab 4 (Inactive): Precision Tuning Sliders / Settings Icon
+     * Navigation Bar Tab 4 (Inactive): Realistic 3D Precision Control Console Icon
      */
-    val Settings: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "SettingsSliders",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                stroke = SolidColor(Color.White),
-                strokeLineWidth = 1.9f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            ) {
-                // Top track + hollow ring knob
-                moveTo(3.5f, 6.5f); horizontalLineTo(12.4f)
-                moveTo(17.6f, 6.5f); horizontalLineTo(20.5f)
-                moveTo(17.2f, 6.5f)
-                curveTo(17.2f, 7.72f, 16.22f, 8.7f, 15f, 8.7f)
-                curveTo(13.78f, 8.7f, 12.8f, 7.72f, 12.8f, 6.5f)
-                curveTo(12.8f, 5.28f, 13.78f, 4.3f, 15f, 4.3f)
-                curveTo(16.22f, 4.3f, 17.2f, 5.28f, 17.2f, 6.5f)
-                close()
+    val Settings: ImageVector by lazy { NavSettingsActive }
 
-                // Middle track + hollow ring knob
-                moveTo(3.5f, 12f); horizontalLineTo(6.4f)
-                moveTo(11.6f, 12f); horizontalLineTo(20.5f)
-                moveTo(11.2f, 12f)
-                curveTo(11.2f, 13.22f, 10.22f, 14.2f, 9f, 14.2f)
-                curveTo(7.78f, 14.2f, 6.8f, 13.22f, 6.8f, 12f)
-                curveTo(6.8f, 10.78f, 7.78f, 9.8f, 9f, 9.8f)
-                curveTo(10.22f, 9.8f, 11.2f, 10.78f, 11.2f, 12f)
-                close()
-
-                // Bottom track + hollow ring knob
-                moveTo(3.5f, 17.5f); horizontalLineTo(12.9f)
-                moveTo(18.1f, 17.5f); horizontalLineTo(20.5f)
-                moveTo(17.7f, 17.5f)
-                curveTo(17.7f, 18.72f, 16.72f, 19.7f, 15.5f, 19.7f)
-                curveTo(14.28f, 19.7f, 13.3f, 18.72f, 13.3f, 17.5f)
-                curveTo(13.3f, 16.28f, 14.28f, 15.3f, 15.5f, 15.3f)
-                curveTo(16.72f, 15.3f, 17.7f, 16.28f, 17.7f, 17.5f)
-                close()
-            }
-        }.build()
-    }
-
-    val SettingsOutlined: ImageVector by lazy { Settings }
+    val SettingsOutlined: ImageVector by lazy { NavSettingsActive }
 
     /**
      * GPS Crosshair Target Icon (`MyLocation` / `GpsFixed` / `LocationSearching`)

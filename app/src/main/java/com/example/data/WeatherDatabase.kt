@@ -273,8 +273,27 @@ class WeatherPreferences(context: Context) {
         prefs.edit(commit = true) { putStringSet(KEY_DELETED_CITY_NAMES, updated) }
     }
 
+    fun loadGitHubRepoSlug(): String {
+        val raw = runCatching {
+            prefs.getString(KEY_GITHUB_REPO_SLUG, DEFAULT_GITHUB_REPO_SLUG)
+        }.getOrNull()?.trim().orEmpty()
+        return if (raw.contains("/") && raw.length >= 3) raw else DEFAULT_GITHUB_REPO_SLUG
+    }
+
+    fun saveGitHubRepoSlug(slug: String) {
+        val cleaned = slug.trim()
+            .removePrefix("https://github.com/")
+            .removePrefix("http://github.com/")
+            .removePrefix("github.com/")
+            .trim('/')
+        if (cleaned.contains("/")) {
+            prefs.edit(commit = true) { putString(KEY_GITHUB_REPO_SLUG, cleaned) }
+        }
+    }
+
     companion object {
         const val DEFAULT_LARISSA_CITY_ID = 258576L
+        const val DEFAULT_GITHUB_REPO_SLUG = "zephyr-weather/zephyr-weather"
         private const val KEY_USE_FAHRENHEIT = "use_fahrenheit"
         private const val KEY_USE_MPH = "use_mph"
         private const val KEY_USE_INHG = "use_inhg"
@@ -290,5 +309,6 @@ class WeatherPreferences(context: Context) {
         private const val KEY_INITIAL_GPS_DONE_V2 = "initial_gps_setup_done_v2"
         private const val KEY_DELETED_CITY_IDS = "deleted_city_ids_v2"
         private const val KEY_DELETED_CITY_NAMES = "deleted_city_names_v1"
+        private const val KEY_GITHUB_REPO_SLUG = "github_repo_slug_v1"
     }
 }

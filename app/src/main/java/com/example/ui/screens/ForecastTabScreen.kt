@@ -125,10 +125,14 @@ fun rememberLiveGreeceClock(timezoneId: String?): String {
     var currentClock by remember(effectiveZoneId) {
         mutableStateOf(formatClockInZone(effectiveZoneId))
     }
-    LaunchedEffect(effectiveZoneId) {
+    val isResumed = com.example.ui.components.rememberIsAppResumed()
+    LaunchedEffect(effectiveZoneId, isResumed) {
+        if (!isResumed) return@LaunchedEffect
         while (true) {
             currentClock = formatClockInZone(effectiveZoneId)
-            delay(15_000L)
+            val millisUntilNextMinute = (60_000L - (System.currentTimeMillis() % 60_000L))
+                .coerceIn(5_000L, 60_000L)
+            delay(millisUntilNextMinute)
         }
     }
     return currentClock
@@ -1428,22 +1432,12 @@ fun CurrentWeather(
     modifier: Modifier = Modifier
 ) {
     val isGreek = language == AppLanguage.GREEK
-    val latDir = if (latitude >= 0.0) "N" else "S"
-    val lonDir = if (longitude >= 0.0) "E" else "W"
-    val coordsLabel = remember(latitude, longitude, elevationMeters, isGreek) {
-        val baseCoords = String.format(
-            Locale.US,
-            "%.4f°%s, %.4f°%s",
-            kotlin.math.abs(latitude),
-            latDir,
-            kotlin.math.abs(longitude),
-            lonDir
-        )
+    val elevationBadgeLabel = remember(elevationMeters, isGreek) {
         if (elevationMeters > 0.0) {
-            val elevWord = if (isGreek) "Υψόμετρο" else "Elev"
-            "$baseCoords • $elevWord ${elevationMeters.roundToInt()} m"
+            val elevWord = if (isGreek) "Υψόμετρο" else "Elevation"
+            "$elevWord ${elevationMeters.roundToInt()} m"
         } else {
-            baseCoords
+            if (isGreek) "Ενεργή Τηλεμετρία" else "Active Telemetry"
         }
     }
 
@@ -1461,7 +1455,7 @@ fun CurrentWeather(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Coordinates header row
+            // Live location telemetry header row (no raw GPS coordinates)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1478,14 +1472,14 @@ fun CurrentWeather(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = if (isGreek) "Συντεταγμένες Τοποθεσίας" else "Location Coordinates",
+                        text = if (isGreek) "Ζωντανός Καιρός Τοποθεσίας" else "Live Location Weather",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = EmeraldBreeze
                     )
                 }
                 Text(
-                    text = coordsLabel,
+                    text = elevationBadgeLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.80f),
                     maxLines = 1,
@@ -1493,6 +1487,14 @@ fun CurrentWeather(
                     modifier = Modifier.testTag("current_weather_coordinates_text")
                 )
             }
+
+            // Dynamic Weather Condition Animation Banner (Sun Rays, Falling Rain, Snow, Clouds, Thunder, Stars)
+            com.example.ui.components.WeatherConditionAnimation(
+                visualSpec = visualSpec,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+            )
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
 
@@ -2160,12 +2162,10 @@ private fun CityElevationBottomFooterCard(
         elevMeters >= 250 -> if (isGreek) "Ημιορεινή Ζώνη" else "Semi-Mountainous Zone"
         else -> if (isGreek) "Πεδινή / Παραθαλάσσια Ζώνη" else "Lowland / Coastal Zone"
     }
-    val coordsLabel = String.format(
-        Locale.US,
-        "%.4f° N, %.4f° E",
-        bundle.latitude,
-        bundle.longitude
-    )
+    val regionLabel = listOf(bundle.regionName, bundle.countryName)
+        .filter { it.isNotBlank() }
+        .distinct()
+        .joinToString(", ")
 
     Card(
         modifier = modifier.testTag("city_elevation_bottom_card"),
@@ -2218,7 +2218,7 @@ private fun CityElevationBottomFooterCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "$terrainZoneLabel • $coordsLabel",
+                        text = if (regionLabel.isNotBlank()) "$terrainZoneLabel • $regionLabel" else terrainZoneLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.74f),
                         maxLines = 1,

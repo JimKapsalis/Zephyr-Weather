@@ -24,12 +24,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -53,6 +61,7 @@ import com.example.model.SkyParticleEffect
 import com.example.model.WeatherVisualSpec
 import com.example.ui.theme.AmberSol
 import com.example.ui.theme.CoralWarmth
+import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanZephyr
 import com.example.ui.theme.EmeraldBreeze
 import kotlinx.coroutines.launch
@@ -225,6 +234,24 @@ fun buildParticlesForEffect(
  * Composable recompositions are triggered during animation frames.
  */
 @Composable
+fun rememberIsAppResumed(): Boolean {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    return isResumed
+}
+
+@Composable
 fun WeatherParticleSystem(
     visualSpec: WeatherVisualSpec,
     isCompactOverlay: Boolean = false,
@@ -234,25 +261,30 @@ fun WeatherParticleSystem(
         buildParticlesForEffect(visualSpec.particleEffect, isCompactOverlay)
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "weather_particle_system")
-    val cyclePhaseState = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = when (visualSpec.particleEffect) {
-                    SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> 2600
-                    SkyParticleEffect.SNOW_STORM -> 3400
-                    SkyParticleEffect.SNOW -> 9000
-                    SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG -> 24000
-                    SkyParticleEffect.STARFIELD, SkyParticleEffect.SUNSET_DUSK, SkyParticleEffect.SUN_RAYS -> 14000
-                },
-                easing = LinearEasing
+    val isResumed = rememberIsAppResumed()
+    val cyclePhaseState: State<Float> = if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "weather_particle_system")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = when (visualSpec.particleEffect) {
+                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> 2600
+                        SkyParticleEffect.SNOW_STORM -> 3400
+                        SkyParticleEffect.SNOW -> 9000
+                        SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG -> 24000
+                        SkyParticleEffect.STARFIELD, SkyParticleEffect.SUNSET_DUSK, SkyParticleEffect.SUN_RAYS -> 14000
+                    },
+                    easing = LinearEasing
+                ),
+                repeatMode = RepeatMode.Restart
             ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "particle_cycle_phase"
-    )
+            label = "particle_cycle_phase"
+        )
+    } else {
+        rememberUpdatedState(0.25f)
+    }
 
     val boltPath = remember { Path() }
 
@@ -843,27 +875,29 @@ fun WeatherSkyBackdrop(
         label = "sky_accent_tint"
     )
 
+    val farAlpineRidgePath = remember { Path() }
     val distantRidgePath = remember { Path() }
     val horizonPath = remember { Path() }
+    val sunBeamPath = remember { Path() }
 
     val textureRes = when (visualSpec.particleEffect) {
         SkyParticleEffect.SUNSET_DUSK -> R.drawable.img_sunset_dusk
         SkyParticleEffect.STARFIELD -> R.drawable.img_night_moon
+        SkyParticleEffect.SUN_RAYS,
         SkyParticleEffect.CLOUDS,
         SkyParticleEffect.RAIN,
         SkyParticleEffect.SNOW,
         SkyParticleEffect.SNOW_STORM,
         SkyParticleEffect.THUNDER,
         SkyParticleEffect.FOG -> R.drawable.img_atmosphere_hero
-        else -> null
     }
     val textureAlpha = when (visualSpec.particleEffect) {
-        SkyParticleEffect.SUNSET_DUSK -> 0.50f
-        SkyParticleEffect.STARFIELD -> 0.54f
-        SkyParticleEffect.CLOUDS -> 0.30f
-        SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> 0.28f
-        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER, SkyParticleEffect.FOG -> 0.24f
-        else -> 0f
+        SkyParticleEffect.SUNSET_DUSK -> 0.56f
+        SkyParticleEffect.STARFIELD -> 0.58f
+        SkyParticleEffect.SUN_RAYS -> 0.24f
+        SkyParticleEffect.CLOUDS -> 0.42f
+        SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> 0.36f
+        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER, SkyParticleEffect.FOG -> 0.34f
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -871,185 +905,253 @@ fun WeatherSkyBackdrop(
             val w = size.width
             val h = size.height
 
-            // 1. Rich multi-stop atmospheric sky gradient with deep zenith and luminous mid-horizon
+            // 1. Rich multi-stop Rayleigh/Mie atmospheric sky gradient
             drawRect(
                 brush = Brush.verticalGradient(
                     colorStops = arrayOf(
                         0.0f to topColor,
-                        0.42f to midColor,
-                        0.78f to midColor.copy(alpha = 0.92f),
+                        0.28f to topColor.copy(alpha = 0.96f),
+                        0.56f to midColor,
+                        0.82f to midColor.copy(alpha = 0.94f),
                         1.0f to bottomColor
                     )
                 )
             )
 
-            // 1b. Upper atmospheric aurora / zenith light bloom
+            // 1b. Upper atmospheric zenith light scattering bloom
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        accentTint.copy(alpha = 0.20f),
-                        midColor.copy(alpha = 0.14f),
+                        accentTint.copy(alpha = 0.26f),
+                        midColor.copy(alpha = 0.16f),
                         Color.Transparent
                     ),
-                    center = Offset(w * 0.76f, h * 0.14f),
-                    radius = w * 0.72f
+                    center = Offset(w * 0.78f, h * 0.12f),
+                    radius = w * 0.85f
                 ),
-                center = Offset(w * 0.76f, h * 0.14f),
-                radius = w * 0.72f
+                center = Offset(w * 0.78f, h * 0.12f),
+                radius = w * 0.85f
             )
 
-            // 1c. Secondary soft ambient glow on the lower-left horizon
-            drawCircle(
-                brush = Brush.radialGradient(
+            // 1c. Warm Mie horizon scattering belt
+            drawRect(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        CyanZephyr.copy(alpha = 0.12f),
-                        accentTint.copy(alpha = 0.06f),
-                        Color.Transparent
+                        Color.Transparent,
+                        accentTint.copy(alpha = 0.12f),
+                        CyanZephyr.copy(alpha = 0.10f),
+                        bottomColor.copy(alpha = 0.45f)
                     ),
-                    center = Offset(w * 0.20f, h * 0.62f),
-                    radius = w * 0.68f
-                ),
-                center = Offset(w * 0.20f, h * 0.62f),
-                radius = w * 0.68f
+                    startY = h * 0.48f,
+                    endY = h
+                )
             )
         }
 
-        // 2. High-detail textured sky photography layer
-        if (textureRes != null) {
-            Image(
-                painter = painterResource(id = textureRes),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alpha = textureAlpha,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        // 2. High-detail photographic sky atmosphere layer
+        Image(
+            painter = painterResource(id = textureRes),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alpha = textureAlpha,
+            modifier = Modifier.fillMaxSize()
+        )
 
-        // 3. Celestial bodies & layered Pindus/Aegean mountain horizon silhouettes
+        // 3. Realistic Celestial Bodies, Crepuscular Light Shafts & 3-Layer Mountain Horizon
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            for (b in 0 until 3) {
-                val bx = w * (0.18f + 0.30f * b)
-                val by = h * (0.10f + 0.16f * b)
-                val radius = w * (0.18f + b * 0.05f)
-                drawCircle(
-                    color = accentTint.copy(alpha = 0.07f),
-                    center = Offset(bx, by),
-                    radius = radius
-                )
-            }
-
             when (visualSpec.particleEffect) {
                 SkyParticleEffect.SUN_RAYS -> {
-                    val sunCenter = Offset(w * 0.82f, h * 0.12f)
+                    val sunCenter = Offset(w * 0.82f, h * 0.11f)
+                    // Crepuscular atmospheric light shafts (God rays) fanning diagonally downward
+                    val beamAngles = floatArrayOf(-0.62f, -0.38f, -0.16f, 0.08f)
+                    val beamWidths = floatArrayOf(0.14f, 0.20f, 0.16f, 0.12f)
+                    for (i in beamAngles.indices) {
+                        val baseX = sunCenter.x + beamAngles[i] * w
+                        val span = beamWidths[i] * w
+                        sunBeamPath.reset()
+                        sunBeamPath.moveTo(sunCenter.x - w * 0.02f, sunCenter.y)
+                        sunBeamPath.lineTo(sunCenter.x + w * 0.02f, sunCenter.y)
+                        sunBeamPath.lineTo(baseX + span, h * 0.88f)
+                        sunBeamPath.lineTo(baseX - span, h * 0.88f)
+                        sunBeamPath.close()
+                        drawPath(
+                            path = sunBeamPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFFFEF08A).copy(alpha = 0.16f - i * 0.025f),
+                                    AmberSol.copy(alpha = 0.06f),
+                                    Color.Transparent
+                                ),
+                                startY = sunCenter.y,
+                                endY = h * 0.88f
+                            )
+                        )
+                    }
+                    // Outer atmospheric solar corona
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                AmberSol.copy(alpha = 0.32f),
-                                AmberSol.copy(alpha = 0.12f),
+                                Color(0xFFFEF9C3).copy(alpha = 0.55f),
+                                AmberSol.copy(alpha = 0.34f),
+                                Color(0xFFF97316).copy(alpha = 0.12f),
                                 Color.Transparent
                             ),
                             center = sunCenter,
-                            radius = w * 0.42f
+                            radius = w * 0.52f
                         ),
                         center = sunCenter,
-                        radius = w * 0.42f
+                        radius = w * 0.52f
                     )
+                    // Optical atmospheric halo ring
                     drawCircle(
-                        color = AmberSol.copy(alpha = 0.26f),
-                        radius = w * 0.19f,
+                        color = Color(0xFFFEF08A).copy(alpha = 0.24f),
+                        radius = w * 0.21f,
                         center = sunCenter,
-                        style = Stroke(width = 2.dp.toPx())
+                        style = Stroke(width = 1.8.dp.toPx())
                     )
+                    // Blinding photosphere core
                     drawCircle(
-                        color = Color(0xFFFFFBEB).copy(alpha = 0.94f),
-                        radius = w * 0.082f,
-                        center = sunCenter
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White,
+                                Color(0xFFFEF9C3),
+                                AmberSol.copy(alpha = 0.85f)
+                            ),
+                            center = sunCenter,
+                            radius = w * 0.095f
+                        ),
+                        center = sunCenter,
+                        radius = w * 0.095f
                     )
                 }
 
                 SkyParticleEffect.SUNSET_DUSK -> {
-                    val sunsetSunCenter = Offset(w * 0.78f, h * 0.22f)
+                    val sunsetSunCenter = Offset(w * 0.78f, h * 0.21f)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFFDE047).copy(alpha = 0.42f),
-                                Color(0xFFFB923C).copy(alpha = 0.26f),
-                                Color(0xFFE11D48).copy(alpha = 0.14f),
+                                Color(0xFFFEF08A).copy(alpha = 0.52f),
+                                Color(0xFFFB923C).copy(alpha = 0.34f),
+                                Color(0xFFE11D48).copy(alpha = 0.18f),
                                 Color.Transparent
                             ),
                             center = sunsetSunCenter,
-                            radius = w * 0.48f
+                            radius = w * 0.58f
                         ),
                         center = sunsetSunCenter,
-                        radius = w * 0.48f
+                        radius = w * 0.58f
                     )
                     drawCircle(
-                        color = Color(0xFFFFEDD5).copy(alpha = 0.92f),
-                        radius = w * 0.076f,
-                        center = sunsetSunCenter
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFFFBEB),
+                                Color(0xFFFDE047),
+                                Color(0xFFFB923C)
+                            ),
+                            center = sunsetSunCenter,
+                            radius = w * 0.085f
+                        ),
+                        center = sunsetSunCenter,
+                        radius = w * 0.085f
                     )
                 }
 
                 SkyParticleEffect.STARFIELD -> {
                     val moonCenter = Offset(w * 0.80f, h * 0.13f)
+                    // Lunar atmospheric ice-crystal halo
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFFDE047).copy(alpha = 0.26f),
-                                Color(0xFFC4B5FD).copy(alpha = 0.14f),
+                                Color(0xFFFEF9C3).copy(alpha = 0.30f),
+                                Color(0xFFBAE6FD).copy(alpha = 0.16f),
+                                Color(0xFF818CF8).copy(alpha = 0.08f),
                                 Color.Transparent
                             ),
                             center = moonCenter,
-                            radius = w * 0.32f
+                            radius = w * 0.38f
                         ),
                         center = moonCenter,
-                        radius = w * 0.32f
+                        radius = w * 0.38f
                     )
                     drawCircle(
-                        color = Color(0xFFFEF08A).copy(alpha = 0.32f),
-                        radius = w * 0.13f,
+                        color = Color(0xFFE0F2FE).copy(alpha = 0.25f),
+                        radius = w * 0.15f,
                         center = moonCenter,
-                        style = Stroke(width = 1.5.dp.toPx())
+                        style = Stroke(width = 1.2.dp.toPx())
                     )
+                    // Subtle earthshine full lunar disc
                     drawCircle(
-                        color = Color(0xFFFEF9C3).copy(alpha = 0.96f),
-                        radius = w * 0.068f,
+                        color = Color(0xFF38BDF8).copy(alpha = 0.12f),
+                        radius = w * 0.070f,
+                        center = moonCenter
+                    )
+                    // Sunlit lunar crescent
+                    drawCircle(
+                        color = Color(0xFFFEFCE8).copy(alpha = 0.96f),
+                        radius = w * 0.070f,
                         center = moonCenter
                     )
                     drawCircle(
                         color = topColor.copy(alpha = 0.92f),
-                        radius = w * 0.056f,
+                        radius = w * 0.058f,
                         center = Offset(moonCenter.x - w * 0.025f, moonCenter.y - w * 0.016f)
                     )
                 }
 
                 SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> {
-                    // Winter frost aurora glow along the upper sky
                     val frostCenter = Offset(w * 0.55f, h * 0.14f)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFE0F2FE).copy(alpha = 0.22f),
-                                Color(0xFF38BDF8).copy(alpha = 0.10f),
+                                Color(0xFFE0F2FE).copy(alpha = 0.30f),
+                                Color(0xFF7DD3FC).copy(alpha = 0.14f),
                                 Color.Transparent
                             ),
                             center = frostCenter,
-                            radius = w * 0.55f
+                            radius = w * 0.62f
                         ),
                         center = frostCenter,
-                        radius = w * 0.55f
+                        radius = w * 0.62f
                     )
                 }
 
                 else -> {}
             }
 
-            // 4a. Distant mountain ridge silhouette with atmospheric valley mist
+            // 4a. Far Alpine / Pindus mountain range silhouette with aerial perspective haze
             val isSnowScene = visualSpec.particleEffect == SkyParticleEffect.SNOW ||
                 visualSpec.particleEffect == SkyParticleEffect.SNOW_STORM
+            farAlpineRidgePath.reset()
+            farAlpineRidgePath.moveTo(0f, h * 0.78f)
+            farAlpineRidgePath.cubicTo(
+                w * 0.18f, h * 0.72f,
+                w * 0.36f, h * 0.79f,
+                w * 0.58f, h * 0.73f
+            )
+            farAlpineRidgePath.cubicTo(
+                w * 0.76f, h * 0.69f,
+                w * 0.90f, h * 0.76f,
+                w, h * 0.74f
+            )
+            farAlpineRidgePath.lineTo(w, h)
+            farAlpineRidgePath.lineTo(0f, h)
+            farAlpineRidgePath.close()
+            drawPath(
+                path = farAlpineRidgePath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        if (isSnowScene) Color(0xFFE0F2FE).copy(alpha = 0.26f) else midColor.copy(alpha = 0.32f),
+                        bottomColor.copy(alpha = 0.42f)
+                    ),
+                    startY = h * 0.70f,
+                    endY = h
+                )
+            )
+
+            // 4b. Mid-distance mountain ridge with valley mist cushion
             distantRidgePath.reset()
             distantRidgePath.moveTo(0f, h * 0.83f)
             distantRidgePath.cubicTo(
@@ -1069,15 +1171,28 @@ fun WeatherSkyBackdrop(
                 path = distantRidgePath,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        if (isSnowScene) Color(0xFFBAE6FD).copy(alpha = 0.22f) else midColor.copy(alpha = 0.35f),
-                        bottomColor.copy(alpha = 0.55f)
+                        if (isSnowScene) Color(0xFFBAE6FD).copy(alpha = 0.32f) else midColor.copy(alpha = 0.48f),
+                        bottomColor.copy(alpha = 0.68f)
                     ),
                     startY = h * 0.77f,
                     endY = h
                 )
             )
 
-            // 4b. Foreground coastal/valley horizon silhouette
+            // Soft valley fog band between mid and foreground ridges
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = if (isSnowScene) 0.14f else 0.07f),
+                        Color.Transparent
+                    ),
+                    startY = h * 0.80f,
+                    endY = h * 0.90f
+                )
+            )
+
+            // 4c. Foreground coastal/valley horizon silhouette
             horizonPath.reset()
             horizonPath.moveTo(0f, h * 0.88f)
             horizonPath.cubicTo(
@@ -1090,7 +1205,7 @@ fun WeatherSkyBackdrop(
             horizonPath.close()
             drawPath(
                 path = horizonPath,
-                color = bottomColor.copy(alpha = 0.76f)
+                color = bottomColor.copy(alpha = 0.84f)
             )
         }
 
@@ -1169,6 +1284,398 @@ fun HeroWeatherSceneOverlay(
 }
 
 /**
+ * Dynamic Compose animation composable that renders real-time weather condition animations
+ * (such as rotating golden sun rays, falling rain streaks with splash ripples, forked thunderstorm
+ * lightning, drifting volumetric cumulus clouds, 6-point snow crystals, rolling fog banks, or
+ * twinkling nocturnal stars) based on a WMO [weatherCode] and day/night state.
+ *
+ * Automatically pauses when the app leaves [Lifecycle.State.RESUMED] and performs all animation
+ * state reads strictly inside [Canvas] draw phase so zero Composable recompositions occur.
+ */
+@Composable
+fun WeatherConditionAnimation(
+    weatherCode: Int,
+    isDay: Boolean = true,
+    isSunset: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val visualSpec = remember(weatherCode, isDay, isSunset) {
+        com.example.model.WmoWeatherMapper.resolve(
+            code = weatherCode,
+            isDay = isDay,
+            isSunset = isSunset
+        )
+    }
+    WeatherConditionAnimation(
+        visualSpec = visualSpec,
+        modifier = modifier
+    )
+}
+
+/**
+ * Dynamic Compose animation composable that renders real-time weather condition animations
+ * based on the resolved [WeatherVisualSpec].
+ */
+@Composable
+fun WeatherConditionAnimation(
+    visualSpec: WeatherVisualSpec,
+    modifier: Modifier = Modifier
+) {
+    val isResumed = rememberIsAppResumed()
+    val phaseState: State<Float> = if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "weather_condition_animation")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = when (visualSpec.particleEffect) {
+                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> 2200
+                        SkyParticleEffect.SNOW_STORM -> 2800
+                        SkyParticleEffect.SNOW -> 6400
+                        SkyParticleEffect.SUN_RAYS -> 10000
+                        SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG -> 14000
+                        SkyParticleEffect.STARFIELD, SkyParticleEffect.SUNSET_DUSK -> 11000
+                    },
+                    easing = LinearEasing
+                ),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "condition_animation_phase"
+        )
+    } else {
+        rememberUpdatedState(0.25f)
+    }
+
+    val boltPath = remember { Path() }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .testTag("weather_condition_animation")
+    ) {
+        val w = size.width
+        val h = size.height
+        val phase = phaseState.value
+        val twoPi = (2.0 * PI).toFloat()
+
+        // Subtle atmospheric horizon glow backdrop
+        drawRoundRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    visualSpec.gradientTop.copy(alpha = 0.38f),
+                    visualSpec.gradientBottom.copy(alpha = 0.52f),
+                    visualSpec.iconTint.copy(alpha = 0.22f)
+                )
+            ),
+            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx())
+        )
+
+        when (visualSpec.particleEffect) {
+            SkyParticleEffect.SUN_RAYS -> {
+                // Rotating golden sunbeams, pulsing solar corona, and drifting warm light motes
+                val sunCenter = Offset(w * 0.16f, h * 0.50f)
+                val pulse = 0.92f + 0.08f * sin(phase * twoPi)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFFFBEB).copy(alpha = 0.65f),
+                            AmberSol.copy(alpha = 0.34f),
+                            Color.Transparent
+                        ),
+                        center = sunCenter,
+                        radius = h * 0.90f * pulse
+                    ),
+                    radius = h * 0.90f * pulse,
+                    center = sunCenter
+                )
+
+                val rayCount = 12
+                val rotationOffset = phase * 360f
+                for (r in 0 until rayCount) {
+                    val angleDeg = r * (360f / rayCount) + rotationOffset
+                    rotate(degrees = angleDeg, pivot = sunCenter) {
+                        drawLine(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFFFEF08A).copy(alpha = 0.55f),
+                                    AmberSol.copy(alpha = 0.20f),
+                                    Color.Transparent
+                                ),
+                                start = sunCenter,
+                                end = Offset(sunCenter.x + h * 0.85f, sunCenter.y)
+                            ),
+                            start = Offset(sunCenter.x + h * 0.20f, sunCenter.y),
+                            end = Offset(sunCenter.x + h * 0.82f, sunCenter.y),
+                            strokeWidth = 2.6.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+
+                // Diagonal crepuscular sunbeams sweeping across the banner
+                for (beam in 0..3) {
+                    val beamShift = ((phase + beam * 0.25f) % 1f)
+                    val startX = w * (0.18f + beam * 0.20f) + sin(beamShift * twoPi) * 14f
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                AmberSol.copy(alpha = 0.24f),
+                                Color(0xFFFEF08A).copy(alpha = 0.08f),
+                                Color.Transparent
+                            ),
+                            start = Offset(startX, 0f),
+                            end = Offset(startX + w * 0.14f, h)
+                        ),
+                        start = Offset(startX, 0f),
+                        end = Offset(startX + w * 0.14f, h),
+                        strokeWidth = 14.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                // Bright solar core
+                drawCircle(
+                    color = Color(0xFFFFFBEB),
+                    radius = h * 0.22f * pulse,
+                    center = sunCenter
+                )
+            }
+
+            SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> {
+                val isThunder = visualSpec.particleEffect == SkyParticleEffect.THUNDER
+                val flashActive = isThunder && (phase in 0.12f..0.18f || phase in 0.56f..0.61f)
+
+                if (flashActive) {
+                    drawRoundRect(
+                        color = Color(0xFFFEF08A).copy(alpha = 0.24f),
+                        cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx())
+                    )
+                }
+
+                // Drifting storm cloud canopy along the top edge
+                for (c in 0..3) {
+                    val cx = ((c * 0.28f + phase * 0.18f) % 1.28f - 0.14f) * w
+                    drawRealisticVolumetricCloud(
+                        centerX = cx,
+                        centerY = h * 0.18f,
+                        baseRadius = h * 0.62f,
+                        crestColor = if (flashActive) Color(0xFFFEF08A).copy(alpha = 0.45f) else Color(0xFFCBD5E1).copy(alpha = 0.28f),
+                        bodyColor = Color(0xFF475569).copy(alpha = 0.36f),
+                        shadowColor = Color(0xFF0F172A).copy(alpha = 0.44f),
+                        rimLightColor = CyanGlow.copy(alpha = 0.22f)
+                    )
+                }
+
+                // Falling slanted raindrops + water splash ripples at the bottom
+                val dropCount = 18
+                for (i in 0 until dropCount) {
+                    val seedX = ((i * 0.058f) + (i % 3) * 0.017f) % 1f
+                    val speed = 1f + (i % 2)
+                    val p = ((i * 0.13f) + phase * speed) % 1f
+                    val dropX = ((seedX * w - p * w * 0.08f) + w) % w
+                    val dropY = p * (h * 0.86f)
+                    val len = h * (0.24f + (i % 3) * 0.05f)
+                    val slant = len * 0.28f
+
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                CyanZephyr.copy(alpha = 0.72f),
+                                Color(0xFFE0F2FE).copy(alpha = 0.92f)
+                            ),
+                            start = Offset(dropX, dropY),
+                            end = Offset(dropX - slant, dropY + len)
+                        ),
+                        start = Offset(dropX, dropY),
+                        end = Offset(dropX - slant, dropY + len),
+                        strokeWidth = 1.8f + (i % 2) * 0.6f,
+                        cap = StrokeCap.Round
+                    )
+
+                    if (p > 0.82f && i % 2 == 0) {
+                        val ripple = (p - 0.82f) / 0.18f
+                        drawCircle(
+                            color = CyanGlow.copy(alpha = (1f - ripple) * 0.50f),
+                            radius = 2f + ripple * 10f,
+                            center = Offset(dropX - slant, h * 0.90f),
+                            style = Stroke(width = 1.2f)
+                        )
+                    }
+                }
+
+                if (isThunder) {
+                    val boltAlpha = if (flashActive) 0.95f else 0.25f
+                    val bx = w * 0.76f
+                    boltPath.reset()
+                    boltPath.moveTo(bx, h * 0.08f)
+                    boltPath.lineTo(bx - 10f, h * 0.44f)
+                    boltPath.lineTo(bx + 4f, h * 0.48f)
+                    boltPath.lineTo(bx - 14f, h * 0.88f)
+                    drawPath(
+                        path = boltPath,
+                        color = Color(0xFFFDE047).copy(alpha = boltAlpha),
+                        style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+            }
+
+            SkyParticleEffect.CLOUDS -> {
+                // Warm golden sunrays peeking behind drifting volumetric 3D cumulus clouds
+                val sunPos = Offset(w * 0.20f, h * 0.42f)
+                val sunPulse = 0.94f + 0.06f * sin(phase * twoPi)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            AmberSol.copy(alpha = 0.48f),
+                            AmberSol.copy(alpha = 0.16f),
+                            Color.Transparent
+                        ),
+                        center = sunPos,
+                        radius = h * 0.78f * sunPulse
+                    ),
+                    radius = h * 0.78f * sunPulse,
+                    center = sunPos
+                )
+
+                for (c in 0..3) {
+                    val cx = ((c * 0.30f + phase * (0.20f + (c % 2) * 0.08f)) % 1.32f - 0.16f) * w
+                    val cy = h * (0.42f + (c % 2) * 0.16f) + sin(phase * twoPi + c) * 3f
+                    drawRealisticVolumetricCloud(
+                        centerX = cx,
+                        centerY = cy,
+                        baseRadius = h * (0.52f + (c % 2) * 0.12f),
+                        crestColor = Color.White.copy(alpha = 0.52f),
+                        bodyColor = Color(0xFFE2E8F0).copy(alpha = 0.36f),
+                        shadowColor = Color(0xFF334155).copy(alpha = 0.28f),
+                        rimLightColor = Color(0xFFFEF3C7).copy(alpha = 0.42f)
+                    )
+                }
+            }
+
+            SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> {
+                val isStorm = visualSpec.particleEffect == SkyParticleEffect.SNOW_STORM
+                val flakeCount = if (isStorm) 20 else 14
+                for (i in 0 until flakeCount) {
+                    val speed = if (isStorm) (1.5f + (i % 2)) else 1.0f
+                    val p = ((i * 0.09f) + phase * speed) % 1f
+                    val sway = sin(p * twoPi + i) * (if (isStorm) 14f else 7f)
+                    val windShift = if (isStorm) p * w * 0.18f else 0f
+                    val fx = (((i.toFloat() / flakeCount) * w - windShift + sway) + w) % w
+                    val fy = p * (h * 0.90f)
+                    val r = 2.2f + (i % 3) * 1.1f
+
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.85f),
+                        radius = r,
+                        center = Offset(fx, fy)
+                    )
+                    if (i % 2 == 0) {
+                        val arm = r * 1.6f
+                        drawLine(
+                            color = Color(0xFFE0F2FE).copy(alpha = 0.90f),
+                            start = Offset(fx - arm, fy),
+                            end = Offset(fx + arm, fy),
+                            strokeWidth = 1.1f,
+                            cap = StrokeCap.Round
+                        )
+                        drawLine(
+                            color = Color(0xFFE0F2FE).copy(alpha = 0.90f),
+                            start = Offset(fx, fy - arm),
+                            end = Offset(fx, fy + arm),
+                            strokeWidth = 1.1f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+            }
+
+            SkyParticleEffect.FOG -> {
+                // Smoothly swaying horizontal mist ribbons
+                for (band in 0..3) {
+                    val dir = if (band % 2 == 0) 1f else -1f
+                    val swayX = dir * sin(phase * twoPi + band) * (w * 0.08f)
+                    val by = h * (0.18f + band * 0.20f)
+                    drawRoundRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFFE2E8F0).copy(alpha = 0.32f),
+                                Color.White.copy(alpha = 0.45f),
+                                Color(0xFFE2E8F0).copy(alpha = 0.32f),
+                                Color.Transparent
+                            )
+                        ),
+                        topLeft = Offset(w * 0.08f + swayX, by),
+                        size = Size(w * 0.84f, 8.dp.toPx()),
+                        cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                    )
+                }
+            }
+
+            SkyParticleEffect.SUNSET_DUSK -> {
+                // Glowing golden-crimson setting sun on horizon + drifting twilight clouds
+                val sunCenter = Offset(w * 0.22f, h * 0.68f)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFEF08A).copy(alpha = 0.75f),
+                            Color(0xFFFB923C).copy(alpha = 0.42f),
+                            Color(0xFFE11D48).copy(alpha = 0.18f),
+                            Color.Transparent
+                        ),
+                        center = sunCenter,
+                        radius = h * 0.85f
+                    ),
+                    radius = h * 0.85f,
+                    center = sunCenter
+                )
+                for (c in 0..2) {
+                    val cx = ((0.25f + c * 0.32f + phase * 0.20f) % 1.30f - 0.15f) * w
+                    drawRealisticVolumetricCloud(
+                        centerX = cx,
+                        centerY = h * (0.36f + (c % 2) * 0.18f),
+                        baseRadius = h * 0.48f,
+                        crestColor = Color(0xFFFDE68A).copy(alpha = 0.42f),
+                        bodyColor = Color(0xFFFB923C).copy(alpha = 0.30f),
+                        shadowColor = Color(0xFF881337).copy(alpha = 0.26f),
+                        rimLightColor = Color(0xFFFEF08A).copy(alpha = 0.48f)
+                    )
+                }
+            }
+
+            SkyParticleEffect.STARFIELD -> {
+                // Twinkling starfield + glowing silver crescent moon + nocturnal clouds
+                val moonCenter = Offset(w * 0.16f, h * 0.48f)
+                drawCircle(
+                    color = Color(0xFFFEF9C3).copy(alpha = 0.25f),
+                    radius = h * 0.46f,
+                    center = moonCenter
+                )
+                drawCircle(
+                    color = Color(0xFFFEF08A).copy(alpha = 0.90f),
+                    radius = h * 0.24f,
+                    center = moonCenter
+                )
+                for (s in 0..11) {
+                    val sx = ((s * 0.083f + 0.26f) % 0.94f) * w
+                    val sy = ((s * 0.19f + 0.14f) % 0.78f) * h
+                    val twinkle = 0.45f + 0.55f * sin(phase * twoPi * (1 + (s % 2)) + s)
+                    drawCircle(
+                        color = if (s % 3 == 0) Color(0xFFFEF08A).copy(alpha = twinkle) else Color.White.copy(alpha = twinkle),
+                        radius = if (s % 4 == 0) 2.4f else 1.6f,
+                        center = Offset(sx, sy)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+/**
  * Dynamic Compose-based animated weather status icon (e.g., spinning sun, oscillating rain drops,
  * drifting clouds, flashing thunderstorm, swaying mist, and rocking night moon with twinkling stars).
  */
@@ -1177,62 +1684,43 @@ fun AnimatedWeatherStatusIcon(
     visualSpec: WeatherVisualSpec,
     iconSize: Dp = 22.dp,
     contentDescription: String? = visualSpec.label,
+    animateContinuous: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "animated_weather_status_icon")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = when (visualSpec.particleEffect) {
-                    SkyParticleEffect.SUN_RAYS -> 7200
-                    SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER, SkyParticleEffect.SNOW_STORM -> 1600
-                    else -> 3600
-                },
-                easing = LinearEasing
+    val isResumed = rememberIsAppResumed()
+    val phaseState: State<Float> = if (animateContinuous && isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "animated_weather_status_icon")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = when (visualSpec.particleEffect) {
+                        SkyParticleEffect.SUN_RAYS -> 7200
+                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER, SkyParticleEffect.SNOW_STORM -> 1600
+                        else -> 3600
+                    },
+                    easing = LinearEasing
+                ),
+                repeatMode = RepeatMode.Restart
             ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "icon_phase"
-    )
+            label = "icon_phase"
+        )
+    } else {
+        rememberUpdatedState(0.20f)
+    }
 
     val twoPi = (2.0 * PI).toFloat()
-    val sinWave = sin(phase * twoPi)
-    val cosWave = cos(phase * twoPi)
-
-    val rotationDeg = when (visualSpec.particleEffect) {
-        SkyParticleEffect.SUN_RAYS -> phase * 360f
-        SkyParticleEffect.STARFIELD -> sinWave * 8f
-        SkyParticleEffect.THUNDER, SkyParticleEffect.SNOW_STORM -> sinWave * 4f
-        else -> sinWave * 2.5f
-    }
-
-    val scaleFactor = when (visualSpec.particleEffect) {
-        SkyParticleEffect.SUN_RAYS -> 1f + 0.07f * sinWave
-        SkyParticleEffect.THUNDER -> if (phase in 0.14f..0.22f || phase in 0.58f..0.64f) 1.12f else 1f
-        else -> 1f + 0.04f * cosWave
-    }
-
-    val translateX = when (visualSpec.particleEffect) {
-        SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG, SkyParticleEffect.SUNSET_DUSK -> sinWave * 2.4f
-        SkyParticleEffect.SNOW_STORM -> sinWave * 3.0f
-        else -> 0f
-    }
-
-    val translateY = when (visualSpec.particleEffect) {
-        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> sinWave * 1.8f
-        SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> cosWave * 2.0f
-        SkyParticleEffect.CLOUDS -> cosWave * 1.4f
-        else -> 0f
-    }
 
     Box(
         modifier = modifier.size(iconSize * 1.25f),
         contentAlignment = Alignment.Center
     ) {
-        // Dynamic condition-specific animated particles & corona behind/around the icon
+        // Dynamic condition-specific particles & corona read phaseState.value inside draw scope only (0 recompositions)
         Canvas(modifier = Modifier.fillMaxSize()) {
+            val phase = phaseState.value
+            val sinWave = sin(phase * twoPi)
+            val cosWave = cos(phase * twoPi)
             val w = size.width
             val h = size.height
             val center = Offset(w / 2f, h / 2f)
@@ -1240,7 +1728,6 @@ fun AnimatedWeatherStatusIcon(
 
             when (visualSpec.particleEffect) {
                 SkyParticleEffect.SUN_RAYS -> {
-                    // Spinning golden corona aura & pulsing sun rays
                     val pulseR = baseR * (0.78f + 0.14f * sinWave)
                     drawCircle(
                         color = AmberSol.copy(alpha = 0.22f + 0.08f * sinWave),
@@ -1250,7 +1737,6 @@ fun AnimatedWeatherStatusIcon(
                 }
 
                 SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> {
-                    // 3 oscillating raindrops falling beneath the cloud icon
                     val isThunder = visualSpec.particleEffect == SkyParticleEffect.THUNDER
                     if (isThunder && (phase in 0.14f..0.22f || phase in 0.58f..0.64f)) {
                         drawCircle(
@@ -1277,7 +1763,6 @@ fun AnimatedWeatherStatusIcon(
                 }
 
                 SkyParticleEffect.CLOUDS, SkyParticleEffect.SUNSET_DUSK -> {
-                    // Rotating golden sun peek in upper-left + drifting cloud aura
                     val sunCenter = Offset(center.x - baseR * 0.24f, center.y - baseR * 0.20f)
                     drawCircle(
                         color = AmberSol.copy(alpha = 0.24f + 0.08f * sinWave),
@@ -1287,7 +1772,6 @@ fun AnimatedWeatherStatusIcon(
                 }
 
                 SkyParticleEffect.STARFIELD -> {
-                    // Twinkling stars around the rocking crescent moon
                     val starAlpha1 = 0.4f + 0.6f * abs(sinWave)
                     val starAlpha2 = 0.4f + 0.6f * abs(cosWave)
                     drawCircle(
@@ -1303,7 +1787,6 @@ fun AnimatedWeatherStatusIcon(
                 }
 
                 SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> {
-                    // Floating icy frost aura + drifting snow crystals around the snow icon
                     val isStorm = visualSpec.particleEffect == SkyParticleEffect.SNOW_STORM
                     drawCircle(
                         color = Color(0xFFBAE6FD).copy(alpha = if (isStorm) 0.24f else 0.16f),
@@ -1336,11 +1819,35 @@ fun AnimatedWeatherStatusIcon(
             modifier = Modifier
                 .size(iconSize)
                 .graphicsLayer {
-                    rotationZ = rotationDeg
-                    scaleX = scaleFactor
-                    scaleY = scaleFactor
-                    translationX = translateX
-                    translationY = translateY
+                    if (animateContinuous) {
+                        val phase = phaseState.value
+                        val sinWave = sin(phase * twoPi)
+                        val cosWave = cos(phase * twoPi)
+                        rotationZ = when (visualSpec.particleEffect) {
+                            SkyParticleEffect.SUN_RAYS -> phase * 360f
+                            SkyParticleEffect.STARFIELD -> sinWave * 8f
+                            SkyParticleEffect.THUNDER, SkyParticleEffect.SNOW_STORM -> sinWave * 4f
+                            else -> sinWave * 2.5f
+                        }
+                        val sf = when (visualSpec.particleEffect) {
+                            SkyParticleEffect.SUN_RAYS -> 1f + 0.07f * sinWave
+                            SkyParticleEffect.THUNDER -> if (phase in 0.14f..0.22f || phase in 0.58f..0.64f) 1.12f else 1f
+                            else -> 1f + 0.04f * cosWave
+                        }
+                        scaleX = sf
+                        scaleY = sf
+                        translationX = when (visualSpec.particleEffect) {
+                            SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG, SkyParticleEffect.SUNSET_DUSK -> sinWave * 2.4f
+                            SkyParticleEffect.SNOW_STORM -> sinWave * 3.0f
+                            else -> 0f
+                        }
+                        translationY = when (visualSpec.particleEffect) {
+                            SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> sinWave * 1.8f
+                            SkyParticleEffect.SNOW, SkyParticleEffect.SNOW_STORM -> cosWave * 2.0f
+                            SkyParticleEffect.CLOUDS -> cosWave * 1.4f
+                            else -> 0f
+                        }
+                    }
                 }
         )
     }
@@ -1348,7 +1855,7 @@ fun AnimatedWeatherStatusIcon(
 
 /**
  * Dynamic animated hero weather badge featuring an orbiting satellite ring,
- * condition-aware particle effects, and a continuously animated weather status icon.
+ * condition-aware particle effects, and a lifecycle-paused animated weather status icon.
  */
 @Composable
 fun LottieStyleWeatherHeroBadge(
@@ -1371,25 +1878,33 @@ fun LottieStyleWeatherHeroBadge(
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "hero_badge_orbit")
-    val orbitAngleDeg by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "orbit_angle_deg"
-    )
-    val auraPulse by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "aura_pulse"
-    )
+    val isResumed = rememberIsAppResumed()
+    val orbitAngleDegState: State<Float>
+    val auraPulseState: State<Float>
+    if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "hero_badge_orbit")
+        orbitAngleDegState = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 12000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "orbit_angle_deg"
+        )
+        auraPulseState = infiniteTransition.animateFloat(
+            initialValue = 0.92f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "aura_pulse"
+        )
+    } else {
+        orbitAngleDegState = rememberUpdatedState(45f)
+        auraPulseState = rememberUpdatedState(1.0f)
+    }
 
     val orbitalDash = remember { PathEffect.dashPathEffect(floatArrayOf(12f, 10f)) }
 
@@ -1400,6 +1915,8 @@ fun LottieStyleWeatherHeroBadge(
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            val orbitAngleDeg = orbitAngleDegState.value
+            val auraPulse = auraPulseState.value
             val center = Offset(size.width / 2f, size.height / 2f)
             val baseRadius = size.minDimension / 2f - 6.dp.toPx()
 
@@ -1481,6 +1998,7 @@ fun LottieStyleWeatherHeroBadge(
             visualSpec = visualSpec,
             iconSize = 42.dp,
             contentDescription = visualSpec.label,
+            animateContinuous = true,
             modifier = Modifier.graphicsLayer {
                 scaleX = entranceScale.value
                 scaleY = entranceScale.value
@@ -1514,25 +2032,35 @@ fun LiveWeatherRadarCanvas(
     mapStyle: com.example.util.SatelliteMapStyle = com.example.util.SatelliteMapStyle.HYBRID_SATELLITE,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "doppler_radar")
-    val sweepAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radar_sweep"
-    )
-    val cellPulse by infiniteTransition.animateFloat(
-        initialValue = 0.88f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "cell_pulse"
-    )
+    val isResumed = rememberIsAppResumed()
+    val sweepAngleState: State<Float>
+    val cellPulseState: State<Float>
+    if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "doppler_radar")
+        sweepAngleState = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 4800, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "radar_sweep"
+        )
+        cellPulseState = infiniteTransition.animateFloat(
+            initialValue = 0.88f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "cell_pulse"
+        )
+    } else {
+        sweepAngleState = rememberUpdatedState(120f)
+        cellPulseState = rememberUpdatedState(1.0f)
+    }
+    val sweepAngle = sweepAngleState.value
+    val cellPulse = cellPulseState.value
 
     val liveSatelliteBitmap = if (showSatellitePhoto) {
         rememberTownSatelliteImageBitmap(

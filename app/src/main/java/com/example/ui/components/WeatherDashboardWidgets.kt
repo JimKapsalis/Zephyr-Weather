@@ -460,9 +460,18 @@ fun Helios24hChronoDialWidget(
             .testTag("widget_helios_chrono_dial"),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0E2138).copy(alpha = 0.94f)
+            containerColor = Color(0xFF0A192E).copy(alpha = 0.94f)
         ),
-        border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.48f))
+        border = BorderStroke(
+            width = 1.4.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    CyanZephyr.copy(alpha = 0.65f),
+                    Color.White.copy(alpha = 0.24f),
+                    AmberSol.copy(alpha = 0.50f)
+                )
+            )
+        )
     ) {
         Column(
             modifier = Modifier
@@ -470,16 +479,16 @@ fun Helios24hChronoDialWidget(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            CyanZephyr.copy(alpha = 0.14f),
-                            AmberSol.copy(alpha = 0.06f),
-                            Color.Transparent
+                            CyanZephyr.copy(alpha = 0.18f),
+                            Color(0xFF0E233F).copy(alpha = 0.65f),
+                            AmberSol.copy(alpha = 0.08f)
                         )
                     )
                 )
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Top Row: Live Digital Clock & Date on Left, Current City & Temp + White Cloud / Sun Icon on Right
+            // Top Row: Live Digital Clock & Date on Left, Current City & Temp + Realistic Multi-Tone Weather Icon on Right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -488,7 +497,8 @@ fun Helios24hChronoDialWidget(
                 Column {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = CyanZephyr.copy(alpha = 0.20f)
+                        color = CyanZephyr.copy(alpha = 0.22f),
+                        border = BorderStroke(1.dp, CyanGlow.copy(alpha = 0.45f))
                     ) {
                         Text(
                             text = if (isGreek) "WIDGET ΩΡΑΣ • ΑΝΑ ΩΡΑ & ΗΜΕΡΑ" else "CLOCK • HOURLY & DAILY WIDGET",
@@ -497,7 +507,7 @@ fun Helios24hChronoDialWidget(
                             color = CyanGlow,
                             maxLines = 1,
                             softWrap = false,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
@@ -524,22 +534,30 @@ fun Helios24hChronoDialWidget(
                     }
                 }
 
-                // Current Condition & Temp Pill
+                // Current Condition & Temp Glass Pill
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White.copy(alpha = 0.07f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White.copy(alpha = 0.10f),
+                    border = BorderStroke(
+                        width = 1.2.dp,
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                spec.iconTint.copy(alpha = 0.55f),
+                                Color.White.copy(alpha = 0.20f)
+                            )
+                        )
+                    )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
                         Icon(
                             imageVector = spec.icon,
                             contentDescription = spec.localizedLabel(language),
-                            tint = spec.resolvedIconTint(),
-                            modifier = Modifier.size(28.dp)
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(30.dp)
                         )
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
@@ -553,7 +571,7 @@ fun Helios24hChronoDialWidget(
                             Text(
                                 text = spec.localizedLabel(language),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.78f),
+                                color = Color.White.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -563,7 +581,7 @@ fun Helios24hChronoDialWidget(
             }
 
             // Section 1: Weather by Hour (Καιρός ανά Ώρα - Next 6 Hours)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -578,7 +596,7 @@ fun Helios24hChronoDialWidget(
                     Text(
                         text = if (isGreek) "Επόμενες 6 ώρες" else "Next 6 hours",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.60f)
+                        color = Color.White.copy(alpha = 0.65f)
                     )
                 }
 
@@ -594,37 +612,37 @@ fun Helios24hChronoDialWidget(
                             hItem.displayHour
                         }
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (idx == 0) CyanZephyr.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (idx == 0) CyanZephyr.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.07f),
                             border = BorderStroke(
-                                width = 1.dp,
-                                color = if (idx == 0) CyanZephyr.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.08f)
+                                width = if (idx == 0) 1.3.dp else 1.dp,
+                                color = if (idx == 0) CyanGlow.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.14f)
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                modifier = Modifier.padding(vertical = 9.dp, horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = hourTitle,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (idx == 0) CyanGlow else Color.White.copy(alpha = 0.78f),
-                                    fontWeight = if (idx == 0) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (idx == 0) CyanGlow else Color.White.copy(alpha = 0.82f),
+                                    fontWeight = if (idx == 0) FontWeight.ExtraBold else FontWeight.SemiBold,
                                     maxLines = 1,
                                     softWrap = false
                                 )
                                 Icon(
                                     imageVector = hSpec.icon,
                                     contentDescription = null,
-                                    tint = hSpec.resolvedIconTint(),
-                                    modifier = Modifier.size(19.dp)
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(21.dp)
                                 )
                                 Text(
                                     text = units.formatTemp(hItem.tempC, includeUnit = false),
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = Color.White,
                                     maxLines = 1,
                                     softWrap = false
@@ -632,7 +650,8 @@ fun Helios24hChronoDialWidget(
                                 Text(
                                     text = "${hItem.precipProbability}%",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (hItem.precipProbability >= 40) CyanGlow else Color.White.copy(alpha = 0.52f),
+                                    color = if (hItem.precipProbability >= 35) CyanGlow else Color.White.copy(alpha = 0.56f),
+                                    fontWeight = if (hItem.precipProbability >= 35) FontWeight.Bold else FontWeight.Normal,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -642,10 +661,10 @@ fun Helios24hChronoDialWidget(
                 }
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.09f))
+            HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
 
             // Section 2: Weather by Day (Καιρός ανά Ημέρα - 5 Days)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -660,7 +679,7 @@ fun Helios24hChronoDialWidget(
                     Text(
                         text = if (isGreek) "Πρόγνωση 5 Ημερών" else "5-Day Outlook",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.60f)
+                        color = Color.White.copy(alpha = 0.65f)
                     )
                 }
 
@@ -672,23 +691,23 @@ fun Helios24hChronoDialWidget(
                         val dSpec = WmoWeatherMapper.resolve(dItem.weatherCode, isDay = true)
                         val dayTitle = localizeWidgetDay(dItem.dayLabel, isGreek, idx == 0)
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (idx == 0) AmberSol.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (idx == 0) AmberSol.copy(alpha = 0.19f) else Color.White.copy(alpha = 0.07f),
                             border = BorderStroke(
-                                width = 1.dp,
-                                color = if (idx == 0) AmberSol.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.08f)
+                                width = if (idx == 0) 1.3.dp else 1.dp,
+                                color = if (idx == 0) AmberSol.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.14f)
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                modifier = Modifier.padding(vertical = 9.dp, horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = dayTitle,
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = if (idx == 0) AmberSol else Color.White,
                                     maxLines = 1,
                                     softWrap = false
@@ -696,13 +715,13 @@ fun Helios24hChronoDialWidget(
                                 Icon(
                                     imageVector = dSpec.icon,
                                     contentDescription = null,
-                                    tint = dSpec.resolvedIconTint(),
-                                    modifier = Modifier.size(19.dp)
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(21.dp)
                                 )
                                 Text(
                                     text = "${units.formatTemp(dItem.maxTempC, false)}/${units.formatTemp(dItem.minTempC, false)}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = Color.White,
                                     maxLines = 1,
                                     softWrap = false
@@ -769,9 +788,18 @@ fun SmartComfortAndOutfitWidget(
             .testTag("widget_smart_comfort_outfit"),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0E2138).copy(alpha = 0.92f)
+            containerColor = Color(0xFF0A192E).copy(alpha = 0.94f)
         ),
-        border = BorderStroke(1.2.dp, EmeraldBreeze.copy(alpha = 0.42f))
+        border = BorderStroke(
+            width = 1.4.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    EmeraldBreeze.copy(alpha = 0.65f),
+                    CyanZephyr.copy(alpha = 0.35f),
+                    Color.White.copy(alpha = 0.18f)
+                )
+            )
+        )
     ) {
         Column(
             modifier = Modifier
@@ -779,8 +807,8 @@ fun SmartComfortAndOutfitWidget(
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            EmeraldBreeze.copy(alpha = 0.14f),
-                            CyanZephyr.copy(alpha = 0.06f),
+                            EmeraldBreeze.copy(alpha = 0.18f),
+                            CyanZephyr.copy(alpha = 0.08f),
                             Color.Transparent
                         )
                     )
@@ -796,7 +824,8 @@ fun SmartComfortAndOutfitWidget(
                 Column(modifier = Modifier.weight(1f)) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = EmeraldBreeze.copy(alpha = 0.20f)
+                        color = EmeraldBreeze.copy(alpha = 0.22f),
+                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.48f))
                     ) {
                         Text(
                             text = if (isGreek) "WIDGET 2 • ΑΝΕΣΗ & ΣΥΜΒΟΥΛΟΣ ΗΜΕΡΑΣ" else "WIDGET 2 • COMFORT & LIFESTYLE",
@@ -805,13 +834,14 @@ fun SmartComfortAndOutfitWidget(
                             color = EmeraldBreeze,
                             maxLines = 1,
                             softWrap = false,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = outfitSuggestion,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White,
                         maxLines = 1,
                         softWrap = false,
@@ -820,7 +850,7 @@ fun SmartComfortAndOutfitWidget(
                     Text(
                         text = outdoorStatus,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.76f),
+                        color = Color.White.copy(alpha = 0.80f),
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
@@ -829,13 +859,13 @@ fun SmartComfortAndOutfitWidget(
 
                 // Circular Comfort Ring Gauge
                 Box(
-                    modifier = Modifier.size(68.dp),
+                    modifier = Modifier.size(72.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        val stroke = 6.dp.toPx()
+                        val stroke = 6.5.dp.toPx()
                         drawCircle(
-                            color = Color.White.copy(alpha = 0.10f),
+                            color = Color.White.copy(alpha = 0.12f),
                             style = Stroke(width = stroke)
                         )
                         drawArc(
@@ -852,7 +882,7 @@ fun SmartComfortAndOutfitWidget(
                         Text(
                             text = "$comfortScore%",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
                             maxLines = 1,
                             softWrap = false
@@ -861,6 +891,7 @@ fun SmartComfortAndOutfitWidget(
                             text = if (isGreek) "Άνεση" else "Comfort",
                             style = MaterialTheme.typography.labelSmall,
                             color = EmeraldBreeze,
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -920,9 +951,18 @@ fun AnalogBarometerAndRainPulseWidget(
             .testTag("widget_barometer_rain_pulse"),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0E2138).copy(alpha = 0.92f)
+            containerColor = Color(0xFF0A192E).copy(alpha = 0.94f)
         ),
-        border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.42f))
+        border = BorderStroke(
+            width = 1.4.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    CyanZephyr.copy(alpha = 0.62f),
+                    AmberSol.copy(alpha = 0.36f),
+                    Color.White.copy(alpha = 0.16f)
+                )
+            )
+        )
     ) {
         Row(
             modifier = Modifier
@@ -930,7 +970,8 @@ fun AnalogBarometerAndRainPulseWidget(
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            CyanZephyr.copy(alpha = 0.14f),
+                            CyanZephyr.copy(alpha = 0.18f),
+                            AmberSol.copy(alpha = 0.06f),
                             Color.Transparent
                         )
                     )
@@ -941,19 +982,25 @@ fun AnalogBarometerAndRainPulseWidget(
         ) {
             // Circular Analog Barometer Dial
             Box(
-                modifier = Modifier.size(106.dp),
+                modifier = Modifier.size(108.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val center = Offset(size.width / 2f, size.height / 2f)
                     val radius = size.minDimension / 2f - 6.dp.toPx()
 
+                    drawCircle(
+                        color = Color(0xFF061325).copy(alpha = 0.65f),
+                        radius = radius * 0.92f,
+                        center = center
+                    )
+
                     drawArc(
-                        color = Color.White.copy(alpha = 0.12f),
+                        color = Color.White.copy(alpha = 0.14f),
                         startAngle = 135f,
                         sweepAngle = 270f,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 8.5.dp.toPx(), cap = StrokeCap.Round)
                     )
 
                     val normalizedP = ((pressureHpa - 985.0) / 55.0).toFloat().coerceIn(0.05f, 0.98f)
@@ -965,7 +1012,7 @@ fun AnalogBarometerAndRainPulseWidget(
                         startAngle = 135f,
                         sweepAngle = 270f * normalizedP,
                         useCenter = false,
-                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 8.5.dp.toPx(), cap = StrokeCap.Round)
                     )
 
                     // Barometer Needle
@@ -975,13 +1022,13 @@ fun AnalogBarometerAndRainPulseWidget(
                             color = AmberSol,
                             start = center,
                             end = Offset(center.x + radius * 0.72f, center.y),
-                            strokeWidth = 2.5.dp.toPx(),
+                            strokeWidth = 2.8.dp.toPx(),
                             cap = StrokeCap.Round
                         )
                     }
                     drawCircle(
                         color = Color.White,
-                        radius = 4.dp.toPx(),
+                        radius = 4.2.dp.toPx(),
                         center = center
                     )
                 }
@@ -993,7 +1040,7 @@ fun AnalogBarometerAndRainPulseWidget(
                     Text(
                         text = "${pressureHpa.roundToInt()}",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         maxLines = 1,
                         softWrap = false
@@ -1002,6 +1049,7 @@ fun AnalogBarometerAndRainPulseWidget(
                         text = "hPa",
                         style = MaterialTheme.typography.labelSmall,
                         color = CyanGlow,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         softWrap = false
                     )
@@ -1015,7 +1063,8 @@ fun AnalogBarometerAndRainPulseWidget(
             ) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = CyanZephyr.copy(alpha = 0.20f)
+                    color = CyanZephyr.copy(alpha = 0.22f),
+                    border = BorderStroke(1.dp, CyanGlow.copy(alpha = 0.45f))
                 ) {
                     Text(
                         text = if (isGreek) "WIDGET 3 • ΒΑΡΟΜΕΤΡΟ & ΠΑΛΜΟΣ ΒΡΟΧΗΣ" else "WIDGET 3 • BAROMETER & RAIN PULSE",
@@ -1024,13 +1073,14 @@ fun AnalogBarometerAndRainPulseWidget(
                         color = CyanGlow,
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                     )
                 }
 
                 Text(
                     text = tendencyText,
                     style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
                     maxLines = 1,
                     softWrap = false,
@@ -1042,12 +1092,12 @@ fun AnalogBarometerAndRainPulseWidget(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp),
+                        .height(44.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
                     next6.forEachIndexed { idx, hItem ->
-                        val prob = hItem.precipProbability.coerceIn(8, 100)
+                        val prob = hItem.precipProbability.coerceIn(10, 100)
                         Column(
                             modifier = Modifier.weight(1f),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1056,19 +1106,25 @@ fun AnalogBarometerAndRainPulseWidget(
                             Canvas(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(24.dp)
+                                    .height(26.dp)
                             ) {
-                                val barH = (size.height * (prob / 100f)).coerceAtLeast(4.dp.toPx())
+                                val barH = (size.height * (prob / 100f)).coerceAtLeast(4.5.dp.toPx())
                                 drawRoundRect(
-                                    color = Color.White.copy(alpha = 0.10f),
+                                    color = Color.White.copy(alpha = 0.12f),
                                     size = size,
-                                    cornerRadius = CornerRadius(6f, 6f)
+                                    cornerRadius = CornerRadius(7f, 7f)
                                 )
                                 drawRoundRect(
-                                    color = if (prob >= 50) CyanZephyr else EmeraldBreeze,
+                                    brush = Brush.verticalGradient(
+                                        colors = if (prob >= 45) {
+                                            listOf(CyanGlow, CyanZephyr)
+                                        } else {
+                                            listOf(EmeraldBreeze, CyanZephyr.copy(alpha = 0.75f))
+                                        }
+                                    ),
                                     topLeft = Offset(0f, size.height - barH),
                                     size = Size(size.width, barH),
-                                    cornerRadius = CornerRadius(6f, 6f)
+                                    cornerRadius = CornerRadius(7f, 7f)
                                 )
                             }
                             Spacer(modifier = Modifier.height(2.dp))
@@ -1079,7 +1135,8 @@ fun AnalogBarometerAndRainPulseWidget(
                                     hItem.displayHour.take(2)
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.65f),
+                                color = Color.White.copy(alpha = 0.72f),
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -1100,14 +1157,15 @@ private fun LifestyleMiniPill(
 ) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.05f),
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.28f)),
+        color = Color.White.copy(alpha = 0.07f),
+        border = BorderStroke(1.1.dp, accent.copy(alpha = 0.38f)),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
                 color = accent,
                 maxLines = 1,
                 softWrap = false
@@ -1116,7 +1174,7 @@ private fun LifestyleMiniPill(
             Text(
                 text = value,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
                 maxLines = 1,
                 softWrap = false,

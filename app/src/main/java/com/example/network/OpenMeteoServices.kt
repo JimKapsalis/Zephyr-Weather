@@ -227,6 +227,23 @@ data class NominatimPlaceDto(
     val address: NominatimAddressDto? = null
 )
 
+@JsonClass(generateAdapter = true)
+data class GitHubReleaseAssetDto(
+    val name: String = "",
+    @Json(name = "browser_download_url") val browserDownloadUrl: String = "",
+    val size: Long = 0L
+)
+
+@JsonClass(generateAdapter = true)
+data class GitHubReleaseResponse(
+    @Json(name = "tag_name") val tagName: String = "",
+    val name: String? = null,
+    val body: String? = null,
+    @Json(name = "html_url") val htmlUrl: String? = null,
+    @Json(name = "published_at") val publishedAt: String? = null,
+    val assets: List<GitHubReleaseAssetDto>? = null
+)
+
 interface GeoLocationLookupService {
     @GET("https://get.geojs.io/v1/ip/geo.json")
     suspend fun detectIpLocation(): GeoIpLocationResponse
@@ -250,6 +267,14 @@ interface GeoLocationLookupService {
         @retrofit2.http.Header("Accept-Language") acceptLanguage: String = "el,en",
         @retrofit2.http.Header("User-Agent") userAgent: String = "ZephyrWeatherAndroid/2.0"
     ): List<NominatimPlaceDto>
+
+    @GET("https://api.github.com/repos/{owner}/{repo}/releases/latest")
+    suspend fun getLatestGitHubRelease(
+        @retrofit2.http.Path("owner") owner: String,
+        @retrofit2.http.Path("repo") repo: String,
+        @retrofit2.http.Header("Accept") accept: String = "application/vnd.github+json",
+        @retrofit2.http.Header("User-Agent") userAgent: String = "ZephyrWeatherAndroid/2.7"
+    ): GitHubReleaseResponse
 }
 
 object NetworkModule {

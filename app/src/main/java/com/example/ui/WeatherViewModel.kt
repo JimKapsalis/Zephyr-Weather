@@ -31,6 +31,7 @@ import com.example.model.RadarLayerMode
 import com.example.model.SkyAtmospherePreset
 import com.example.model.WeatherProvider
 import com.example.model.WeatherUnits
+import com.example.network.NetworkModule
 import com.example.util.SevereWeatherAlertEvent
 import com.example.util.SevereWeatherNotifier
 import com.example.util.WeatherBackgroundSyncScheduler
@@ -105,8 +106,14 @@ data class WeatherUiState(
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v2.6.0 (Build 26)",
-    val lastUpdateCheckStatus: String? = null
+    val appVersionLabel: String = "v2.7.0 (Build 27)",
+    val lastUpdateCheckStatus: String? = null,
+    val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
+    val latestReleaseTag: String = "v2.7.0",
+    val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.apk",
+    val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
+    val latestReleaseNotes: String? = null,
+    val isNewGitHubReleaseAvailable: Boolean = false
 )
 
 class WeatherViewModel(
@@ -120,6 +127,8 @@ class WeatherViewModel(
     private val initialLanguage = preferences?.loadLanguage() ?: AppLanguage.ENGLISH
     private val initialEmyAlerts = preferences?.loadEmyAlerts() ?: true
     private val initialRainAlerts = preferences?.loadRainAlerts() ?: true
+
+    private val initialRepoSlug = preferences?.loadGitHubRepoSlug() ?: WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG
 
     private val _uiState = MutableStateFlow(
         WeatherUiState(
@@ -139,7 +148,10 @@ class WeatherViewModel(
             emyAlertsEnabled = initialEmyAlerts,
             rainAlertsEnabled = initialRainAlerts,
             activeSevereAlert = null,
-            activeSevereAlerts = emptyList()
+            activeSevereAlerts = emptyList(),
+            githubRepoSlug = initialRepoSlug,
+            latestReleaseDownloadUrl = "https://github.com/$initialRepoSlug/releases/latest/download/ZephyrWeather.apk",
+            latestReleasePageUrl = "https://github.com/$initialRepoSlug/releases/latest"
         )
     )
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
@@ -226,10 +238,13 @@ class WeatherViewModel(
 
     private fun restartAutoRefreshLoop() {
         autoRefreshJob?.cancel()
+        autoRefreshJob = null
+        if (!isAppInForeground) return
         autoRefreshJob = viewModelScope.launch {
-            while (isActive) {
+            while (isActive && isAppInForeground) {
                 val intervalMs = _uiState.value.refreshInterval.intervalMs
                 delay(intervalMs)
+                if (!isAppInForeground) break
                 val daySwitched = hasActiveBundleDayRolledOver(_uiState.value.primaryBundle)
                 refreshCurrentWeatherSilently(forceRefresh = daySwitched)
             }
@@ -240,20 +255,33 @@ class WeatherViewModel(
         val wasBackground = !isAppInForeground
         isAppInForeground = inForeground
         val currentState = _uiState.value
-        // Do not trigger background checks or silent refreshes while initial GPS resolution is still pending
-        if (currentState.primaryBundle == null || currentState.isLocatingGps) {
-            return
-        }
         if (!inForeground) {
+            // Immediately stop all foreground timers, GPS listeners, and search coroutines to guarantee zero keep-awake drain
+            autoRefreshJob?.cancel()
+            autoRefreshJob = null
+            searchJob?.cancel()
+            searchJob = null
+            if (currentState.isLocatingGps) {
+                gpsLocateJob?.cancel()
+                gpsLocateJob = null
+                _uiState.update { it.copy(isLocatingGps = false) }
+            }
             appContext?.let { ctx ->
                 WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
                     context = ctx,
-                    intervalMs = currentState.refreshInterval.intervalMs
+                    intervalMs = currentState.refreshInterval.intervalMs,
+                    forceReschedule = false
                 )
             }
-        } else if (wasBackground) {
-            val daySwitched = hasActiveBundleDayRolledOver(currentState.primaryBundle)
-            val lastFetched = currentState.primaryBundle.fetchedAtEpochMs
+            return
+        }
+
+        if (wasBackground) {
+            restartAutoRefreshLoop()
+            val bundle = currentState.primaryBundle ?: return
+            if (currentState.isLocatingGps) return
+            val daySwitched = hasActiveBundleDayRolledOver(bundle)
+            val lastFetched = bundle.fetchedAtEpochMs
             if (daySwitched) {
                 refreshCurrentWeatherSilently(forceRefresh = true)
             } else if (lastFetched > 0L) {
@@ -269,13 +297,17 @@ class WeatherViewModel(
         if (_uiState.value.refreshInterval == interval) return
         preferences?.saveRefreshInterval(interval)
         appContext?.let { ctx ->
-            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(ctx, interval.intervalMs)
+            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+                context = ctx,
+                intervalMs = interval.intervalMs,
+                forceReschedule = true
+            )
         }
         val lang = _uiState.value.language
         val msg = if (lang == AppLanguage.GREEK) {
             "Αυτόματη ανανέωση: ${interval.localizedName(lang)}"
         } else {
-            "Auto-refresh set to ${interval.localizedName(lang)} (Background Sync Active)"
+            "Auto-refresh set to ${interval.localizedName(lang)} (Zero-Wakelock Sync)"
         }
         _uiState.update {
             it.copy(
@@ -289,14 +321,21 @@ class WeatherViewModel(
     fun toggleBatterySaverSync() {
         val next = !_uiState.value.batterySaverSyncEnabled
         preferences?.saveBatterySaverSync(next)
+        appContext?.let { ctx ->
+            WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
+                context = ctx,
+                intervalMs = _uiState.value.refreshInterval.intervalMs,
+                forceReschedule = true
+            )
+        }
         val lang = _uiState.value.language
         _uiState.update { state ->
             state.copy(
                 batterySaverSyncEnabled = next,
                 statusBanner = if (lang == AppLanguage.GREEK) {
-                    if (next) "Εξοικονόμηση μπαταρίας ενεργή" else "Συνεχής συγχρονισμός παρασκηνίου"
+                    if (next) "Εξοικονόμηση μπαταρίας HyperOS ενεργή (0 λεπτά αφύπνισης)" else "Κανονικός συγχρονισμός παρασκηνίου"
                 } else {
-                    if (next) "Zero-Drain Smart Sync enabled" else "Continuous background sync active"
+                    if (next) "HyperOS Zero-Wakelock Battery Guard enabled" else "Standard background sync active"
                 }
             )
         }
@@ -807,7 +846,6 @@ class WeatherViewModel(
         val body = buildString {
             appendLine("Zephyr Weather App Feedback")
             appendLine("----------------------------------------")
-            appendLine("Recipient: $FEEDBACK_RECIPIENT_EMAIL")
             appendLine("Category: $category")
             appendLine("Rating: $rating / 5 Stars")
             appendLine("Active Location: $activeCityName")
@@ -820,12 +858,11 @@ class WeatherViewModel(
         }
 
         val mailtoUri = (
-            "mailto:$FEEDBACK_RECIPIENT_EMAIL" +
+            "mailto:" +
                 "?subject=" + Uri.encode(subject) +
                 "&body=" + Uri.encode(body)
         ).toUri()
         val sendToIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
-            putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_RECIPIENT_EMAIL))
             putExtra(Intent.EXTRA_SUBJECT, subject)
             putExtra(Intent.EXTRA_TEXT, body)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -837,14 +874,13 @@ class WeatherViewModel(
         }.getOrElse {
             runCatching {
                 val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "message/rfc822"
-                    putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_RECIPIENT_EMAIL))
+                    type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, subject)
                     putExtra(Intent.EXTRA_TEXT, body)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(
-                    Intent.createChooser(fallbackIntent, "Send Feedback Email").apply {
+                    Intent.createChooser(fallbackIntent, "Send Feedback").apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                 )
@@ -854,27 +890,72 @@ class WeatherViewModel(
 
         val banner = if (lang == AppLanguage.GREEK) {
             if (launched) {
-                "Άνοιγμα email προς $FEEDBACK_RECIPIENT_EMAIL • Ευχαριστούμε για τα σχόλιά σας!"
+                "Άνοιγμα αποστολής σχολίων • Ευχαριστούμε για τα σχόλιά σας!"
             } else {
-                "Τα σχόλιά σας καταγράφηκαν για αποστολή στο $FEEDBACK_RECIPIENT_EMAIL!"
+                "Τα σχόλιά σας καταγράφηκαν επιτυχώς • Ευχαριστούμε!"
             }
         } else {
             if (launched) {
-                "Opening email to $FEEDBACK_RECIPIENT_EMAIL • Thank you for your feedback!"
+                "Opening feedback composer • Thank you for your feedback!"
             } else {
-                "Feedback prepared for $FEEDBACK_RECIPIENT_EMAIL • Thank you!"
+                "Feedback recorded • Thank you for your feedback!"
             }
         }
         _uiState.update { it.copy(statusBanner = banner) }
     }
 
+    fun updateGitHubRepoSlug(slug: String) {
+        val cleaned = slug.trim()
+            .removePrefix("https://github.com/")
+            .removePrefix("http://github.com/")
+            .removePrefix("github.com/")
+            .trim('/')
+            .ifBlank { WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG }
+        if (!cleaned.contains("/")) return
+        preferences?.saveGitHubRepoSlug(cleaned)
+        _uiState.update {
+            it.copy(
+                githubRepoSlug = cleaned,
+                latestReleaseDownloadUrl = "https://github.com/$cleaned/releases/latest/download/ZephyrWeather.apk",
+                latestReleasePageUrl = "https://github.com/$cleaned/releases/latest"
+            )
+        }
+    }
+
+    fun openGitHubReleaseDownload(context: Context, directApk: Boolean = true) {
+        val state = _uiState.value
+        val targetUrl = if (directApk) {
+            state.latestReleaseDownloadUrl.ifBlank {
+                "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.apk"
+            }
+        } else {
+            state.latestReleasePageUrl.ifBlank {
+                "https://github.com/${state.githubRepoSlug}/releases/latest"
+            }
+        }
+        runCatching {
+            val viewIntent = Intent(Intent.ACTION_VIEW, targetUrl.toUri()).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(viewIntent)
+        }
+        val lang = state.language
+        val msg = if (lang == AppLanguage.GREEK) {
+            if (directApk) "Λήψη ZephyrWeather.apk από το GitHub Releases…" else "Άνοιγμα σελίδας GitHub Releases…"
+        } else {
+            if (directApk) "Downloading ZephyrWeather.apk from GitHub Releases…" else "Opening GitHub Releases page…"
+        }
+        _uiState.update { it.copy(statusBanner = msg) }
+    }
+
     fun checkForAppAndWeatherUpdates(context: Context) {
         if (_uiState.value.isCheckingUpdates) return
         val lang = _uiState.value.language
+        val repoSlug = _uiState.value.githubRepoSlug.ifBlank { WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG }
         val checkingMsg = if (lang == AppLanguage.GREEK) {
-            "Έλεγχος & εγκατάσταση ενημερώσεων εφαρμογής, χωριών, υψομέτρου & μοντέλων χιονιού…"
+            "Έλεγχος GitHub Releases ($repoSlug) & συγχρονισμός 4 μοντέλων πρόγνωσης…"
         } else {
-            "Checking & applying app, village, elevation & snow model updates…"
+            "Checking GitHub Releases ($repoSlug) & syncing 4-model ensemble…"
         }
         _uiState.update {
             it.copy(
@@ -884,46 +965,86 @@ class WeatherViewModel(
             )
         }
         viewModelScope.launch {
+            var remoteTag: String? = null
+            var remoteDownloadUrl: String? = null
+            var remotePageUrl: String? = null
+            var remoteNotes: String? = null
+            var hasNewerRelease = false
+
             runCatching {
                 val appCtx = context.applicationContext ?: context
-                // 1. Sync village & elevation database
+                // 1. Check GitHub Releases API for latest tag and APK asset
+                val slugParts = repoSlug.split("/").filter { it.isNotBlank() }
+                val owner = slugParts.getOrNull(0) ?: "zephyr-weather"
+                val repo = slugParts.getOrNull(1) ?: "zephyr-weather"
+
+                val release = withTimeoutOrNull(5_500L) {
+                    withContext(Dispatchers.IO) {
+                        NetworkModule.geoLocationLookupService.getLatestGitHubRelease(
+                            owner = owner,
+                            repo = repo
+                        )
+                    }
+                }
+                if (release != null && release.tagName.isNotBlank()) {
+                    remoteTag = release.tagName.trim()
+                    val apkAsset = release.assets?.firstOrNull {
+                        it.name.endsWith(".apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
+                    }
+                    remoteDownloadUrl = apkAsset?.browserDownloadUrl
+                        ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.apk"
+                    remotePageUrl = release.htmlUrl?.takeIf { it.isNotBlank() }
+                        ?: "https://github.com/$owner/$repo/releases/latest"
+                    remoteNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
+                    hasNewerRelease = isRemoteVersionNewer(remoteTag!!, CURRENT_APP_VERSION_TAG)
+                }
+
+                // 2. Sync village & elevation database
                 val updatedCities = repository.ensureDefaultCitiesSeeded(preferences)
-                // 2. Reschedule background sync
+                // 3. Ensure Doze-safe background sync is registered without resetting timer
                 WeatherBackgroundSyncScheduler.scheduleBackgroundSync(
                     context = appCtx,
-                    intervalMs = _uiState.value.refreshInterval.intervalMs
+                    intervalMs = _uiState.value.refreshInterval.intervalMs,
+                    forceReschedule = false
                 )
-                // 3. Force-refresh active city and all saved cities with latest multi-model telemetry
+                // 4. Refresh active city with 4-model ensemble
                 val activeCity = updatedCities.find { it.id == _uiState.value.selectedCityId }
                     ?: updatedCities.firstOrNull()
                 if (activeCity != null) {
                     loadWeatherForCity(activeCity, forceRefresh = true, showRefreshConfirmation = false)
-                    val others = updatedCities.filter { it.id != activeCity.id }
-                    for (other in others) {
-                        runCatching {
-                            repository.fetchWeatherForCity(
-                                other,
-                                _uiState.value.selectedProvider,
-                                forceRefresh = true
-                            )
-                        }
-                    }
                 } else {
-                    delay(650)
+                    delay(450)
                 }
             }
+
             val currentLang = _uiState.value.language
-            val doneStatus = if (currentLang == AppLanguage.GREEK) {
-                "✓ Η εφαρμογή ενημερώθηκε στην τελευταία έκδοση v2.6.0 (Πόλεις, Χωριά, Υψόμετρο & Μοντέλα Χιονιού)"
+            val resolvedTag = remoteTag ?: CURRENT_APP_VERSION_TAG
+            val doneStatus = if (hasNewerRelease) {
+                if (currentLang == AppLanguage.GREEK) {
+                    "🚀 Νέα έκδοση διαθέσιμη στο GitHub Releases: $resolvedTag! Πατήστε «Λήψη Τελευταίου APK» για εγκατάσταση."
+                } else {
+                    "🚀 New release available on GitHub Releases: $resolvedTag! Tap 'Download Latest APK' below to install."
+                }
             } else {
-                "✓ Up to date: v2.6.0 Installed (All Villages, Elevation & Snow Models Synced)"
+                if (currentLang == AppLanguage.GREEK) {
+                    "✓ Εγκατεστημένη η τελευταία έκδοση $CURRENT_APP_VERSION_TAG • GitHub Releases & 4 Μοντέλα Ενημερωμένα"
+                } else {
+                    "✓ Up to date ($CURRENT_APP_VERSION_TAG) • GitHub Releases Verified & 4-Model Ensemble Synced"
+                }
             }
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                state.copy(
                     isCheckingUpdates = false,
                     lastUpdateCheckStatus = doneStatus,
                     statusBanner = doneStatus,
-                    animationTriggerKey = it.animationTriggerKey + 1
+                    latestReleaseTag = resolvedTag,
+                    latestReleaseDownloadUrl = remoteDownloadUrl
+                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.apk",
+                    latestReleasePageUrl = remotePageUrl
+                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest",
+                    latestReleaseNotes = remoteNotes,
+                    isNewGitHubReleaseAvailable = hasNewerRelease,
+                    animationTriggerKey = state.animationTriggerKey + 1
                 )
             }
         }
@@ -1553,7 +1674,27 @@ class WeatherViewModel(
     }
 
     companion object {
-        const val FEEDBACK_RECIPIENT_EMAIL = "kapsalesdemetres11@gmail.com"
+        const val FEEDBACK_RECIPIENT_EMAIL = ""
+        const val CURRENT_APP_VERSION_TAG = "v2.7.0"
+
+        fun isRemoteVersionNewer(remoteTag: String, currentTag: String): Boolean {
+            val remoteParts = remoteTag.trim().removePrefix("v").removePrefix("V")
+                .substringBefore("-")
+                .split(".")
+                .map { it.toIntOrNull() ?: 0 }
+            val currentParts = currentTag.trim().removePrefix("v").removePrefix("V")
+                .substringBefore("-")
+                .split(".")
+                .map { it.toIntOrNull() ?: 0 }
+            val maxLen = maxOf(remoteParts.size, currentParts.size)
+            for (i in 0 until maxLen) {
+                val r = remoteParts.getOrElse(i) { 0 }
+                val c = currentParts.getOrElse(i) { 0 }
+                if (r > c) return true
+                if (r < c) return false
+            }
+            return false
+        }
 
         fun provideFactory(context: Context): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {

@@ -381,6 +381,13 @@ class ExampleRobolectricTest {
                 acceptLanguage: String,
                 userAgent: String
             ) = emptyList<com.example.network.NominatimPlaceDto>()
+
+            override suspend fun getLatestGitHubRelease(
+                owner: String,
+                repo: String,
+                accept: String,
+                userAgent: String
+            ) = com.example.network.GitHubReleaseResponse(tagName = "v2.7.0")
         }
         val repo = WeatherRepository(
             cityDao = WeatherDatabase.getInstance(context).cityDao(),
@@ -509,8 +516,8 @@ class ExampleRobolectricTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = WeatherPreferences(context)
         val offlineGeocoding = object : com.example.network.OpenMeteoGeocodingService {
-            override suspend fun searchCities(name: String, count: Int, language: String, format: String) =
-                com.example.network.GeocodingResponse(emptyList())
+            override suspend fun searchCities(query: String, count: Int, language: String, format: String) =
+                com.example.network.GeocodingSearchResponse(emptyList())
         }
         val offlineGeoLookup = object : com.example.network.GeoLocationLookupService {
             override suspend fun detectIpLocation() = com.example.network.GeoIpLocationResponse()
@@ -525,6 +532,13 @@ class ExampleRobolectricTest {
                 acceptLanguage: String,
                 userAgent: String
             ) = emptyList<com.example.network.NominatimPlaceDto>()
+
+            override suspend fun getLatestGitHubRelease(
+                owner: String,
+                repo: String,
+                accept: String,
+                userAgent: String
+            ) = com.example.network.GitHubReleaseResponse(tagName = "v2.7.0")
         }
         val repo = WeatherRepository(
             cityDao = WeatherDatabase.getInstance(context).cityDao(),
@@ -570,14 +584,14 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `verify location setup screen state and feedback email to kapsalesdemetres11 at gmail dot com`() {
+    fun `verify location setup screen state and privacy-safe feedback submission`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val db = WeatherDatabase.getInstance(context)
         val repo = WeatherRepository(db.cityDao())
         val prefs = WeatherPreferences(context)
         val viewModel = com.example.ui.WeatherViewModel(repo, prefs, context.applicationContext)
 
-        assertEquals("kapsalesdemetres11@gmail.com", com.example.ui.WeatherViewModel.FEEDBACK_RECIPIENT_EMAIL)
+        assertEquals("", com.example.ui.WeatherViewModel.FEEDBACK_RECIPIENT_EMAIL)
 
         viewModel.openLocationSetup()
         assertTrue(viewModel.uiState.value.isLocationSetupOpen)
@@ -591,7 +605,8 @@ class ExampleRobolectricTest {
             rating = 5,
             message = "Great weather app and background alerts!"
         )
-        assertTrue(viewModel.uiState.value.statusBanner?.contains("kapsalesdemetres11@gmail.com") == true)
+        assertTrue(viewModel.uiState.value.statusBanner?.isNotBlank() == true)
+        assertFalse(viewModel.uiState.value.statusBanner?.contains("@") == true)
     }
 
     @Test

@@ -1,19 +1,21 @@
-name: Build & Release Zephyr Weather APK
+name: Build & Publish Zephyr Weather APK to GitHub Releases
 
 on:
   push:
-    branches: [ "main", "master" ]
-    tags: [ "v*" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
+    tags: [ 'v*' ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release version tag (e.g., v2.7.0)'
+        required: false
+        default: 'v2.7.0'
 
 permissions:
   contents: write
 
 jobs:
-  build-apk:
-    name: Build Installable Android APK
+  build-and-release-apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,52 +28,50 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Decode Debug Keystore if Base64 Present
+      - name: Build Installable APK (ZephyrWeather.apk)
         run: |
-          if [ -f "app/debug.keystore.base64" ] && [ ! -f "app/debug.keystore" ]; then
-            base64 -d app/debug.keystore.base64 > app/debug.keystore
-          fi
+          gradle assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ZephyrWeather-v2.7.0.apk
 
-      - name: Build Debug & Release APKs
-        run: |
-          chmod +x gradlew || true
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug assembleRelease
-          else
-            gradle assembleDebug assembleRelease
-          fi
-
-      - name: Prepare Direct-Download APK Package
-        run: |
-          mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/ZephyrWeather.apk
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            cp app/build/outputs/apk/release/app-release.apk dist/ZephyrWeather-release.apk
-          fi
-
-      - name: Upload ZephyrWeather.apk Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ZephyrWeather-APK
-          path: dist/*.apk
-          if-no-files-found: error
+          path: |
+            ZephyrWeather.apk
+            ZephyrWeather-v2.7.0.apk
 
-      - name: Publish Direct-Download APK to GitHub Releases
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+      - name: Update Direct Download APK in Repository Root
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ZephyrWeather.apk
+          git diff --staged --quiet || git commit -m "chore: update direct download ZephyrWeather.apk (v2.7.0) [skip ci]"
+          git push
+
+      - name: Publish APK to GitHub Releases (v2.7.0 / Latest)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.6.0
-          name: "Zephyr Weather v2.6.0 (Direct APK Download)"
-          body: |
-            ### 🌦️ Zephyr Weather v2.6.0 — Direct Android APK Download
-            - **Direct APK Download**: Tap **`ZephyrWeather.apk`** below under **Assets** to install directly on your Android phone or tablet.
-            - **Multi-Model Ensemble Forecast**: Auto-fuses **ECMWF IFS (0.25°)**, **DWD ICON (2–7 km Europe & Mountain Terrain)**, **Météo-France AROME/ARPEGE**, **NOAA GFS + HRRR**, and **UK Met Office** with 15-minute live Doppler Nowcast assimilation.
-            - **True GPS Location & Global Village Search**: Real-time `FusedLocationProviderClient` GPS detection + full Greek & global village search (including mountain villages with exact elevation / Υψόμετρο).
+          tag_name: ${{ github.event.inputs.release_tag || 'v2.7.0' }}
+          name: "Zephyr Weather v2.7.0 — 4-Model Ensemble & HyperOS Zero-Wakelock Battery Engine"
+          make_latest: true
           files: |
-            dist/ZephyrWeather.apk
-            dist/ZephyrWeather-release.apk
-          prerelease: false
-          overwrite: true
+            ZephyrWeather.apk
+            ZephyrWeather-v2.7.0.apk
+          body: |
+            ## 🌤️ Zephyr Weather v2.7.0 (Build 27)
+            ### 🔋 HyperOS / MIUI Zero-Wakelock Battery Engine (Redmi Note 15 Pro 5G Optimized)
+            - **0m Background Keep-Awake**: Removed `AlarmManager.ELAPSED_REALTIME_WAKEUP` and recursive `JobScheduler` rescheduling loops so your phone sleeps deeply in Doze mode with zero wakelock drain.
+            - **Lifecycle-Paused 120Hz Canvas & Clock Engine**: Automatically pauses all atmospheric particle systems, hero badge orbital rings, radar sweeps, and minute-aligned clock timers the instant the screen turns off or the app enters the background (`~70 MB RAM`).
+            - **Immediate GPS Hardware Release**: Cancels `FusedLocationProviderClient` tokens on completion and uses balanced power accuracy when Battery Saver is active.
+
+            ### 🛰️ 4-Model Super-Ensemble Forecasting
+            - Fuses **HR-LAM Best-Match (1–2 km)** + **ECMWF IFS 0.25° (9 km)** + **DWD ICON Seamless (2–7 km)** + **NOAA GFS Seamless (13–25 km)** with outlier dampening, altitude lapse-rate temperature calibration (`-6.5°C / 1000m`), and dew-point wet-bulb snow physics.
+
+            ### 🔄 Built-In GitHub Releases App Updater
+            - Check for new versions and download the latest `ZephyrWeather.apk` directly inside **Settings → GitHub Releases App Updater**.

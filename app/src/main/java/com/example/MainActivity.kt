@@ -51,6 +51,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -154,7 +155,8 @@ fun fetchCurrentCoordinatesWithFusedClient(
     }
 
     viewModel.onFusedLocationSearchStarted()
-    val priority = if (hasFine) {
+    val useBatterySaver = viewModel.uiState.value.batterySaverSyncEnabled
+    val priority = if (hasFine && !useBatterySaver) {
         Priority.PRIORITY_HIGH_ACCURACY
     } else {
         Priority.PRIORITY_BALANCED_POWER_ACCURACY
@@ -162,6 +164,9 @@ fun fetchCurrentCoordinatesWithFusedClient(
     val cancellationTokenSource = CancellationTokenSource()
     runCatching {
         fusedLocationClient.getCurrentLocation(priority, cancellationTokenSource.token)
+            .addOnCompleteListener {
+                runCatching { cancellationTokenSource.cancel() }
+            }
             .addOnSuccessListener { location ->
                 if (location != null && (kotlin.math.abs(location.latitude) >= 0.01 || kotlin.math.abs(location.longitude) >= 0.01)) {
                     viewModel.onGpsCoordinatesResolved(
@@ -194,9 +199,11 @@ fun fetchCurrentCoordinatesWithFusedClient(
                 }
             }
             .addOnFailureListener {
+                runCatching { cancellationTokenSource.cancel() }
                 viewModel.detectGpsLocation(context)
             }
     }.onFailure {
+        runCatching { cancellationTokenSource.cancel() }
         viewModel.detectGpsLocation(context)
     }
 }
@@ -820,6 +827,14 @@ fun ZephyrWeatherApp(
                                 isCheckingUpdates = state.isCheckingUpdates,
                                 appVersionLabel = state.appVersionLabel,
                                 lastUpdateCheckStatus = state.lastUpdateCheckStatus,
+                                githubRepoSlug = state.githubRepoSlug,
+                                latestReleaseTag = state.latestReleaseTag,
+                                latestReleaseNotes = state.latestReleaseNotes,
+                                isNewGitHubReleaseAvailable = state.isNewGitHubReleaseAvailable,
+                                onUpdateGitHubRepoSlug = { viewModel.updateGitHubRepoSlug(it) },
+                                onOpenGitHubReleaseDownload = { directApk ->
+                                    viewModel.openGitHubReleaseDownload(context, directApk)
+                                },
                                 onCheckForUpdates = { viewModel.checkForAppAndWeatherUpdates(context) },
                                 onSendFeedbackEmail = { category, rating, message ->
                                     viewModel.sendFeedbackEmail(context, category, rating, message)
@@ -973,12 +988,12 @@ fun ZephyrBottomNavBar(
                     Surface(
                         shape = RoundedCornerShape(22.dp),
                         color = if (isSelected) {
-                            activeAccent.copy(alpha = 0.18f)
+                            activeAccent.copy(alpha = 0.16f)
                         } else {
                             Color.Transparent
                         },
                         border = if (isSelected) {
-                            BorderStroke(1.dp, activeAccent.copy(alpha = 0.45f))
+                            BorderStroke(1.2.dp, activeAccent.copy(alpha = 0.52f))
                         } else {
                             null
                         },
@@ -989,27 +1004,51 @@ fun ZephyrBottomNavBar(
                             .testTag(item.tag)
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                            modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
-                                contentDescription = item.label,
-                                tint = when {
-                                    isSelected && item.multiColorWhenActive -> Color.Unspecified
-                                    item.tab == WeatherNavTab.FORECAST -> Color.Unspecified
-                                    isSelected -> activeAccent
-                                    else -> Color.White.copy(alpha = 0.68f)
-                                },
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) {
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    activeAccent.copy(alpha = 0.34f),
+                                                    activeAccent.copy(alpha = 0.10f),
+                                                    Color.Transparent
+                                                )
+                                            )
+                                        } else {
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.08f),
+                                                    Color.Transparent
+                                                )
+                                            )
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
+                                    contentDescription = item.label,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier
+                                        .size(if (isSelected) 26.dp else 23.dp)
+                                        .graphicsLayer {
+                                            alpha = if (isSelected) 1f else 0.78f
+                                        }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = item.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.62f),
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.68f),
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = TextOverflow.Ellipsis
@@ -1017,7 +1056,7 @@ fun ZephyrBottomNavBar(
                             Spacer(modifier = Modifier.height(3.dp))
                             Box(
                                 modifier = Modifier
-                                    .size(width = if (isSelected) 16.dp else 0.dp, height = 3.dp)
+                                    .size(width = if (isSelected) 18.dp else 0.dp, height = 3.dp)
                                     .clip(CircleShape)
                                     .background(if (isSelected) activeAccent else Color.Transparent)
                             )
@@ -1055,16 +1094,22 @@ fun LocationSetupSearchingScreen(
     modifier: Modifier = Modifier
 ) {
     val isGreek = language == AppLanguage.GREEK
-    val infiniteTransition = rememberInfiniteTransition(label = "locationSetupRadar")
-    val pulseProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "pulseProgress"
-    )
+    val isResumed = com.example.ui.components.rememberIsAppResumed()
+    val pulseProgress = if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "locationSetupRadar")
+        val animated by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "pulseProgress"
+        )
+        animated
+    } else {
+        0.35f
+    }
 
     Column(
         modifier = modifier

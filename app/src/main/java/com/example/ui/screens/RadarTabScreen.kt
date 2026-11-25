@@ -157,7 +157,10 @@ fun RadarTabScreen(
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "${bundle.cityName}, ${bundle.countryName} • ${String.format(Locale.US, "%.3f°N, %.3f°E", bundle.latitude, bundle.longitude)}",
+                                    text = listOf(bundle.cityName, bundle.regionName, bundle.countryName)
+                                        .filter { it.isNotBlank() }
+                                        .distinct()
+                                        .joinToString(", "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = CyanGlow,
                                     maxLines = 1,
