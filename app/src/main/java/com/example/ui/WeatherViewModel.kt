@@ -151,7 +151,7 @@ class WeatherViewModel(
             activeSevereAlert = null,
             activeSevereAlerts = emptyList(),
             githubRepoSlug = initialRepoSlug,
-            latestReleaseDownloadUrl = "https://github.com/$initialRepoSlug/releases/latest/download/ZephyrWeather.1.apk",
+            latestReleaseDownloadUrl = "https://github.com/$initialRepoSlug/releases/latest/download/ZephyrWeather.1.2.apk",
             latestReleasePageUrl = "https://github.com/$initialRepoSlug/releases/latest"
         )
     )
@@ -1546,82 +1546,100 @@ class WeatherViewModel(
         hasFinePermission: Boolean
     ): Location? {
         if (locManager == null) return null
-        return withTimeoutOrNull(4200L) {
-            suspendCancellableCoroutine { cont ->
-                val resumed = AtomicBoolean(false)
-                fun safeResume(value: Location?) {
-                    if (resumed.compareAndSet(false, true) && cont.isActive) {
-                        cont.resume(value)
-                    }
-                }
-
-                val candidateProviders = buildList {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        add(LocationManager.FUSED_PROVIDER)
-                    }
-                    add(LocationManager.NETWORK_PROVIDER)
-                    if (hasFinePermission) {
-                        add(LocationManager.GPS_PROVIDER)
-                    }
-                }.filter { provider ->
-                    runCatching { locManager.isProviderEnabled(provider) }.getOrDefault(false)
-                }
-
-                if (candidateProviders.isEmpty()) {
-                    safeResume(null)
-                    return@suspendCancellableCoroutine
-                }
-
-                val listener = object : LocationListener {
-                    override fun onLocationChanged(location: Location) {
-                        if (!isDefaultEmulatorMockCoords(location.latitude, location.longitude)) {
-                            runCatching { locManager.removeUpdates(this) }
-                            safeResume(location)
+        val cancellationSignals = mutableListOf<android.os.CancellationSignal>()
+        var activeListener: LocationListener? = null
+        return try {
+            withTimeoutOrNull(3800L) {
+                suspendCancellableCoroutine { cont ->
+                    val resumed = AtomicBoolean(false)
+                    fun safeResume(value: Location?) {
+                        if (resumed.compareAndSet(false, true) && cont.isActive) {
+                            cont.resume(value)
                         }
                     }
-                    @Deprecated("Deprecated in Android API")
-                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
-                    override fun onProviderEnabled(provider: String) {}
-                    override fun onProviderDisabled(provider: String) {}
-                }
 
-                cont.invokeOnCancellation {
-                    runCatching { locManager.removeUpdates(listener) }
-                }
+                    val candidateProviders = buildList {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            add(LocationManager.FUSED_PROVIDER)
+                        }
+                        add(LocationManager.NETWORK_PROVIDER)
+                        if (hasFinePermission) {
+                            add(LocationManager.GPS_PROVIDER)
+                        }
+                    }.filter { provider ->
+                        runCatching { locManager.isProviderEnabled(provider) }.getOrDefault(false)
+                    }
 
-                var registeredAny = false
-                for (provider in candidateProviders) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        runCatching {
-                            locManager.getCurrentLocation(
-                                provider,
-                                null,
-                                ContextCompat.getMainExecutor(appContext ?: return@runCatching),
-                                { loc ->
-                                    if (loc != null && !isDefaultEmulatorMockCoords(loc.latitude, loc.longitude)) {
-                                        runCatching { locManager.removeUpdates(listener) }
-                                        safeResume(loc)
+                    if (candidateProviders.isEmpty()) {
+                        safeResume(null)
+                        return@suspendCancellableCoroutine
+                    }
+
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            if (!isDefaultEmulatorMockCoords(location.latitude, location.longitude)) {
+                                runCatching { locManager.removeUpdates(this) }
+                                safeResume(location)
+                            }
+                        }
+                        @Deprecated("Deprecated in Android API")
+                        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {}
+                    }
+                    activeListener = listener
+
+                    cont.invokeOnCancellation {
+                        runCatching { locManager.removeUpdates(listener) }
+                        cancellationSignals.forEach { sig -> runCatching { sig.cancel() } }
+                    }
+
+                    var registeredAny = false
+                    for (provider in candidateProviders) {
+                        if (resumed.get()) break
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            runCatching {
+                                val signal = android.os.CancellationSignal()
+                                cancellationSignals.add(signal)
+                                locManager.getCurrentLocation(
+                                    provider,
+                                    signal,
+                                    ContextCompat.getMainExecutor(appContext ?: return@runCatching),
+                                    { loc ->
+                                        if (loc != null && !isDefaultEmulatorMockCoords(loc.latitude, loc.longitude)) {
+                                            runCatching { locManager.removeUpdates(listener) }
+                                            cancellationSignals.forEach { sig -> runCatching { sig.cancel() } }
+                                            safeResume(loc)
+                                        }
                                     }
-                                }
-                            )
-                            registeredAny = true
+                                )
+                                registeredAny = true
+                            }
+                        } else {
+                            runCatching {
+                                locManager.requestLocationUpdates(
+                                    provider,
+                                    1500L,
+                                    5f,
+                                    listener,
+                                    Looper.getMainLooper()
+                                )
+                                registeredAny = true
+                            }
                         }
                     }
-                    runCatching {
-                        locManager.requestLocationUpdates(
-                            provider,
-                            0L,
-                            0f,
-                            listener,
-                            Looper.getMainLooper()
-                        )
-                        registeredAny = true
+
+                    if (!registeredAny) {
+                        safeResume(null)
                     }
                 }
-
-                if (!registeredAny) {
-                    safeResume(null)
-                }
+            }
+        } finally {
+            activeListener?.let { listener ->
+                runCatching { locManager.removeUpdates(listener) }
+            }
+            cancellationSignals.forEach { sig ->
+                runCatching { sig.cancel() }
             }
         }
     }

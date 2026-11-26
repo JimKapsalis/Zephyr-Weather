@@ -263,29 +263,20 @@ fun WeatherParticleSystem(
     }
 
     val isResumed = rememberIsAppResumed()
-    val cyclePhaseState: State<Float> = if (isResumed) {
-        val infiniteTransition = rememberInfiniteTransition(label = "weather_particle_system")
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = when (visualSpec.particleEffect) {
-                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> 2600
-                        SkyParticleEffect.SNOW_STORM -> 3400
-                        SkyParticleEffect.SNOW -> 9000
-                        SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG -> 24000
-                        SkyParticleEffect.STARFIELD, SkyParticleEffect.SUNSET_DUSK, SkyParticleEffect.SUN_RAYS -> 14000
-                    },
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "particle_cycle_phase"
-        )
-    } else {
-        rememberUpdatedState(0.25f)
+    val cyclePhaseAnim = remember { Animatable(0.25f) }
+    LaunchedEffect(visualSpec.particleEffect, isCompactOverlay, isResumed) {
+        if (isResumed && !isCompactOverlay) {
+            cyclePhaseAnim.snapTo(0f)
+            cyclePhaseAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 2400, easing = LinearEasing)
+            )
+            cyclePhaseAnim.snapTo(0.25f)
+        } else {
+            cyclePhaseAnim.snapTo(0.25f)
+        }
     }
+    val cyclePhaseState: State<Float> = cyclePhaseAnim.asState()
 
     val boltPath = remember { Path() }
 
@@ -1323,30 +1314,20 @@ fun WeatherConditionAnimation(
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()
-    val phaseState: State<Float> = if (isResumed) {
-        val infiniteTransition = rememberInfiniteTransition(label = "weather_condition_animation")
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = when (visualSpec.particleEffect) {
-                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> 2200
-                        SkyParticleEffect.SNOW_STORM -> 2800
-                        SkyParticleEffect.SNOW -> 6400
-                        SkyParticleEffect.SUN_RAYS -> 10000
-                        SkyParticleEffect.CLOUDS, SkyParticleEffect.FOG -> 14000
-                        SkyParticleEffect.STARFIELD, SkyParticleEffect.SUNSET_DUSK -> 11000
-                    },
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "condition_animation_phase"
-        )
-    } else {
-        rememberUpdatedState(0.25f)
+    val phaseAnim = remember { Animatable(0.25f) }
+    LaunchedEffect(visualSpec.particleEffect, isResumed) {
+        if (isResumed) {
+            phaseAnim.snapTo(0f)
+            phaseAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 2200, easing = LinearEasing)
+            )
+            phaseAnim.snapTo(0.25f)
+        } else {
+            phaseAnim.snapTo(0.25f)
+        }
     }
+    val phaseState: State<Float> = phaseAnim.asState()
 
     val boltPath = remember { Path() }
 
@@ -1685,31 +1666,24 @@ fun AnimatedWeatherStatusIcon(
     visualSpec: WeatherVisualSpec,
     iconSize: Dp = 22.dp,
     contentDescription: String? = visualSpec.label,
-    animateContinuous: Boolean = true,
+    animateContinuous: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()
-    val phaseState: State<Float> = if (animateContinuous && isResumed) {
-        val infiniteTransition = rememberInfiniteTransition(label = "animated_weather_status_icon")
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = when (visualSpec.particleEffect) {
-                        SkyParticleEffect.SUN_RAYS -> 7200
-                        SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER, SkyParticleEffect.SNOW_STORM -> 1600
-                        else -> 3600
-                    },
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "icon_phase"
-        )
-    } else {
-        rememberUpdatedState(0.20f)
+    val phaseAnim = remember { Animatable(0.20f) }
+    LaunchedEffect(animateContinuous, isResumed, visualSpec.particleEffect) {
+        if (animateContinuous && isResumed) {
+            phaseAnim.snapTo(0f)
+            phaseAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1800, easing = LinearEasing)
+            )
+            phaseAnim.snapTo(0.20f)
+        } else {
+            phaseAnim.snapTo(0.20f)
+        }
     }
+    val phaseState: State<Float> = phaseAnim.asState()
 
     val twoPi = (2.0 * PI).toFloat()
 
@@ -1880,32 +1854,21 @@ fun LottieStyleWeatherHeroBadge(
     }
 
     val isResumed = rememberIsAppResumed()
-    val orbitAngleDegState: State<Float>
-    val auraPulseState: State<Float>
-    if (isResumed) {
-        val infiniteTransition = rememberInfiniteTransition(label = "hero_badge_orbit")
-        orbitAngleDegState = infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 12000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "orbit_angle_deg"
-        )
-        auraPulseState = infiniteTransition.animateFloat(
-            initialValue = 0.92f,
-            targetValue = 1.08f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 2000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "aura_pulse"
-        )
-    } else {
-        orbitAngleDegState = rememberUpdatedState(45f)
-        auraPulseState = rememberUpdatedState(1.0f)
+    val orbitAngleAnim = remember { Animatable(45f) }
+    LaunchedEffect(triggerKey, visualSpec.particleEffect, isResumed) {
+        if (isResumed) {
+            orbitAngleAnim.snapTo(0f)
+            orbitAngleAnim.animateTo(
+                targetValue = 360f,
+                animationSpec = tween(durationMillis = 2200, easing = FastOutSlowInEasing)
+            )
+            orbitAngleAnim.snapTo(45f)
+        } else {
+            orbitAngleAnim.snapTo(45f)
+        }
     }
+    val orbitAngleDegState: State<Float> = orbitAngleAnim.asState()
+    val auraPulseState: State<Float> = rememberUpdatedState(1.0f)
 
     val orbitalDash = remember { PathEffect.dashPathEffect(floatArrayOf(12f, 10f)) }
 
@@ -2037,32 +2000,21 @@ fun LiveWeatherRadarCanvas(
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()
-    val sweepAngleState: State<Float>
-    val cellPulseState: State<Float>
-    if (isResumed) {
-        val infiniteTransition = rememberInfiniteTransition(label = "doppler_radar")
-        sweepAngleState = infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 4800, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "radar_sweep"
-        )
-        cellPulseState = infiniteTransition.animateFloat(
-            initialValue = 0.88f,
-            targetValue = 1.08f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "cell_pulse"
-        )
-    } else {
-        sweepAngleState = rememberUpdatedState(120f)
-        cellPulseState = rememberUpdatedState(1.0f)
+    val sweepAngleAnim = remember { Animatable(120f) }
+    LaunchedEffect(bundle.cityId, layerMode, timelineIndex, satelliteZoom, isResumed) {
+        if (isResumed) {
+            sweepAngleAnim.snapTo(0f)
+            sweepAngleAnim.animateTo(
+                targetValue = 360f,
+                animationSpec = tween(durationMillis = 2800, easing = LinearEasing)
+            )
+            sweepAngleAnim.snapTo(120f)
+        } else {
+            sweepAngleAnim.snapTo(120f)
+        }
     }
+    val sweepAngleState: State<Float> = sweepAngleAnim.asState()
+    val cellPulseState: State<Float> = rememberUpdatedState(1.0f)
     val sweepAngle = sweepAngleState.value
     val cellPulse = cellPulseState.value
     val currentScaleState = rememberUpdatedState(zoomScale)

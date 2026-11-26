@@ -105,11 +105,13 @@ class ExampleRobolectricTest {
     @Test
     fun `verify weather providers count and model queries`() {
         val providers = com.example.model.WeatherProvider.entries
-        assertEquals(4, providers.size)
+        assertEquals(6, providers.size)
         assertEquals(null, com.example.model.WeatherProvider.BEST_MATCH.modelQuery)
         assertEquals("ecmwf_ifs025", com.example.model.WeatherProvider.ECMWF.modelQuery)
         assertEquals("icon_seamless", com.example.model.WeatherProvider.DWD_ICON.modelQuery)
+        assertEquals("meteofrance_seamless", com.example.model.WeatherProvider.METEO_FRANCE.modelQuery)
         assertEquals("gfs_seamless", com.example.model.WeatherProvider.NOAA_GFS.modelQuery)
+        assertEquals("ukmo_seamless", com.example.model.WeatherProvider.UKMO.modelQuery)
     }
 
     @Test

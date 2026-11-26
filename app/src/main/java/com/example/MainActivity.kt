@@ -1110,7 +1110,7 @@ fun LocationSetupSearchingScreen(
 ) {
     val isGreek = language == AppLanguage.GREEK
     val isResumed = com.example.ui.components.rememberIsAppResumed()
-    val pulseProgress = if (isResumed) {
+    val pulseProgress = if (isResumed && isLocatingGps) {
         val infiniteTransition = rememberInfiniteTransition(label = "locationSetupRadar")
         val animated by infiniteTransition.animateFloat(
             initialValue = 0f,

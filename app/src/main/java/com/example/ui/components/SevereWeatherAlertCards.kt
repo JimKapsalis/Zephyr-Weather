@@ -99,39 +99,65 @@ fun SevereWeatherAlertsDashboardSection(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
                     imageVector = WeatherIcons.NotificationsActive,
                     contentDescription = null,
                     tint = AmberSol,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = if (isGreek) "Ζωντανές Ειδοποιήσεις Καιρού" else "Live Weather Alerts",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.90f)
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
                 )
             }
 
-            if (dismissedCount > 0) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (dismissedCount > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.White.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onRestoreDismissedAlerts() }
+                            .testTag("restore_dismissed_alerts_button")
+                    ) {
+                        Text(
+                            text = if (isGreek) "Επαναφορά ($dismissedCount)" else "Restore ($dismissedCount)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanGlow,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = Color.White.copy(alpha = 0.10f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                    color = CyanZephyr.copy(alpha = 0.20f),
+                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.55f)),
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .clickable { onRestoreDismissedAlerts() }
-                        .testTag("restore_dismissed_alerts_button")
+                        .clickable { onNavigateToRadar() }
+                        .testTag("alerts_open_radar_view_button")
                 ) {
                     Text(
-                        text = if (isGreek) "Επαναφορά ($dismissedCount)" else "Restore ($dismissedCount)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CyanGlow,
+                        text = if (isGreek) "Προβολή Ραντάρ →" else "Radar View →",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -173,7 +199,8 @@ fun SevereWeatherAlertsDashboardSection(
 
 /**
  * Distinct, dismissible Material 3 card representing a single [SevereWeatherAlertEvent]
- * inside the horizontal alert pager.
+ * inside the horizontal alert pager, designed with large high-contrast typography
+ * so it remains effortlessly readable even at thumbnail / social feed scale.
  */
 @Composable
 fun DismissibleSevereWeatherAlertCard(
@@ -216,9 +243,9 @@ fun DismissibleSevereWeatherAlertCard(
             .testTag("dismissible_alert_card_${alert.id}"),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF102238).copy(alpha = 0.94f)
+            containerColor = Color(0xFF0E2138).copy(alpha = 0.62f)
         ),
-        border = BorderStroke(1.3.dp, accentColor.copy(alpha = 0.60f))
+        border = BorderStroke(1.5.dp, accentColor.copy(alpha = 0.72f))
     ) {
         Box(
             modifier = Modifier
@@ -226,13 +253,13 @@ fun DismissibleSevereWeatherAlertCard(
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.16f),
-                            Color.Transparent
+                            accentColor.copy(alpha = 0.22f),
+                            Color(0xFF0B1A2E).copy(alpha = 0.35f)
                         )
                     )
                 )
         ) {
-            Column(modifier = Modifier.padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 16.dp)) {
+            Column(modifier = Modifier.padding(start = 18.dp, end = 14.dp, top = 16.dp, bottom = 18.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -241,20 +268,20 @@ fun DismissibleSevereWeatherAlertCard(
                     Row(
                         modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = accentColor.copy(alpha = 0.22f),
-                            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.50f)),
-                            modifier = Modifier.size(38.dp)
+                            color = accentColor.copy(alpha = 0.25f),
+                            border = BorderStroke(1.2.dp, accentColor.copy(alpha = 0.65f)),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = iconVector,
                                     contentDescription = severityBadgeLabel,
                                     tint = Color.Unspecified,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
@@ -262,42 +289,44 @@ fun DismissibleSevereWeatherAlertCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(50),
-                                    color = accentColor.copy(alpha = 0.24f)
+                                    color = accentColor.copy(alpha = 0.28f),
+                                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.60f))
                                 ) {
                                     Text(
                                         text = severityBadgeLabel,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = accentColor,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
                                         maxLines = 1,
                                         softWrap = false,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                                     )
                                 }
 
                                 if (alert.onsetHourLabel != "--") {
                                     Text(
                                         text = "• ${alert.onsetHourLabel}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White.copy(alpha = 0.72f),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AmberSol,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = alert.title,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White,
-                                maxLines = 1,
-                                softWrap = false,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.testTag("severe_alert_title_${alert.id}")
                             )
@@ -313,14 +342,14 @@ fun DismissibleSevereWeatherAlertCard(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.10f),
-                            modifier = Modifier.size(28.dp)
+                            color = Color.White.copy(alpha = 0.14f),
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = WeatherIcons.Close,
                                     contentDescription = if (isGreek) "Κλείσιμο" else "Dismiss",
-                                    tint = Color.White.copy(alpha = 0.80f),
+                                    tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -328,20 +357,21 @@ fun DismissibleSevereWeatherAlertCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = alert.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.84f),
-                    maxLines = 2,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White.copy(alpha = 0.96f),
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.testTag("severe_alert_message_${alert.id}")
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Telemetry chips row (Rain %, Precip mm, Wind Gusts)
+                // High-contrast oversized telemetry chips row (Rain %, Precip mm, Wind Gusts)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -349,12 +379,12 @@ fun DismissibleSevereWeatherAlertCard(
                 ) {
                     AlertTelemetryPill(
                         label = if (isGreek) "Βροχή ${alert.precipProbability}%" else "Rain ${alert.precipProbability}%",
-                        color = CyanZephyr
+                        color = CyanGlow
                     )
                     if (alert.precipMm > 0.0) {
                         AlertTelemetryPill(
                             label = String.format(Locale.US, "%.1f mm/h", alert.precipMm),
-                            color = CyanGlow
+                            color = AmberSol
                         )
                     }
                     AlertTelemetryPill(
@@ -378,17 +408,17 @@ private fun AlertTelemetryPill(
 ) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.14f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        color = color.copy(alpha = 0.20f),
+        border = BorderStroke(1.2.dp, color.copy(alpha = 0.55f))
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelLarge,
+            color = Color.White,
+            fontWeight = FontWeight.ExtraBold,
             maxLines = 1,
             softWrap = false,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
         )
     }
 }
