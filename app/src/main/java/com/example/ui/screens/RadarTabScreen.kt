@@ -136,7 +136,7 @@ fun RadarTabScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("radar_tab_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 116.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. Circular Live Doppler Weather Radar Card (with Satellite Town Photo & Interactive Zoom)
@@ -147,9 +147,9 @@ fun RadarTabScreen(
                         .testTag("live_radar_card"),
                     shape = RoundedCornerShape(32.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF0E2138).copy(alpha = 0.92f)
+                        containerColor = Color(0xFF0E2138).copy(alpha = 0.50f)
                     ),
-                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.28f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -662,9 +662,9 @@ fun RadarTabScreen(
                         .testTag("wind_compass_card"),
                     shape = RoundedCornerShape(30.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(
@@ -746,9 +746,9 @@ fun RadarTabScreen(
                         .testTag("radar_rain_summary_card"),
                     shape = RoundedCornerShape(30.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),

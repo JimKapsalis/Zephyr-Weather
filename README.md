@@ -94,11 +94,13 @@
 - **Instant Saved-City Startup (`0ms` Wait)**: Opens directly into your saved city's forecast on the very first frame while refreshing live data silently in the background — never shows loading skeletons or repeated location prompts when reopening the app.
 - **Sub-100ms Fast-Path GPS Location**: Immediately resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates before racing live GNSS/Network providers, paired with parallel `1.2s` reverse-geocoding.
 
-### 🎨 [Transparent Glass UI, Interactive Radar Zoom & Night Sky Star Count (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.apk)
+### 🎨 [Transparent Liquid-Glass UI, Lightning Distance, Clothing Advisor & Radar Zoom (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.apk)
+- **Live Lightning Strike Distance & Storm ETA**: Displays real-time distance (`km`) to the nearest thunderstorm or convective rain cell, exact arrival countdown (`ETA`), lightning risk %, and storm drift vector with one-tap jump to Live Doppler Radar.
+- **Bottom Clothing & Outdoor Activity Advisor**: Positioned at the bottom of the Forecast tab — recommends the ideal outfit (`Winter Coat`, `Light Jacket`, `Breathable T-Shirt`), umbrella need (`%`), UV/wind protection gear, and the best upcoming hour for a walk or run.
 - **Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)**: Supports two-finger pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `−` / `1×` zoom buttons, a smooth zoom slider, 4 satellite tile levels (`16x` Street to `9x` Region), and real-time Marshall-Palmer dBZ reflectivity telemetry.
 - **Night Sky Visible Star Count & Stargazing Observatory**: Calculates real-time naked-eye visible star count (`0` – `3,500` stars), sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and optimal stargazing window from cloud cover, humidity, PM2.5 aerosols, visibility, and elevation.
-- **Crystal-Transparent Bottom Navigation Bar**: Floating transparent glass navigation bar with full-color 3D icons across all four tabs (**Forecast**, **Radar**, **Cities**, **Settings**) and edge-to-edge system bar transparency.
-- **Dynamic Draw-Phase Weather Animations**: Smooth Compose canvas animations for sun rays, drifting clouds, falling rain, snow storms, and thunderstorms that render directly in the GPU draw phase.
+- **Transparent Liquid-Glass UI & Clean Setup Screen**: Frosted translucent glass cards across all four tabs (**Forecast**, **Radar**, **Cities**, **Settings**) scrolling smoothly behind the floating transparent glass bottom navigation bar (which hides automatically on the Location Setup screen).
+- **Smart Anti-Spam Weather Alerts**: Sends notifications **only** for critical weather within the next 2–3 hours (thunderstorms, heavy downpours `>= 4.5 mm/h`, gale-force winds `>= 50 km/h`, or high-certainty rain onset) with a persistent 6-hour anti-spam cooldown.
 
 ### 🔋 [Universal High Performance & Ultra-Low Battery Usage (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.apk)
 - **Smooth 60Hz / 90Hz / 120Hz Rendering**: Optimized for all Android phones and tablets with zero per-frame list recompositions and a lightweight `~70 MB` RAM footprint.

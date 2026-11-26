@@ -46,11 +46,11 @@ jobs:
           ---
 
           ### 🚀 [What's New in v3.0.0 — Full Changelog (Tap to Download `ZephyrWeather.1.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          - **[Live Lightning Strike Distance & Storm ETA](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time distance (`km`) to the nearest thunderstorm or rain cell, arrival countdown (`ETA`), lightning risk %, and storm drift vector.
+          - **[Bottom Clothing & Outdoor Activity Advisor](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Located at the bottom of the Forecast tab — recommends ideal clothing layers, umbrella need, UV/wind gear, and the best upcoming hour for outdoor walking or running.
           - **[Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `1×` / `−` buttons, continuous zoom slider, 4 satellite tile detail levels (`16x` Streets to `9x` Region), and live Marshall-Palmer dBZ reflectivity telemetry.
-          - **[Night Sky Visible Star Count (`0` – `3,500` Stars)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time naked-eye visible star counter, sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and best stargazing window calculated from cloud cover, humidity, PM2.5 aerosols, visibility, and altitude.
-          - **[15-Minute Sub-Hourly Forecast Accuracy & 4-Model Super-Ensemble](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Fuses **HR-LAM Best-Match (1–2 km)** + **ECMWF IFS 0.25° (9 km)** + **DWD ICON Seamless (2–7 km)** + **NOAA GFS Seamless (13–25 km)** with exact 15-minute sub-hourly nowcast matching (`:00`, `:15`, `:30`, `:45`).
-          - **[Instant Saved-City Startup & Sub-100ms GPS](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Launches immediately into your saved city on frame 1 with zero loading screens or repeated location prompts.
-          - **[Transparent Glass Navigation Bar & Universal High Performance](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Full-color 3D navigation bar icons over a transparent glass bar, smooth 60Hz/90Hz/120Hz rendering, and ultra-low battery usage across all Android devices.
+          - **[Night Sky Visible Star Count (`0` – `3,500` Stars)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time naked-eye visible star counter, sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and best stargazing window.
+          - **[Transparent Liquid-Glass UI & Smart Anti-Spam Alerts](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Translucent liquid-glass cards scrolling behind the transparent glass navigation bar (hidden during Location Setup) plus strict 6-hour anti-spam cooldown so alerts only fire for critical weather.
 
           **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.apk` (v3.0.0)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
           EOF
@@ -59,7 +59,7 @@ jobs:
           if gh release view zephyrweather >/dev/null 2>&1; then
             gh release delete-asset zephyrweather ZephyrWeather.apk --yes || true
             gh release upload zephyrweather ZephyrWeather.1.apk --clobber
-            gh release edit zephyrweather --title "Zephyr Weather v3.0.0 — Radar Zoom, Star Count & 4-Model Ensemble" --notes-file release_notes.md --latest
+            gh release edit zephyrweather --title "Zephyr Weather v3.0.0 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
           else
-            gh release create zephyrweather ZephyrWeather.1.apk --title "Zephyr Weather v3.0.0 — Radar Zoom, Star Count & 4-Model Ensemble" --notes-file release_notes.md --latest
+            gh release create zephyrweather ZephyrWeather.1.apk --title "Zephyr Weather v3.0.0 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
           fi

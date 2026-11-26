@@ -651,16 +651,11 @@ class WeatherViewModel(
             _uiState.value.activeSevereAlerts
         }
         val primaryAlert = updatedAlerts.firstOrNull()
-        if (next && appContext != null) {
-            val alertToSend = primaryAlert ?: SevereWeatherNotifier.buildLiveTestAlert(
-                bundle = currentBundle,
-                units = _uiState.value.units,
-                language = lang
-            )
+        if (next && appContext != null && primaryAlert != null && primaryAlert.isSevereOrRainActive) {
             SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
                 context = appContext,
-                alert = alertToSend,
-                forceDispatch = true
+                alert = primaryAlert,
+                forceDispatch = false
             )
         }
         _uiState.update { state ->
@@ -670,9 +665,9 @@ class WeatherViewModel(
                 activeSevereAlerts = updatedAlerts,
                 dismissedAlertIds = emptySet(),
                 statusBanner = if (lang == AppLanguage.GREEK) {
-                    if (next) "Ειδοποιήσεις ΕΜΥ ενεργές • Εστάλη ειδοποίηση" else "Ειδοποιήσεις ΕΜΥ σε σίγαση"
+                    if (next) "Ειδοποιήσεις ΕΜΥ ενεργές (μόνο για ακραία φαινόμενα)" else "Ειδοποιήσεις ΕΜΥ σε σίγαση"
                 } else {
-                    if (next) "EMY Severe Weather Alerts active • Notification sent" else "EMY alerts muted"
+                    if (next) "EMY Severe Weather Alerts active (severe events only)" else "EMY alerts muted"
                 }
             )
         }
@@ -695,16 +690,11 @@ class WeatherViewModel(
             _uiState.value.activeSevereAlerts
         }
         val primaryAlert = updatedAlerts.firstOrNull()
-        if (next && appContext != null) {
-            val alertToSend = primaryAlert ?: SevereWeatherNotifier.buildLiveTestAlert(
-                bundle = currentBundle,
-                units = _uiState.value.units,
-                language = lang
-            )
+        if (next && appContext != null && primaryAlert != null && primaryAlert.isSevereOrRainActive) {
             SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
                 context = appContext,
-                alert = alertToSend,
-                forceDispatch = true
+                alert = primaryAlert,
+                forceDispatch = false
             )
         }
         _uiState.update { state ->
@@ -714,9 +704,9 @@ class WeatherViewModel(
                 activeSevereAlerts = updatedAlerts,
                 dismissedAlertIds = emptySet(),
                 statusBanner = if (lang == AppLanguage.GREEK) {
-                    if (next) "Ειδοποιήσεις βροχής ενεργές • Εστάλη ειδοποίηση" else "Ειδοποιήσεις βροχής σε σίγαση"
+                    if (next) "Ειδοποιήσεις έντονης βροχής ενεργές" else "Ειδοποιήσεις βροχής σε σίγαση"
                 } else {
-                    if (next) "Rain Onset Notifications active • Notification sent" else "Rain alerts muted"
+                    if (next) "Heavy Rain Notifications active" else "Rain alerts muted"
                 }
             )
         }
@@ -734,23 +724,14 @@ class WeatherViewModel(
     fun onNotificationPermissionGranted(context: Context) {
         _uiState.update { it.copy(isNotificationPermissionGranted = true) }
         val state = _uiState.value
-        val alert = state.activeSevereAlerts.firstOrNull()
-            ?: state.activeSevereAlert
-            ?: state.primaryBundle?.let {
-                SevereWeatherNotifier.evaluateBundleForAlerts(
-                    bundle = it,
-                    units = state.units,
-                    language = state.language,
-                    emyAlertsEnabled = state.emyAlertsEnabled,
-                    rainAlertsEnabled = state.rainAlertsEnabled
-                )
-            }
+        val alert = state.activeSevereAlerts.firstOrNull { it.isSevereOrRainActive }
+            ?: state.activeSevereAlert?.takeIf { it.isSevereOrRainActive }
         if (alert != null) {
             hasDispatchedInitialWeatherNotification = true
             SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
                 context = context,
                 alert = alert,
-                forceDispatch = true
+                forceDispatch = false
             )
         }
     }
@@ -1313,6 +1294,24 @@ class WeatherViewModel(
                     return@runCatching
                 }
 
+                // Fallback: If indoor GNSS satellites or Play Services return null, try real network IP geolocation
+                // so the GPS button works reliably indoors or on devices without a fresh satellite lock.
+                val ipDetectedCity = withTimeoutOrNull(2200L) {
+                    repository.detectCurrentCityByIp(lang.code)
+                }?.takeIf {
+                    !isDefaultEmulatorMockCoords(it.latitude, it.longitude)
+                }
+
+                if (ipDetectedCity != null) {
+                    applyResolvedCoordinates(
+                        context = appCtx,
+                        lat = ipDetectedCity.latitude,
+                        lon = ipDetectedCity.longitude,
+                        altitude = ipDetectedCity.elevationMeters
+                    )
+                    return@runCatching
+                }
+
                 // Do NOT force Larissa or Athens when GPS cannot resolve a real fix.
                 // Let the user keep their existing saved city or search for any town/village on their own.
                 val noSignalMsg = if (lang == AppLanguage.GREEK) {
@@ -1580,6 +1579,22 @@ class WeatherViewModel(
 
                 var registeredAny = false
                 for (provider in candidateProviders) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        runCatching {
+                            locManager.getCurrentLocation(
+                                provider,
+                                null,
+                                ContextCompat.getMainExecutor(appContext ?: return@runCatching),
+                                { loc ->
+                                    if (loc != null && !isDefaultEmulatorMockCoords(loc.latitude, loc.longitude)) {
+                                        runCatching { locManager.removeUpdates(listener) }
+                                        safeResume(loc)
+                                    }
+                                }
+                            )
+                            registeredAny = true
+                        }
+                    }
                     runCatching {
                         locManager.requestLocationUpdates(
                             provider,

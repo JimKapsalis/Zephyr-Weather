@@ -171,8 +171,8 @@ fun fetchCurrentCoordinatesWithFusedClient(
         val providers = buildList {
             if (hasFine) {
                 add(android.location.LocationManager.GPS_PROVIDER)
-                add(android.location.LocationManager.PASSIVE_PROVIDER)
             }
+            add(android.location.LocationManager.PASSIVE_PROVIDER)
             add(android.location.LocationManager.NETWORK_PROVIDER)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 add(android.location.LocationManager.FUSED_PROVIDER)
@@ -187,7 +187,7 @@ fun fetchCurrentCoordinatesWithFusedClient(
         }.maxByOrNull { it.time }
     }.getOrNull()
 
-    if (fastCachedLoc != null && (System.currentTimeMillis() - fastCachedLoc.time) < 6 * 60 * 60 * 1000L) {
+    if (fastCachedLoc != null && (System.currentTimeMillis() - fastCachedLoc.time) < 12 * 60 * 60 * 1000L) {
         viewModel.onGpsCoordinatesResolved(
             context = context,
             latitude = fastCachedLoc.latitude,
@@ -197,57 +197,8 @@ fun fetchCurrentCoordinatesWithFusedClient(
         return
     }
 
-    // Fast-path #2: Check FusedLocationProviderClient.lastLocation first (< 40ms) before waiting on a hardware fix
-    runCatching {
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { lastLoc ->
-                val validLast = lastLoc != null &&
-                    (kotlin.math.abs(lastLoc.latitude) >= 0.01 || kotlin.math.abs(lastLoc.longitude) >= 0.01) &&
-                    !(lastLoc.latitude in 37.65..37.85 && lastLoc.longitude in -97.95..-97.70)
-                if (validLast && lastLoc != null) {
-                    viewModel.onGpsCoordinatesResolved(
-                        context = context,
-                        latitude = lastLoc.latitude,
-                        longitude = lastLoc.longitude,
-                        altitude = lastLoc.altitude
-                    )
-                } else {
-                    val cancellationTokenSource = CancellationTokenSource()
-                    runCatching {
-                        fusedLocationClient.getCurrentLocation(
-                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                            cancellationTokenSource.token
-                        )
-                            .addOnCompleteListener {
-                                runCatching { cancellationTokenSource.cancel() }
-                            }
-                            .addOnSuccessListener { location ->
-                                if (location != null && (kotlin.math.abs(location.latitude) >= 0.01 || kotlin.math.abs(location.longitude) >= 0.01)) {
-                                    viewModel.onGpsCoordinatesResolved(
-                                        context = context,
-                                        latitude = location.latitude,
-                                        longitude = location.longitude,
-                                        altitude = location.altitude
-                                    )
-                                } else {
-                                    viewModel.detectGpsLocation(context)
-                                }
-                            }
-                            .addOnFailureListener {
-                                viewModel.detectGpsLocation(context)
-                            }
-                    }.onFailure {
-                        runCatching { cancellationTokenSource.cancel() }
-                        viewModel.detectGpsLocation(context)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                viewModel.detectGpsLocation(context)
-            }
-    }.onFailure {
-        viewModel.detectGpsLocation(context)
-    }
+    // Delegate to ViewModel's multi-provider GPS engine (Fused lastLocation + High Accuracy + Balanced + LocationManager + IP fallback)
+    viewModel.detectGpsLocation(context)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -614,17 +565,21 @@ fun ZephyrWeatherApp(
                     )
                 },
                 bottomBar = {
-                    ZephyrBottomNavBar(
-                        activeTab = state.activeTab,
-                        language = state.language,
-                        onSelectTab = { viewModel.selectTab(it) }
-                    )
+                    val isSetupScreenVisible = state.isLocationSetupOpen ||
+                        (state.isInitialDbLoaded && state.primaryBundle == null && state.savedCities.isEmpty())
+                    if (!isSetupScreenVisible) {
+                        ZephyrBottomNavBar(
+                            activeTab = state.activeTab,
+                            language = state.language,
+                            onSelectTab = { viewModel.selectTab(it) }
+                        )
+                    }
                 }
             ) { innerPadding ->
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(top = innerPadding.calculateTopPadding())
                 ) {
                     if (state.isLocationSetupOpen) {
                         Box(
@@ -997,15 +952,16 @@ fun ZephyrBottomNavBar(
             .testTag("weather_bottom_bar")
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Color.White.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(30.dp),
+            color = Color(0xFF0A1D35).copy(alpha = 0.28f),
             border = BorderStroke(
-                width = 1.dp,
+                width = 1.2.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        CyanZephyr.copy(alpha = 0.34f),
-                        Color.White.copy(alpha = 0.18f),
-                        AmberSol.copy(alpha = 0.30f)
+                        Color.White.copy(alpha = 0.36f),
+                        CyanZephyr.copy(alpha = 0.42f),
+                        Color.White.copy(alpha = 0.22f),
+                        AmberSol.copy(alpha = 0.34f)
                     )
                 )
             ),
@@ -1016,6 +972,15 @@ fun ZephyrBottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.14f),
+                                Color.White.copy(alpha = 0.03f),
+                                Color(0xFF061325).copy(alpha = 0.20f)
+                            )
+                        )
+                    )
                     .padding(horizontal = 8.dp, vertical = 7.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -1032,12 +997,20 @@ fun ZephyrBottomNavBar(
                     Surface(
                         shape = RoundedCornerShape(22.dp),
                         color = if (isSelected) {
-                            activeAccent.copy(alpha = 0.14f)
+                            Color.White.copy(alpha = 0.15f)
                         } else {
                             Color.Transparent
                         },
                         border = if (isSelected) {
-                            BorderStroke(1.2.dp, activeAccent.copy(alpha = 0.48f))
+                            BorderStroke(
+                                1.2.dp,
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.48f),
+                                        activeAccent.copy(alpha = 0.55f)
+                                    )
+                                )
+                            )
                         } else {
                             null
                         },
@@ -1203,12 +1176,13 @@ fun LocationSetupSearchingScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(30.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF0E223A).copy(alpha = 0.94f)
+                containerColor = Color(0xFF0E223A).copy(alpha = 0.48f)
             ),
             border = BorderStroke(
                 width = 1.2.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
+                        Color.White.copy(alpha = 0.35f),
                         CyanZephyr.copy(alpha = 0.55f),
                         EmeraldBreeze.copy(alpha = 0.45f),
                         AmberSol.copy(alpha = 0.45f)
@@ -1221,7 +1195,7 @@ fun LocationSetupSearchingScreen(
                     painter = painterResource(id = R.drawable.img_atmosphere_hero),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    alpha = 0.30f,
+                    alpha = 0.25f,
                     modifier = Modifier
                         .matchParentSize()
                         .clip(RoundedCornerShape(30.dp))
@@ -1232,8 +1206,9 @@ fun LocationSetupSearchingScreen(
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color(0xFF0E294B).copy(alpha = 0.55f),
-                                    Color(0xFF081426).copy(alpha = 0.92f)
+                                    Color.White.copy(alpha = 0.10f),
+                                    Color(0xFF0E294B).copy(alpha = 0.36f),
+                                    Color(0xFF081426).copy(alpha = 0.58f)
                                 )
                             )
                         )
@@ -1391,9 +1366,9 @@ fun LocationSetupSearchingScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(26.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF10243E).copy(alpha = 0.94f)
+                containerColor = Color(0xFF10243E).copy(alpha = 0.48f)
             ),
-            border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.38f))
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.26f))
         ) {
             Column(
                 modifier = Modifier
@@ -1469,10 +1444,10 @@ fun LocationSetupSearchingScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.95f),
-                        unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.88f),
+                        focusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.52f),
+                        unfocusedContainerColor = Color(0xFF0A182B).copy(alpha = 0.42f),
                         focusedBorderColor = CyanZephyr,
-                        unfocusedBorderColor = CyanZephyr.copy(alpha = 0.35f),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.28f),
                         cursorColor = CyanZephyr
                     ),
                     modifier = Modifier
@@ -1487,7 +1462,7 @@ fun LocationSetupSearchingScreen(
                             .fillMaxWidth()
                             .testTag("setup_search_results_card"),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFF0A182B).copy(alpha = 0.92f),
+                        color = Color(0xFF0A182B).copy(alpha = 0.56f),
                         border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
                     ) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -1560,9 +1535,9 @@ fun LocationSetupSearchingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF0E2138).copy(alpha = 0.90f)
+                    containerColor = Color(0xFF0E2138).copy(alpha = 0.46f)
                 ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
             ) {
                 Column(
                     modifier = Modifier
@@ -1600,8 +1575,8 @@ fun LocationSetupSearchingScreen(
 
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFF132B49).copy(alpha = 0.88f),
-                            border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.28f)),
+                            color = Color(0xFF132B49).copy(alpha = 0.46f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(20.dp))

@@ -123,7 +123,7 @@ fun SettingsTabScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("settings_tab_list"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 116.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         // Header
@@ -178,11 +178,15 @@ fun SettingsTabScreen(
                             .testTag("language_option_${langOption.code}"),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFF153356) else Color(0xFF102238).copy(alpha = 0.88f)
+                            containerColor = if (isSelected) {
+                                Color(0xFF153356).copy(alpha = 0.56f)
+                            } else {
+                                Color(0xFF102238).copy(alpha = 0.45f)
+                            }
                         ),
                         border = BorderStroke(
                             width = if (isSelected) 1.8.dp else 1.dp,
-                            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.12f)
+                            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.22f)
                         )
                     ) {
                         Row(
@@ -249,9 +253,9 @@ fun SettingsTabScreen(
                     .testTag("gps_location_settings_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                    containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                 ),
-                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.35f))
+                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.42f))
             ) {
                 Column(
                     modifier = Modifier
@@ -361,9 +365,9 @@ fun SettingsTabScreen(
                     .testTag("units_settings_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                    containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                 ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -455,11 +459,15 @@ fun SettingsTabScreen(
                             .testTag("provider_card_${provider.id}"),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFF153356) else Color(0xFF102238).copy(alpha = 0.88f)
+                            containerColor = if (isSelected) {
+                                Color(0xFF153356).copy(alpha = 0.56f)
+                            } else {
+                                Color(0xFF102238).copy(alpha = 0.45f)
+                            }
                         ),
                         border = BorderStroke(
                             width = if (isSelected) 1.8.dp else 1.dp,
-                            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.12f)
+                            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.22f)
                         )
                     ) {
                         Row(
@@ -550,11 +558,15 @@ fun SettingsTabScreen(
                             .testTag("refresh_interval_card_${interval.id}"),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFF153356) else Color(0xFF102238).copy(alpha = 0.88f)
+                            containerColor = if (isSelected) {
+                                Color(0xFF153356).copy(alpha = 0.56f)
+                            } else {
+                                Color(0xFF102238).copy(alpha = 0.45f)
+                            }
                         ),
                         border = BorderStroke(
                             width = if (isSelected) 1.8.dp else 1.dp,
-                            color = if (isSelected) EmeraldBreeze else Color.White.copy(alpha = 0.12f)
+                            color = if (isSelected) EmeraldBreeze else Color.White.copy(alpha = 0.22f)
                         )
                     ) {
                         Row(
@@ -624,9 +636,9 @@ fun SettingsTabScreen(
                         .testTag("battery_saver_sync_card"),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.42f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -690,9 +702,9 @@ fun SettingsTabScreen(
                     .testTag("alerts_settings_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+                    containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                 ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -834,9 +846,9 @@ fun SettingsTabScreen(
                     .testTag("feedback_settings_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102238).copy(alpha = 0.92f)
+                    containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                 ),
-                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f))
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
             ) {
                 Column(
                     modifier = Modifier
@@ -1044,15 +1056,15 @@ fun SettingsTabScreen(
 
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (language == AppLanguage.GREEK) {
-                "• Ζουμ στο Ζωντανό Ραντάρ (1.0× – 5.0× pinch/double-tap, κουμπιά +/− & μπάρα ζουμ)\n" +
-                    "• Μετρητής Ορατών Άστρων (0 – 3.500 άστρα) & Ακρίβεια Καιρού 15 Λεπτών (4 Μοντέλα)\n" +
-                    "• Άμεση εκκίνηση με την αποθηκευμένη πόλη σας & ακαριαίο GPS (< 100ms)\n" +
-                    "• Διάφανη γραμμή πλοήγησης με 3D εικονίδια & μέγιστη απόδοση 60Hz/90Hz/120Hz"
+                "• Απόσταση Κεραυνών & Άφιξη Καταιγίδας (χλμ & αντίστροφη μέτρηση) + Σύμβουλος Ένδυσης στο κάτω μέρος\n" +
+                    "• Ζουμ στο Ζωντανό Ραντάρ (1.0× – 5.0× pinch/double-tap, κουμπιά +/− & μπάρα ζουμ)\n" +
+                    "• Μετρητής Ορατών Άστρων (0 – 3.500 άστρα) & Έξυπνες Ειδοποιήσεις Χωρίς Spam (6ωρο φίλτρο)\n" +
+                    "• Διάφανο Liquid-Glass UI σε όλες τις κάρτες & απόκρυψη μπάρας πλοήγησης στην οθόνη ρύθμισης"
             } else {
-                "• Interactive Doppler Radar Zoom (1.0× – 5.0× pinch/double-tap, +/− buttons & zoom slider)\n" +
-                    "• Live Night Sky Visible Star Count (0 – 3,500 stars) & 15-Minute Nowcast Data Fusion\n" +
-                    "• Instant saved-city startup & sub-100ms fast-path GPS location\n" +
-                    "• Crystal-transparent navigation bar with 3D icons & smooth 60Hz/90Hz/120Hz performance"
+                "• Live Lightning Strike Distance & Storm ETA countdown + Bottom Clothing & Outdoor Activity Advisor\n" +
+                    "• Interactive Doppler Radar Zoom (1.0× – 5.0× pinch/double-tap, +/− buttons & zoom slider)\n" +
+                    "• Live Night Sky Visible Star Count (0 – 3,500 stars) & Smart Anti-Spam Severe Alerts (6h cooldown)\n" +
+                    "• Transparent Liquid-Glass UI across all cards & hidden navigation bar on the Location Setup screen"
             }
 
             Card(
@@ -1061,11 +1073,11 @@ fun SettingsTabScreen(
                     .testTag("settings_app_updater_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF102542).copy(alpha = 0.94f)
+                    containerColor = Color(0xFF102542).copy(alpha = 0.50f)
                 ),
                 border = BorderStroke(
                     1.2.dp,
-                    if (isNewGitHubReleaseAvailable) AmberSol else CyanZephyr.copy(alpha = 0.45f)
+                    if (isNewGitHubReleaseAvailable) AmberSol else Color.White.copy(alpha = 0.26f)
                 )
             ) {
                 Column(

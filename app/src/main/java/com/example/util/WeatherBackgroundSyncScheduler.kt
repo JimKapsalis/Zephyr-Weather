@@ -164,11 +164,11 @@ object WeatherBackgroundSyncScheduler {
                     alert = primaryAlert
                 )
 
-                if (primaryAlert != null && (emyEnabled || rainEnabled || forceNotification)) {
+                if (primaryAlert != null && primaryAlert.isSevereOrRainActive && (emyEnabled || rainEnabled || forceNotification)) {
                     SevereWeatherNotifier.dispatchSystemNotificationIfPermitted(
                         context = appContext,
                         alert = primaryAlert,
-                        forceDispatch = forceNotification || primaryAlert.isSevereOrRainActive
+                        forceDispatch = forceNotification
                     )
                 } else {
                     false

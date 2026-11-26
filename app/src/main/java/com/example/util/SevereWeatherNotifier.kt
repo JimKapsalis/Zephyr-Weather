@@ -60,6 +60,12 @@ object SevereWeatherNotifier {
     private const val NOTIFICATION_ID_SEVERE = 4101
     private const val NOTIFICATION_ID_TEST = 4102
 
+    private const val PREFS_ALERT_COOLDOWN = "zephyr_alert_cooldown_prefs"
+    private const val KEY_LAST_ALERT_SIG = "last_alert_signature"
+    private const val KEY_LAST_ALERT_TIME = "last_alert_epoch_ms"
+    // Minimum 6 hours between automatic notifications for the same city/condition so phones are never spammed
+    private const val AUTOMATIC_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000L
+
     private var lastDispatchedSignature: String? = null
     private var lastDispatchedEpochMs: Long = 0L
 
@@ -83,40 +89,24 @@ object SevereWeatherNotifier {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 ?: return
 
-            val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(
-                android.media.RingtoneManager.TYPE_NOTIFICATION
-            )
-            val audioAttributes = android.media.AudioAttributes.Builder()
-                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-
             val severeChannel = NotificationChannel(
                 CHANNEL_SEVERE_ALERTS,
                 "Severe Weather & Thunderstorm Alerts",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Real-time GPS alerts for thunderstorms, heavy rain downpours, and EMY gale warnings."
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0L, 300L, 150L, 300L)
+                description = "Important alerts only for severe thunderstorms, heavy downpours, and gale-force winds."
+                enableVibration(false)
                 enableLights(true)
-                if (defaultSoundUri != null) {
-                    setSound(defaultSoundUri, audioAttributes)
-                }
             }
 
             val rainChannel = NotificationChannel(
                 CHANNEL_RAIN_ALERTS,
-                "Imminent Rain & Weather Notifications",
-                NotificationManager.IMPORTANCE_HIGH
+                "Imminent Heavy Rain Notifications",
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Heads-up notifications when rain or severe weather is detected at your GPS coordinates."
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0L, 250L, 120L, 250L)
-                enableLights(true)
-                if (defaultSoundUri != null) {
-                    setSound(defaultSoundUri, audioAttributes)
-                }
+                description = "Quiet notifications when significant rain is imminent at your location."
+                enableVibration(false)
+                setSound(null, null)
             }
 
             manager.createNotificationChannel(severeChannel)
@@ -125,8 +115,8 @@ object SevereWeatherNotifier {
     }
 
     /**
-     * Evaluates the live [CityWeatherBundle] fetched for the user's GPS coordinates
-     * to detect active or approaching thunderstorms, heavy rain, gale winds, or rain onset.
+     * Evaluates the live [CityWeatherBundle] strictly for truly important weather events
+     * (Thunderstorms, Heavy Downpours >= 4.5 mm/h, Severe Gale Winds >= 50 km/h, or high-confidence imminent rain).
      */
     fun evaluateBundleForAlerts(
         bundle: CityWeatherBundle,
@@ -137,41 +127,42 @@ object SevereWeatherNotifier {
     ): SevereWeatherAlertEvent {
         val isGreek = language == AppLanguage.GREEK
         val current = bundle.current
-        val next6Hours = bundle.hourly.take(6)
+        val next3Hours = bundle.hourly.take(3)
 
         val thunderCodes = setOf(95, 96, 99)
-        val heavyRainCodes = setOf(63, 65, 67, 81, 82)
-        val anyRainCodes = setOf(51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99)
+        val heavyRainCodes = setOf(65, 67, 75, 82, 86)
+        val significantRainCodes = setOf(63, 65, 67, 73, 75, 81, 82, 86, 95, 96, 99)
 
-        val upcomingThunder = next6Hours.firstOrNull { it.weatherCode in thunderCodes }
+        val upcomingThunder = next3Hours.firstOrNull {
+            it.weatherCode in thunderCodes && it.precipProbability >= 60
+        }
         val isThunderNow = current.weatherCode in thunderCodes
 
-        val upcomingHeavyRain = next6Hours.firstOrNull {
-            it.weatherCode in heavyRainCodes || it.precipMm >= 3.5 || it.precipProbability >= 70
+        val upcomingHeavyRain = next3Hours.firstOrNull {
+            (it.weatherCode in heavyRainCodes && it.precipProbability >= 75) ||
+                (it.precipMm >= 4.5 && it.precipProbability >= 75)
         }
-        val isHeavyRainNow = current.weatherCode in heavyRainCodes || current.precipitationMm >= 3.5
+        val isHeavyRainNow = current.weatherCode in heavyRainCodes || current.precipitationMm >= 4.5
 
-        val upcomingRain = next6Hours.firstOrNull {
-            it.weatherCode in anyRainCodes || it.precipProbability >= 45 || it.precipMm >= 0.4
+        val upcomingSignificantRain = next3Hours.take(2).firstOrNull {
+            it.weatherCode in significantRainCodes && it.precipProbability >= 78 && it.precipMm >= 2.0
         }
-        val isRainingNow = current.weatherCode in anyRainCodes || current.precipitationMm >= 0.2
+        val isSignificantRainNow = current.weatherCode in significantRainCodes && current.precipitationMm >= 2.0
 
         val peakGusts = maxOf(
             current.windGustsKmh,
-            next6Hours.maxOfOrNull { it.windSpeedKmh * 1.25 } ?: current.windSpeedKmh
+            next3Hours.maxOfOrNull { it.windGustsKmh } ?: current.windGustsKmh
         )
-        val isGaleWarning = current.windSpeedKmh >= 42.0 || peakGusts >= 55.0
+        // Only trigger Gale Warning for true Beaufort 7+ gale winds (>= 50 km/h sustained or >= 65 km/h gusts)
+        val isGaleWarning = current.windSpeedKmh >= 50.0 || peakGusts >= 65.0
 
-        val peakProb = maxOf(
-            next6Hours.maxOfOrNull { it.precipProbability } ?: 0,
-            bundle.rainOutlook.peakPrecipProbability
-        )
+        val peakProb = next3Hours.maxOfOrNull { it.precipProbability } ?: 0
         val peakMm = maxOf(
             current.precipitationMm,
-            next6Hours.maxOfOrNull { it.precipMm } ?: 0.0
+            next3Hours.maxOfOrNull { it.precipMm } ?: 0.0
         )
 
-        // 1. Thunderstorm Alert (Highest Priority)
+        // 1. Thunderstorm Alert (Critical)
         if (emyAlertsEnabled && (isThunderNow || upcomingThunder != null)) {
             val onset = if (isThunderNow) {
                 if (isGreek) "Τώρα" else "Right Now"
@@ -185,12 +176,12 @@ object SevereWeatherNotifier {
                 "⚡ Severe Thunderstorm Alert • ${bundle.cityName}"
             }
             val msg = if (isGreek) {
-                "Ανιχνεύθηκε ηλεκτρική δραστηριότητα και ισχυρή βροχή ($prob% πιθανότητα, ριπές ${units.formatWind(peakGusts)}) για την τοποθεσία σας ($onset). Αποφύγετε ανοιχτούς χώρους."
+                "Ισχυρή καταιγίδα ($prob% πιθανότητα, ριπές ${units.formatWind(peakGusts)}) για ${bundle.cityName} ($onset)."
             } else {
-                "Thunderstorm cell detected near your GPS location ($onset • $prob% rain chance, gusts ${units.formatWind(peakGusts)}). Seek indoor shelter."
+                "Severe thunderstorm ($onset • $prob% chance, gusts ${units.formatWind(peakGusts)}) near ${bundle.cityName}."
             }
             return SevereWeatherAlertEvent(
-                id = "${bundle.cityId}_thunder_$onset",
+                id = "${bundle.cityId}_thunder",
                 type = SevereAlertType.THUNDERSTORM,
                 severity = SevereAlertSeverity.CRITICAL,
                 title = title,
@@ -205,27 +196,27 @@ object SevereWeatherNotifier {
             )
         }
 
-        // 2. Heavy Rain / Downpour Alert
+        // 2. Heavy Rain / Downpour Alert (Warning)
         if ((emyAlertsEnabled || rainAlertsEnabled) && (isHeavyRainNow || upcomingHeavyRain != null)) {
             val onset = if (isHeavyRainNow) {
                 if (isGreek) "Τώρα" else "Right Now"
             } else {
                 upcomingHeavyRain?.displayHour ?: "Soon"
             }
-            val prob = upcomingHeavyRain?.precipProbability ?: maxOf(peakProb, 75)
-            val mmFormatted = String.format(Locale.US, "%.1f mm", peakMm.coerceAtLeast(3.8))
+            val prob = upcomingHeavyRain?.precipProbability ?: maxOf(peakProb, 80)
+            val mmFormatted = String.format(Locale.US, "%.1f mm", peakMm.coerceAtLeast(4.5))
             val title = if (isGreek) {
                 "🌧️ Έντονη Βροχόπτωση • ${bundle.cityName}"
             } else {
                 "🌧️ Heavy Rain Warning • ${bundle.cityName}"
             }
             val msg = if (isGreek) {
-                "Ισχυρή βροχόπτωση ($prob% πιθανότητα, $mmFormatted) στην τοποθεσία GPS σας ($onset). Άνεμος ${units.formatWind(current.windSpeedKmh)}."
+                "Ισχυρή βροχόπτωση ($prob% πιθανότητα, $mmFormatted) στην περιοχή ${bundle.cityName} ($onset)."
             } else {
-                "Heavy rainfall ($prob% chance, $mmFormatted) approaching your GPS location ($onset). Sustained wind ${units.formatWind(current.windSpeedKmh)}."
+                "Heavy rainfall ($prob% chance, $mmFormatted) approaching ${bundle.cityName} ($onset)."
             }
             return SevereWeatherAlertEvent(
-                id = "${bundle.cityId}_heavy_rain_$onset",
+                id = "${bundle.cityId}_heavy_rain",
                 type = SevereAlertType.HEAVY_RAIN,
                 severity = SevereAlertSeverity.WARNING,
                 title = title,
@@ -234,26 +225,26 @@ object SevereWeatherNotifier {
                 latitude = bundle.latitude,
                 longitude = bundle.longitude,
                 precipProbability = prob,
-                precipMm = peakMm.coerceAtLeast(3.8),
+                precipMm = peakMm.coerceAtLeast(4.5),
                 windGustsKmh = peakGusts,
                 onsetHourLabel = onset
             )
         }
 
-        // 3. Gale Wind Alert
+        // 3. Severe Gale Wind Alert (Warning)
         if (emyAlertsEnabled && isGaleWarning) {
             val title = if (isGreek) {
                 "💨 Θυελλώδεις Άνεμοι ΕΜΥ • ${bundle.cityName}"
             } else {
-                "💨 High Wind & Gale Advisory • ${bundle.cityName}"
+                "💨 Severe Gale Wind Warning • ${bundle.cityName}"
             }
             val msg = if (isGreek) {
-                "Ισχυροί άνεμοι ${units.formatWind(current.windSpeedKmh)} (${current.windCardinal}) με ριπές έως ${units.formatWind(peakGusts)} στην περιοχή σας."
+                "Θυελλώδεις άνεμοι ${units.formatWind(current.windSpeedKmh)} (${current.windCardinal}) με ριπές έως ${units.formatWind(peakGusts)}."
             } else {
-                "Strong ${current.windCardinal} winds at ${units.formatWind(current.windSpeedKmh)} with gusts reaching ${units.formatWind(peakGusts)}."
+                "Gale-force ${current.windCardinal} winds at ${units.formatWind(current.windSpeedKmh)} with gusts up to ${units.formatWind(peakGusts)}."
             }
             return SevereWeatherAlertEvent(
-                id = "${bundle.cityId}_gale_${current.windSpeedKmh.roundToInt()}",
+                id = "${bundle.cityId}_gale",
                 type = SevereAlertType.GALE_WIND,
                 severity = SevereAlertSeverity.WARNING,
                 title = title,
@@ -268,26 +259,26 @@ object SevereWeatherNotifier {
             )
         }
 
-        // 4. Imminent Rain Onset Notification
-        if (rainAlertsEnabled && (isRainingNow || upcomingRain != null)) {
-            val onset = if (isRainingNow) {
+        // 4. Significant Imminent Rain Onset (>= 78% prob and >= 2.0 mm within 2 hours)
+        if (rainAlertsEnabled && (isSignificantRainNow || upcomingSignificantRain != null)) {
+            val onset = if (isSignificantRainNow) {
                 if (isGreek) "Τώρα" else "Right Now"
             } else {
-                upcomingRain?.displayHour ?: "Soon"
+                upcomingSignificantRain?.displayHour ?: "Soon"
             }
-            val prob = upcomingRain?.precipProbability ?: maxOf(peakProb, 50)
+            val prob = upcomingSignificantRain?.precipProbability ?: maxOf(peakProb, 78)
             val title = if (isGreek) {
-                "☔ Ειδοποίηση Βροχής • ${bundle.cityName}"
+                "☔ Έναρξη Βροχής • ${bundle.cityName}"
             } else {
-                "☔ Rain Approaching • ${bundle.cityName}"
+                "☔ Rain Starting Soon • ${bundle.cityName}"
             }
             val msg = if (isGreek) {
-                "Αναμένεται βροχή ($prob% πιθανότητα) γύρω στις $onset στην τοποθεσία σας. Θερμοκρασία ${units.formatTemp(current.tempC)}."
+                "Αξιόλογη βροχή ($prob% πιθανότητα) αναμένεται στις $onset στην τοποθεσία ${bundle.cityName}."
             } else {
-                "Light rain expected ($prob% probability) around $onset at your location. Current temp ${units.formatTemp(current.tempC)}."
+                "Steady rain ($prob% probability) expected around $onset in ${bundle.cityName}."
             }
             return SevereWeatherAlertEvent(
-                id = "${bundle.cityId}_rain_$onset",
+                id = "${bundle.cityId}_rain_onset",
                 type = SevereAlertType.RAIN_ONSET,
                 severity = SevereAlertSeverity.ADVISORY,
                 title = title,
@@ -296,22 +287,22 @@ object SevereWeatherNotifier {
                 latitude = bundle.latitude,
                 longitude = bundle.longitude,
                 precipProbability = prob,
-                precipMm = peakMm.coerceAtLeast(0.8),
+                precipMm = peakMm.coerceAtLeast(2.0),
                 windGustsKmh = peakGusts,
                 onsetHourLabel = onset
             )
         }
 
-        // 5. All Clear / Active Weather Monitoring Status
+        // 5. All Clear (Never triggers a push notification)
         val clearTitle = if (isGreek) {
-            "Ζωντανή Παρακολούθηση Καιρού • ${bundle.cityName}"
+            "Καμία Προειδοποίηση Καιρού • ${bundle.cityName}"
         } else {
-            "Live Weather Guard Active • ${bundle.cityName}"
+            "No Severe Weather Alerts • ${bundle.cityName}"
         }
         val clearMsg = if (isGreek) {
-            "Δεν υπάρχουν ακραία φαινόμενα (${units.formatTemp(current.tempC)}). Μέγιστη πιθανότητα βροχής ${peakProb}% • Άνεμος ${units.formatWind(current.windSpeedKmh)}."
+            "Δεν υπάρχουν ακραία καιρικά φαινόμενα (${units.formatTemp(current.tempC)})."
         } else {
-            "No severe weather threats detected (${units.formatTemp(current.tempC)}). Peak rain chance ${peakProb}% • Wind ${units.formatWind(current.windSpeedKmh)}."
+            "No severe weather threats detected (${units.formatTemp(current.tempC)})."
         }
         return SevereWeatherAlertEvent(
             id = "${bundle.cityId}_clear",
@@ -330,8 +321,9 @@ object SevereWeatherNotifier {
     }
 
     /**
-     * Posts a real Android system notification if permission is granted and the alert is new
-     * (or if [forceDispatch] is true, such as when the user triggers a live test alert).
+     * Posts a system notification ONLY if [alert] is a genuinely important severe weather event
+     * (or if [forceDispatch] is true when the user manually taps the "Test Alert" button),
+     * enforcing a persistent 6-hour deduplication cooldown in SharedPreferences so phones are never spammed.
      */
     fun dispatchSystemNotificationIfPermitted(
         context: Context,
@@ -345,13 +337,35 @@ object SevereWeatherNotifier {
         }
 
         if (!forceDispatch) {
-            if (!alert.isSevereOrRainActive) return false
-            val now = System.currentTimeMillis()
-            if (alert.id == lastDispatchedSignature && (now - lastDispatchedEpochMs) < 15 * 60 * 1000L) {
+            // Only send automatic notifications for genuinely important weather:
+            // CRITICAL (Thunderstorms), WARNING (Heavy Downpours >= 4.5mm/h or Gale Winds >= 50km/h),
+            // or high-certainty significant rain (>= 80% & >= 2.2mm)
+            val isImportantAlert = alert.severity == SevereAlertSeverity.CRITICAL ||
+                alert.severity == SevereAlertSeverity.WARNING ||
+                (alert.type == SevereAlertType.RAIN_ONSET && alert.precipProbability >= 80 && alert.precipMm >= 2.2)
+            if (!alert.isSevereOrRainActive || !isImportantAlert) {
                 return false
             }
-            lastDispatchedSignature = alert.id
+
+            val now = System.currentTimeMillis()
+            val prefs = runCatching {
+                context.getSharedPreferences(PREFS_ALERT_COOLDOWN, Context.MODE_PRIVATE)
+            }.getOrNull()
+            val savedSig = prefs?.getString(KEY_LAST_ALERT_SIG, null) ?: lastDispatchedSignature
+            val savedTime = prefs?.getLong(KEY_LAST_ALERT_TIME, 0L) ?: lastDispatchedEpochMs
+            val canonicalSig = "${alert.cityName}_${alert.type.name}"
+
+            // Never spam: enforce a strict 6-hour cooldown for the same city & alert type
+            if (canonicalSig == savedSig && (now - savedTime) < AUTOMATIC_ALERT_COOLDOWN_MS) {
+                return false
+            }
+
+            lastDispatchedSignature = canonicalSig
             lastDispatchedEpochMs = now
+            prefs?.edit()
+                ?.putString(KEY_LAST_ALERT_SIG, canonicalSig)
+                ?.putLong(KEY_LAST_ALERT_TIME, now)
+                ?.apply()
         }
 
         val channelId = when (alert.type) {
@@ -368,14 +382,10 @@ object SevereWeatherNotifier {
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val contentIntent = PendingIntent.getActivity(context, 0, launchIntent, pendingFlags)
 
-        val priority = if (forceDispatch || alert.severity == SevereAlertSeverity.CRITICAL) {
-            NotificationCompat.PRIORITY_MAX
-        } else {
-            when (alert.severity) {
-                SevereAlertSeverity.CRITICAL -> NotificationCompat.PRIORITY_MAX
-                SevereAlertSeverity.WARNING -> NotificationCompat.PRIORITY_HIGH
-                SevereAlertSeverity.ADVISORY -> NotificationCompat.PRIORITY_HIGH
-            }
+        val priority = when (alert.severity) {
+            SevereAlertSeverity.CRITICAL -> NotificationCompat.PRIORITY_HIGH
+            SevereAlertSeverity.WARNING -> NotificationCompat.PRIORITY_DEFAULT
+            SevereAlertSeverity.ADVISORY -> NotificationCompat.PRIORITY_LOW
         }
 
         val smallIconRes = when (alert.type) {
@@ -390,11 +400,10 @@ object SevereWeatherNotifier {
             .setContentText(alert.message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(alert.message))
             .setPriority(priority)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0L, 300L, 150L, 300L))
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOnlyAlertOnce(!forceDispatch)
+            .setOnlyAlertOnce(true)
+            .setSilent(!forceDispatch && alert.severity == SevereAlertSeverity.ADVISORY)
             .setAutoCancel(true)
             .setContentIntent(contentIntent)
             .build()
@@ -402,10 +411,6 @@ object SevereWeatherNotifier {
         return runCatching {
             val notifId = if (forceDispatch) NOTIFICATION_ID_TEST else NOTIFICATION_ID_SEVERE
             val sysManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            if (forceDispatch) {
-                // Cancel first so Android 13-17 always pops up a fresh heads-up banner
-                sysManager?.cancel(notifId)
-            }
             if (sysManager != null) {
                 sysManager.notify(notifId, notification)
                 true
@@ -468,9 +473,8 @@ object SevereWeatherNotifier {
     }
 
     /**
-     * Evaluates the bundle and returns all distinct active weather alerts as a list of
-     * individual alert events (e.g., Thunderstorm + Heavy Rain + High Wind) so each can
-     * be rendered as a distinct, independently dismissible card on the dashboard.
+     * Evaluates the bundle and returns ONLY genuine severe or significant active weather alerts
+     * without injecting any artificial filler advisories when conditions are calm.
      */
     fun evaluateAllActiveAlerts(
         bundle: CityWeatherBundle,
@@ -481,39 +485,39 @@ object SevereWeatherNotifier {
     ): List<SevereWeatherAlertEvent> {
         val isGreek = language == AppLanguage.GREEK
         val current = bundle.current
-        val next6Hours = bundle.hourly.take(6)
+        val next3Hours = bundle.hourly.take(3)
         val alerts = mutableListOf<SevereWeatherAlertEvent>()
 
         val thunderCodes = setOf(95, 96, 99)
-        val heavyRainCodes = setOf(63, 65, 67, 81, 82)
-        val anyRainCodes = setOf(51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99)
+        val heavyRainCodes = setOf(65, 67, 75, 82, 86)
+        val significantRainCodes = setOf(63, 65, 67, 73, 75, 81, 82, 86, 95, 96, 99)
 
-        val upcomingThunder = next6Hours.firstOrNull { it.weatherCode in thunderCodes }
+        val upcomingThunder = next3Hours.firstOrNull {
+            it.weatherCode in thunderCodes && it.precipProbability >= 60
+        }
         val isThunderNow = current.weatherCode in thunderCodes
 
-        val upcomingHeavyRain = next6Hours.firstOrNull {
-            it.weatherCode in heavyRainCodes || it.precipMm >= 3.5 || it.precipProbability >= 70
+        val upcomingHeavyRain = next3Hours.firstOrNull {
+            (it.weatherCode in heavyRainCodes && it.precipProbability >= 75) ||
+                (it.precipMm >= 4.5 && it.precipProbability >= 75)
         }
-        val isHeavyRainNow = current.weatherCode in heavyRainCodes || current.precipitationMm >= 3.5
+        val isHeavyRainNow = current.weatherCode in heavyRainCodes || current.precipitationMm >= 4.5
 
-        val upcomingRain = next6Hours.firstOrNull {
-            it.weatherCode in anyRainCodes || it.precipProbability >= 45 || it.precipMm >= 0.4
+        val upcomingSignificantRain = next3Hours.take(2).firstOrNull {
+            it.weatherCode in significantRainCodes && it.precipProbability >= 78 && it.precipMm >= 2.0
         }
-        val isRainingNow = current.weatherCode in anyRainCodes || current.precipitationMm >= 0.2
+        val isSignificantRainNow = current.weatherCode in significantRainCodes && current.precipitationMm >= 2.0
 
         val peakGusts = maxOf(
             current.windGustsKmh,
-            next6Hours.maxOfOrNull { it.windSpeedKmh * 1.25 } ?: current.windSpeedKmh
+            next3Hours.maxOfOrNull { it.windGustsKmh } ?: current.windGustsKmh
         )
-        val isGaleWarning = current.windSpeedKmh >= 38.0 || peakGusts >= 50.0
+        val isGaleWarning = current.windSpeedKmh >= 50.0 || peakGusts >= 65.0
 
-        val peakProb = maxOf(
-            next6Hours.maxOfOrNull { it.precipProbability } ?: 0,
-            bundle.rainOutlook.peakPrecipProbability
-        )
+        val peakProb = next3Hours.maxOfOrNull { it.precipProbability } ?: 0
         val peakMm = maxOf(
             current.precipitationMm,
-            next6Hours.maxOfOrNull { it.precipMm } ?: 0.0
+            next3Hours.maxOfOrNull { it.precipMm } ?: 0.0
         )
 
         if (emyAlertsEnabled && (isThunderNow || upcomingThunder != null)) {
@@ -530,9 +534,9 @@ object SevereWeatherNotifier {
                     severity = SevereAlertSeverity.CRITICAL,
                     title = if (isGreek) "⚡ Προειδοποίηση Καταιγίδας • ${bundle.cityName}" else "⚡ Severe Thunderstorm • ${bundle.cityName}",
                     message = if (isGreek) {
-                        "Ηλεκτρική δραστηριότητα και ισχυρή καταιγίδα ($prob% πιθανότητα, ριπές ${units.formatWind(peakGusts)}) στην περιοχή σας ($onset)."
+                        "Ισχυρή καταιγίδα ($prob% πιθανότητα, ριπές ${units.formatWind(peakGusts)}) στην περιοχή σας ($onset)."
                     } else {
-                        "Thunderstorm cell detected near ${bundle.cityName} ($onset • $prob% rain chance, gusts ${units.formatWind(peakGusts)}). Seek indoor shelter."
+                        "Severe thunderstorm detected near ${bundle.cityName} ($onset • $prob% chance, gusts ${units.formatWind(peakGusts)})."
                     },
                     cityName = bundle.cityName,
                     latitude = bundle.latitude,
@@ -551,8 +555,8 @@ object SevereWeatherNotifier {
             } else {
                 upcomingHeavyRain?.displayHour ?: "Soon"
             }
-            val prob = upcomingHeavyRain?.precipProbability ?: maxOf(peakProb, 75)
-            val mmFormatted = String.format(Locale.US, "%.1f mm", peakMm.coerceAtLeast(3.8))
+            val prob = upcomingHeavyRain?.precipProbability ?: maxOf(peakProb, 80)
+            val mmFormatted = String.format(Locale.US, "%.1f mm", peakMm.coerceAtLeast(4.5))
             alerts.add(
                 SevereWeatherAlertEvent(
                     id = "${bundle.cityId}_heavy_rain",
@@ -560,26 +564,26 @@ object SevereWeatherNotifier {
                     severity = SevereAlertSeverity.WARNING,
                     title = if (isGreek) "🌧️ Έντονη Βροχόπτωση • ${bundle.cityName}" else "🌧️ Heavy Rain Warning • ${bundle.cityName}",
                     message = if (isGreek) {
-                        "Ισχυρή βροχόπτωση ($prob% πιθανότητα, $mmFormatted) στην περιοχή σας ($onset). Άνεμος ${units.formatWind(current.windSpeedKmh)}."
+                        "Ισχυρή βροχόπτωση ($prob% πιθανότητα, $mmFormatted) στην περιοχή σας ($onset)."
                     } else {
-                        "Heavy rainfall ($prob% chance, $mmFormatted) approaching ${bundle.cityName} ($onset). Sustained wind ${units.formatWind(current.windSpeedKmh)}."
+                        "Heavy rainfall ($prob% chance, $mmFormatted) approaching ${bundle.cityName} ($onset)."
                     },
                     cityName = bundle.cityName,
                     latitude = bundle.latitude,
                     longitude = bundle.longitude,
                     precipProbability = prob,
-                    precipMm = peakMm.coerceAtLeast(3.8),
+                    precipMm = peakMm.coerceAtLeast(4.5),
                     windGustsKmh = peakGusts,
                     onsetHourLabel = onset
                 )
             )
-        } else if (rainAlertsEnabled && (isRainingNow || upcomingRain != null)) {
-            val onset = if (isRainingNow) {
+        } else if (rainAlertsEnabled && (isSignificantRainNow || upcomingSignificantRain != null)) {
+            val onset = if (isSignificantRainNow) {
                 if (isGreek) "Τώρα" else "Right Now"
             } else {
-                upcomingRain?.displayHour ?: "Soon"
+                upcomingSignificantRain?.displayHour ?: "Soon"
             }
-            val prob = upcomingRain?.precipProbability ?: maxOf(peakProb, 50)
+            val prob = upcomingSignificantRain?.precipProbability ?: maxOf(peakProb, 78)
             alerts.add(
                 SevereWeatherAlertEvent(
                     id = "${bundle.cityId}_rain_onset",
@@ -587,15 +591,15 @@ object SevereWeatherNotifier {
                     severity = SevereAlertSeverity.ADVISORY,
                     title = if (isGreek) "☔ Έναρξη Βροχής • ${bundle.cityName}" else "☔ Rain Onset Advisory • ${bundle.cityName}",
                     message = if (isGreek) {
-                        "Αναμένεται βροχή ($prob% πιθανότητα) γύρω στις $onset στην τοποθεσία σας. Θερμοκρασία ${units.formatTemp(current.tempC)}."
+                        "Αξιόλογη βροχή ($prob% πιθανότητα) αναμένεται στις $onset στην τοποθεσία σας."
                     } else {
-                        "Light rain expected ($prob% probability) around $onset in ${bundle.cityName}. Current temp ${units.formatTemp(current.tempC)}."
+                        "Steady rain ($prob% probability) expected around $onset in ${bundle.cityName}."
                     },
                     cityName = bundle.cityName,
                     latitude = bundle.latitude,
                     longitude = bundle.longitude,
                     precipProbability = prob,
-                    precipMm = peakMm.coerceAtLeast(0.8),
+                    precipMm = peakMm.coerceAtLeast(2.0),
                     windGustsKmh = peakGusts,
                     onsetHourLabel = onset
                 )
@@ -608,11 +612,11 @@ object SevereWeatherNotifier {
                     id = "${bundle.cityId}_gale_wind",
                     type = SevereAlertType.GALE_WIND,
                     severity = SevereAlertSeverity.WARNING,
-                    title = if (isGreek) "💨 Θυελλώδεις Άνεμοι ΕΜΥ • ${bundle.cityName}" else "💨 High Wind & Gale Advisory • ${bundle.cityName}",
+                    title = if (isGreek) "💨 Θυελλώδεις Άνεμοι ΕΜΥ • ${bundle.cityName}" else "💨 Severe Gale Wind Warning • ${bundle.cityName}",
                     message = if (isGreek) {
-                        "Ισχυροί άνεμοι ${units.formatWind(current.windSpeedKmh)} (${current.windCardinal}) με ριπές έως ${units.formatWind(peakGusts)} στην περιοχή σας."
+                        "Θυελλώδεις άνεμοι ${units.formatWind(current.windSpeedKmh)} (${current.windCardinal}) με ριπές έως ${units.formatWind(peakGusts)}."
                     } else {
-                        "Strong ${current.windCardinal} winds at ${units.formatWind(current.windSpeedKmh)} with gusts reaching ${units.formatWind(peakGusts)}."
+                        "Gale-force ${current.windCardinal} winds at ${units.formatWind(current.windSpeedKmh)} with gusts reaching ${units.formatWind(peakGusts)}."
                     },
                     cityName = bundle.cityName,
                     latitude = bundle.latitude,
@@ -623,73 +627,6 @@ object SevereWeatherNotifier {
                     onsetHourLabel = if (isGreek) "Τώρα" else "Now"
                 )
             )
-        }
-
-        if (alerts.isEmpty()) {
-            alerts.add(
-                evaluateBundleForAlerts(
-                    bundle = bundle,
-                    units = units,
-                    language = language,
-                    emyAlertsEnabled = emyAlertsEnabled,
-                    rainAlertsEnabled = rainAlertsEnabled
-                )
-            )
-        }
-
-        if (alerts.size == 1) {
-            val firstType = alerts.first().type
-            if (firstType != SevereAlertType.GALE_WIND) {
-                alerts.add(
-                    SevereWeatherAlertEvent(
-                        id = "${bundle.cityId}_wind_advisory",
-                        type = SevereAlertType.GALE_WIND,
-                        severity = if (peakGusts >= 40.0) SevereAlertSeverity.WARNING else SevereAlertSeverity.ADVISORY,
-                        title = if (isGreek) {
-                            "💨 Δελτίο Ανέμων & Ριπών • ${bundle.cityName}"
-                        } else {
-                            "💨 Wind & Gusts Telemetry • ${bundle.cityName}"
-                        },
-                        message = if (isGreek) {
-                            "Άνεμοι ${current.windCardinal} ${units.formatWind(current.windSpeedKmh)} με μέγιστες ριπές ${units.formatWind(peakGusts)}."
-                        } else {
-                            "${current.windCardinal} winds at ${units.formatWind(current.windSpeedKmh)} with peak gusts up to ${units.formatWind(peakGusts)}."
-                        },
-                        cityName = bundle.cityName,
-                        latitude = bundle.latitude,
-                        longitude = bundle.longitude,
-                        precipProbability = peakProb,
-                        precipMm = peakMm,
-                        windGustsKmh = peakGusts,
-                        onsetHourLabel = if (isGreek) "Ζωντανά" else "Live"
-                    )
-                )
-            } else {
-                alerts.add(
-                    SevereWeatherAlertEvent(
-                        id = "${bundle.cityId}_rain_horizon",
-                        type = SevereAlertType.RAIN_ONSET,
-                        severity = SevereAlertSeverity.ADVISORY,
-                        title = if (isGreek) {
-                            "☔ Ορίζοντας Βροχόπτωσης • ${bundle.cityName}"
-                        } else {
-                            "☔ Precipitation Horizon • ${bundle.cityName}"
-                        },
-                        message = if (isGreek) {
-                            "Μέγιστη πιθανότητα βροχής $peakProb% το επόμενο 6ωρο (${bundle.rainOutlook.nextRainOnsetLabel})."
-                        } else {
-                            "Peak precipitation probability $peakProb% over the next 6 hours (${bundle.rainOutlook.nextRainOnsetLabel})."
-                        },
-                        cityName = bundle.cityName,
-                        latitude = bundle.latitude,
-                        longitude = bundle.longitude,
-                        precipProbability = peakProb,
-                        precipMm = peakMm,
-                        windGustsKmh = peakGusts,
-                        onsetHourLabel = if (isGreek) "6ωρο" else "6h Outlook"
-                    )
-                )
-            }
         }
 
         return alerts

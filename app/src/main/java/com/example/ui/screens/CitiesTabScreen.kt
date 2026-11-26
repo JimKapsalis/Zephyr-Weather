@@ -97,7 +97,7 @@ fun CitiesTabScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("cities_tab_list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 116.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. Live Global Geocoding Search Field
@@ -157,10 +157,10 @@ fun CitiesTabScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.94f),
-                        unfocusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.86f),
+                        focusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.52f),
+                        unfocusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.44f),
                         focusedBorderColor = CyanZephyr,
-                        unfocusedBorderColor = CyanZephyr.copy(alpha = 0.32f),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.26f),
                         cursorColor = CyanZephyr
                     ),
                     modifier = Modifier
@@ -175,7 +175,7 @@ fun CitiesTabScreen(
                             .testTag("search_results_card"),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF152C48)
+                            containerColor = Color(0xFF152C48).copy(alpha = 0.62f)
                         ),
                         border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
                     ) {
@@ -268,9 +268,9 @@ fun CitiesTabScreen(
                         .testTag("cities_tab_empty_suggestions"),
                     shape = RoundedCornerShape(26.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.88f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -377,11 +377,15 @@ private fun SavedCityWeatherCard(
             .testTag("saved_city_card_${city.id}"),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFF173456) else Color(0xFF102238).copy(alpha = 0.88f)
+            containerColor = if (isSelected) {
+                Color(0xFF173456).copy(alpha = 0.58f)
+            } else {
+                Color(0xFF102238).copy(alpha = 0.46f)
+            }
         ),
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.12f)
+            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.22f)
         )
     ) {
         Row(

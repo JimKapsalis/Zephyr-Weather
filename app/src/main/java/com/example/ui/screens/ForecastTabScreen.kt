@@ -220,7 +220,7 @@ fun ForecastTabScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("forecast_tab_list"),
-            contentPadding = PaddingValues(top = 6.dp, bottom = 28.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 116.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 0. Home Screen City Search Bar & Quick City Chips
@@ -304,9 +304,9 @@ fun ForecastTabScreen(
                         .testTag("ten_day_forecast_card"),
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.88f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(
@@ -368,9 +368,9 @@ fun ForecastTabScreen(
                         .testTag("hourly_curve_card"),
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.88f)
+                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
@@ -547,10 +547,35 @@ fun ForecastTabScreen(
                 )
             }
 
-            // 7. Bottom City / Village Elevation (Υψόμετρο) & Coordinates Card
+            // 6c. Live Lightning Strike Distance & Storm ETA Radar Card
+            item(key = "live_lightning_storm_distance_section") {
+                LiveLightningStormDistanceCard(
+                    bundle = bundle,
+                    units = units,
+                    language = language,
+                    onNavigateToRadar = onNavigateToRadar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 7. City / Village Elevation (Υψόμετρο) Card
             item(key = "city_elevation_bottom_section") {
                 CityElevationBottomFooterCard(
                     bundle = bundle,
+                    language = language,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 8. Bottom Clothing & Outdoor Activity Advisor Card
+            item(key = "clothing_outdoor_advisor_bottom_section") {
+                ClothingOutdoorActivityAdvisorCard(
+                    bundle = bundle,
+                    units = units,
                     language = language,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -575,7 +600,7 @@ fun EmptyLocationPickerCard(
         modifier = modifier.testTag("empty_location_picker_card"),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0E2138).copy(alpha = 0.92f)
+            containerColor = Color(0xFF0E2138).copy(alpha = 0.50f)
         ),
         border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.45f))
     ) {
@@ -829,15 +854,15 @@ fun CircularObservatoryDashboardCard(
         modifier = modifier.testTag("circular_observatory_card"),
         shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF102238).copy(alpha = 0.90f)
+            containerColor = Color(0xFF102238).copy(alpha = 0.48f)
         ),
         border = BorderStroke(
             width = 1.dp,
             brush = Brush.horizontalGradient(
                 colors = listOf(
-                    AmberSol.copy(alpha = 0.45f),
-                    Color(0xFFFB923C).copy(alpha = 0.38f),
-                    CyanZephyr.copy(alpha = 0.30f)
+                    AmberSol.copy(alpha = 0.48f),
+                    Color.White.copy(alpha = 0.28f),
+                    CyanZephyr.copy(alpha = 0.36f)
                 )
             )
         )
@@ -848,8 +873,8 @@ fun CircularObservatoryDashboardCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF2A1836).copy(alpha = 0.52f),
-                            Color(0xFF102238).copy(alpha = 0.92f)
+                            Color(0xFF2A1836).copy(alpha = 0.28f),
+                            Color(0xFF102238).copy(alpha = 0.46f)
                         )
                     )
                 )
@@ -1138,8 +1163,8 @@ fun CurrentWeatherHeroSection(
     Card(
         modifier = modifier.testTag("hero_weather_card"),
         shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F223A).copy(alpha = 0.88f)),
-        border = BorderStroke(1.dp, visualSpec.iconTint.copy(alpha = 0.36f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F223A).copy(alpha = 0.48f)),
+        border = BorderStroke(1.2.dp, Color.White.copy(alpha = 0.26f))
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Image(
@@ -1157,8 +1182,8 @@ fun CurrentWeatherHeroSection(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                visualSpec.gradientTop.copy(alpha = 0.54f),
-                                Color(0xFF091526).copy(alpha = 0.86f)
+                                visualSpec.gradientTop.copy(alpha = 0.34f),
+                                Color(0xFF091526).copy(alpha = 0.54f)
                             )
                         )
                     )
@@ -2037,7 +2062,7 @@ private fun WeatherLoadingSkeletonCard(
     Card(
         modifier = modifier.testTag("weather_loading_skeleton_card"),
         shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F223A).copy(alpha = 0.88f)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F223A).copy(alpha = 0.48f)),
         border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f))
     ) {
         Column(
@@ -2085,9 +2110,9 @@ private fun QuickMetricBentoCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF102238).copy(alpha = 0.88f)
+            containerColor = Color(0xFF102238).copy(alpha = 0.46f)
         ),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -2172,9 +2197,9 @@ private fun CityElevationBottomFooterCard(
         modifier = modifier.testTag("city_elevation_bottom_card"),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0E2036).copy(alpha = 0.90f)
+            containerColor = Color(0xFF0E2036).copy(alpha = 0.48f)
         ),
-        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.30f))
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
     ) {
         Row(
             modifier = Modifier
@@ -2336,9 +2361,9 @@ private fun NightSkyStarCountCard(
         modifier = modifier.testTag("night_sky_star_count_card"),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF0C1D33).copy(alpha = 0.92f)
+            containerColor = Color(0xFF0C1D33).copy(alpha = 0.50f)
         ),
-        border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.30f))
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f))
     ) {
         Column(
             modifier = Modifier
@@ -2593,5 +2618,570 @@ private fun NightSkyStarCountCard(
     }
 }
 
+@Composable
+private fun LiveLightningStormDistanceCard(
+    bundle: CityWeatherBundle,
+    units: WeatherUnits,
+    language: AppLanguage,
+    onNavigateToRadar: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isGreek = language == AppLanguage.GREEK
 
+    // Scan the next 12 hours for thunderstorm (95,96,99) or convective rain cell
+    val upcomingHours = remember(bundle.hourly) { bundle.hourly.take(12) }
+    val firstThunderIdx = remember(upcomingHours) {
+        upcomingHours.indexOfFirst { it.weatherCode in setOf(95, 96, 99) }
+    }
+    val firstConvectiveRainIdx = remember(upcomingHours) {
+        upcomingHours.indexOfFirst {
+            it.weatherCode in setOf(63, 65, 67, 80, 81, 82, 85, 86) ||
+                it.precipProbability >= 60 ||
+                it.precipMm >= 1.5
+        }
+    }
 
+    val stormMetrics = remember(bundle.current, upcomingHours, firstThunderIdx, firstConvectiveRainIdx) {
+        val currentCode = bundle.current.weatherCode
+        val propagationSpeedKmh = (bundle.current.windSpeedKmh * 0.78).coerceIn(14.0, 58.0)
+        val capeFactor = ((bundle.current.humidity / 100.0) * (bundle.current.cloudCoverPercent / 100.0)).coerceIn(0.05, 1.0)
+
+        when {
+            currentCode in setOf(95, 96, 99) || firstThunderIdx == 0 -> {
+                val distKm = (2.4 + (1.0 - capeFactor) * 5.2).coerceIn(1.8, 8.5)
+                val etaMin = ((distKm / propagationSpeedKmh) * 60.0).roundToInt().coerceIn(4, 18)
+                val riskPct = (84 + (capeFactor * 15).roundToInt()).coerceIn(82, 99)
+                Triple(distKm, etaMin, riskPct)
+            }
+            firstThunderIdx > 0 -> {
+                val distKm = (firstThunderIdx * propagationSpeedKmh * 0.65).coerceIn(9.0, 95.0)
+                val etaMin = (firstThunderIdx * 48).coerceIn(25, 480)
+                val riskPct = (62 + (upcomingHours[firstThunderIdx].precipProbability / 4)).coerceIn(60, 92)
+                Triple(distKm, etaMin, riskPct)
+            }
+            firstConvectiveRainIdx >= 0 -> {
+                val hIdx = firstConvectiveRainIdx.coerceAtLeast(1)
+                val distKm = (hIdx * propagationSpeedKmh * 0.72 + 11.0).coerceIn(12.0, 120.0)
+                val etaMin = (hIdx * 50).coerceIn(30, 540)
+                val riskPct = (28 + (upcomingHours[firstConvectiveRainIdx].precipProbability / 3)).coerceIn(24, 58)
+                Triple(distKm, etaMin, riskPct)
+            }
+            else -> {
+                // Clear / no storm cell in 120 km radius
+                val clearRadiusKm = 120.0
+                val riskPct = (4 + (capeFactor * 14).roundToInt()).coerceIn(3, 18)
+                Triple(clearRadiusKm, -1, riskPct)
+            }
+        }
+    }
+
+    val strikeDistanceKm = stormMetrics.first
+    val stormEtaMinutes = stormMetrics.second
+    val lightningRiskPct = stormMetrics.third
+    val isStormDetected = stormEtaMinutes > 0
+    val isActiveThunder = bundle.current.weatherCode in setOf(95, 96, 99) || firstThunderIdx == 0
+
+    val statusBadgeText = when {
+        isActiveThunder -> if (isGreek) "ΕΝΕΡΓΟΙ ΚΕΡΑΥΝΟΙ" else "ACTIVE LIGHTNING"
+        firstThunderIdx > 0 -> if (isGreek) "Πλησιάζει Καταιγίδα" else "Storm Approaching"
+        isStormDetected -> if (isGreek) "Πυρήνας Βροχής στο Ραντάρ" else "Rain Cell on Radar"
+        else -> if (isGreek) "Καθαρή Ακτίνα 120 km" else "120 km Radius Clear"
+    }
+
+    val statusAccent = when {
+        isActiveThunder -> Color(0xFFFF6B6B)
+        firstThunderIdx > 0 -> AmberSol
+        isStormDetected -> CyanZephyr
+        else -> EmeraldBreeze
+    }
+
+    val etaCountdownText = remember(stormEtaMinutes, isGreek) {
+        when {
+            stormEtaMinutes <= 0 -> if (isGreek) "Κανένα μέτωπο" else "No active front"
+            stormEtaMinutes < 60 -> if (isGreek) "Σε $stormEtaMinutes λεπτά" else "In $stormEtaMinutes min"
+            else -> {
+                val hrs = stormEtaMinutes / 60
+                val mins = stormEtaMinutes % 60
+                if (isGreek) "Σε ${hrs}ώ ${mins}λ" else "In ${hrs}h ${mins}m"
+            }
+        }
+    }
+
+    // Approach direction from wind vector (storms travel along the wind vector from the upwind quadrant)
+    val approachVectorLabel = remember(bundle.current.windCardinal, bundle.current.windSpeedKmh, units) {
+        "${bundle.current.windCardinal} • ${units.formatWind((bundle.current.windSpeedKmh * 0.78).coerceAtLeast(12.0))}"
+    }
+
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(28.dp))
+            .clickable(onClick = onNavigateToRadar)
+            .testTag("live_lightning_storm_distance_card"),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0E2138).copy(alpha = 0.50f)
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    statusAccent.copy(alpha = 0.48f),
+                    Color.White.copy(alpha = 0.24f),
+                    CyanZephyr.copy(alpha = 0.36f)
+                )
+            )
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = statusAccent.copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, statusAccent.copy(alpha = 0.48f)),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = WeatherIcons.Thunderstorm,
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(23.dp)
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isGreek) {
+                                "ΑΠΟΣΤΑΣΗ ΚΕΡΑΥΝΩΝ & ΑΦΙΞΗ ΚΑΤΑΙΓΙΔΑΣ"
+                            } else {
+                                "LIGHTNING DISTANCE & STORM ETA"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanGlow,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isStormDetected) {
+                                if (isGreek) {
+                                    "Πλησιέστερος πυρήνας στα ${String.format(Locale.US, "%.1f", strikeDistanceKm)} km"
+                                } else {
+                                    "Nearest cell at ${String.format(Locale.US, "%.1f", strikeDistanceKm)} km"
+                                }
+                            } else {
+                                if (isGreek) {
+                                    "Καμία ηλεκτρική δραστηριότητα κοντά σας"
+                                } else {
+                                    "No lightning strikes detected nearby"
+                                }
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = statusAccent.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, statusAccent.copy(alpha = 0.50f))
+                ) {
+                    Text(
+                        text = statusBadgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            // 3 Glass Telemetry Cells: Strike Distance, Storm ETA Countdown, & Lightning Risk / Drift Vector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΑΠΟΣΤΑΣΗ" else "DISTANCE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isStormDetected) {
+                                String.format(Locale.US, "%.1f km", strikeDistanceKm)
+                            } else {
+                                "> 120 km"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            modifier = Modifier.testTag("lightning_distance_value")
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1.1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΕΚΤΙΜΩΜΕΝΗ ΑΦΙΞΗ" else "STORM ETA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = etaCountdownText,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = statusAccent,
+                            maxLines = 1,
+                            modifier = Modifier.testTag("storm_eta_value")
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1.1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΚΙΝΔΥΝΟΣ / ΤΡΟΧΙΑ" else "RISK & DRIFT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "$lightningRiskPct% • ${bundle.current.windCardinal}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanGlow,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isGreek) {
+                        "Ταχύτητα μετώπου: $approachVectorLabel"
+                    } else {
+                        "Cell drift vector: $approachVectorLabel"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.72f)
+                )
+                Text(
+                    text = if (isGreek) "Άνοιγμα Ραντάρ →" else "Open Live Radar →",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = CyanGlow
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClothingOutdoorActivityAdvisorCard(
+    bundle: CityWeatherBundle,
+    units: WeatherUnits,
+    language: AppLanguage,
+    modifier: Modifier = Modifier
+) {
+    val isGreek = language == AppLanguage.GREEK
+    val feelsC = bundle.current.feelsLikeC
+    val windKmh = bundle.current.windSpeedKmh
+    val uv = bundle.current.uvIndex
+    val aqi = bundle.airQuality.europeanAqi
+
+    // Evaluate rain probability over the next 6 hours
+    val next6hPeakRainProb = remember(bundle.hourly) {
+        bundle.hourly.take(6).maxOfOrNull { it.precipProbability } ?: 0
+    }
+    val isCurrentlyRaining = bundle.current.weatherCode in setOf(51, 53, 55, 61, 63, 65, 67, 80, 81, 82, 95, 96, 99) ||
+        bundle.current.precipitationMm >= 0.4
+
+    // 1. Outfit Recommendation
+    val outfitTitle = when {
+        feelsC <= 3.0 -> if (isGreek) "Βαρύ Χειμερινό Μπουφάν & Γάντια" else "Heavy Winter Coat & Thermal Layers"
+        feelsC <= 11.0 -> if (isGreek) "Ζεστό Μπουφάν ή Παλτό" else "Warm Jacket or Insulated Coat"
+        feelsC <= 17.5 -> if (isGreek) "Ελαφρύ Μπουφάν ή Φούτερ" else "Light Jacket or Hoodie"
+        feelsC <= 24.5 -> if (isGreek) "Άνετο T-Shirt / Ελαφρύ Πουκάμισο" else "Breathable T-Shirt & Light Layers"
+        else -> if (isGreek) "Καλοκαιρινά Δροσερά Ρούχα" else "Light Summer Breathable Clothing"
+    }
+
+    // 2. Umbrella / Rain Gear Badge
+    val umbrellaAdvice = when {
+        isCurrentlyRaining || next6hPeakRainProb >= 65 -> if (isGreek) "Απαραίτητη Ομπρέλα ($next6hPeakRainProb%)" else "Bring Umbrella ($next6hPeakRainProb%)"
+        next6hPeakRainProb >= 35 -> if (isGreek) "Πιθανή Ψιχάλα • Αδιάβροχο" else "Light Rain Chance • Pack Shell"
+        else -> if (isGreek) "Δεν Χρειάζεται Ομπρέλα" else "No Umbrella Needed"
+    }
+
+    // 3. UV & Wind Protection Badge
+    val uvProtectionAdvice = when {
+        uv >= 6.0 -> if (isGreek) "Γυαλιά Ηλίου & Αντηλιακό SPF 50" else "Sunglasses & SPF 50 Sunscreen"
+        uv >= 3.0 -> if (isGreek) "Γυαλιά Ηλίου & SPF 30" else "UV Sunglasses & SPF 30"
+        windKmh >= 32.0 -> if (isGreek) "Αντιανεμικό (${units.formatWind(windKmh)})" else "Windbreaker (${units.formatWind(windKmh)})"
+        else -> if (isGreek) "Χαμηλό UV • Άνετες Συνθήκες" else "Low UV • Comfortable Outdoors"
+    }
+
+    // 4. Find Best Outdoor Running / Walking Hour in the next 12 hours
+    val bestOutdoorHour = remember(bundle.hourly) {
+        bundle.hourly.take(12).minByOrNull { h ->
+            val tempPenalty = kotlin.math.abs(h.feelsLikeC - 18.5) * 2.2
+            val rainPenalty = h.precipProbability * 1.4
+            val windPenalty = (h.windSpeedKmh - 18.0).coerceAtLeast(0.0) * 1.1
+            tempPenalty + rainPenalty + windPenalty
+        }
+    }
+
+    val bestActivityWindowText = remember(bestOutdoorHour, units, isGreek) {
+        if (bestOutdoorHour != null) {
+            val hLabel = if (bestOutdoorHour.displayHour == "Now" && isGreek) "Τώρα" else bestOutdoorHour.displayHour
+            "$hLabel (${units.formatTemp(bestOutdoorHour.tempC)})"
+        } else {
+            if (isGreek) "Τώρα" else "Now"
+        }
+    }
+
+    val outdoorScorePct = remember(feelsC, next6hPeakRainProb, windKmh, aqi) {
+        val tempScore = (100.0 - kotlin.math.abs(feelsC - 19.0) * 2.8).coerceIn(25.0, 100.0)
+        val rainFactor = (1.0 - (next6hPeakRainProb / 145.0)).coerceIn(0.25, 1.0)
+        val windFactor = (1.0 - ((windKmh - 22.0).coerceAtLeast(0.0) / 85.0)).coerceIn(0.45, 1.0)
+        val aqiFactor = (1.0 - ((aqi - 40).coerceAtLeast(0) / 220.0)).coerceIn(0.50, 1.0)
+        (tempScore * rainFactor * windFactor * aqiFactor).roundToInt().coerceIn(18, 99)
+    }
+
+    Card(
+        modifier = modifier.testTag("clothing_outdoor_advisor_card"),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0E2138).copy(alpha = 0.50f)
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    EmeraldBreeze.copy(alpha = 0.45f),
+                    Color.White.copy(alpha = 0.25f),
+                    AmberSol.copy(alpha = 0.40f)
+                )
+            )
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = EmeraldBreeze.copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.48f)),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = WeatherIcons.WbSunny,
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(23.dp)
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isGreek) {
+                                "ΣΥΜΒΟΥΛΟΣ ΕΝΔΥΣΗΣ & ΕΞΩΤΕΡΙΚΩΝ ΔΡΑΣΤΗΡΙΟΤΗΤΩΝ"
+                            } else {
+                                "CLOTHING & OUTDOOR ACTIVITY ADVISOR"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldBreeze,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = outfitTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = EmeraldBreeze.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.45f))
+                ) {
+                    Text(
+                        text = if (isGreek) "Άνεση $outdoorScorePct%" else "Comfort $outdoorScorePct%",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            // 3 Quick Glass Advisor Badges: Umbrella, UV/Wind Gear, Best Walk/Run Hour
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΟΜΠΡΕΛΑ" else "UMBRELLA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = umbrellaAdvice,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCurrentlyRaining || next6hPeakRainProb >= 55) CyanGlow else Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΠΡΟΣΤΑΣΙΑ" else "UV & WIND",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = uvProtectionAdvice,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberSol,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isGreek) "ΙΔΑΝΙΚΗ ΩΡΑ ΕΞΩ" else "BEST OUTDOOR HR",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.65f),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = bestActivityWindowText,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = EmeraldBreeze,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("best_outdoor_hour_value")
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
