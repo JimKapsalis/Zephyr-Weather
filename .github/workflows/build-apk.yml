@@ -17,49 +17,53 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Prebuilt ZephyrWeather.1.apk
+      - name: Verify Prebuilt ZephyrWeather.1.2.apk
         run: |
-          if [ -f "ZephyrWeather.1.apk" ]; then
-            ls -lh ZephyrWeather.1.apk
+          if [ -f "ZephyrWeather.1.2.apk" ]; then
+            ls -lh ZephyrWeather.1.2.apk
+          elif [ -f "ZephyrWeather.1.apk" ]; then
+            cp ZephyrWeather.1.apk ZephyrWeather.1.2.apk
+            ls -lh ZephyrWeather.1.2.apk
           elif [ -f "ZephyrWeather.apk" ]; then
-            cp ZephyrWeather.apk ZephyrWeather.1.apk
-            ls -lh ZephyrWeather.1.apk
+            cp ZephyrWeather.apk ZephyrWeather.1.2.apk
+            ls -lh ZephyrWeather.1.2.apk
           fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZephyrWeather-1-APK
-          path: ZephyrWeather.1.apk
+          name: ZephyrWeather-1-2-APK
+          path: ZephyrWeather.1.2.apk
 
-      - name: Clean Old ZephyrWeather.apk & Publish New ZephyrWeather.1.apk to GitHub Releases
+      - name: Clean Old APKs & Publish New ZephyrWeather.1.2.apk (v1.2) to GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cat << 'EOF' > release_notes.md
-          ## 🌤️ Zephyr Weather v3.0.0 (Build 30) — Official Release
+          ## 🌤️ Zephyr Weather v1.2 (Build 12) — Official Release
 
-          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.2.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
 
-          [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.apk_(v3.0.0)-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.2.apk_(v1.2)-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
 
           ---
 
-          ### 🚀 [What's New in v3.0.0 — Full Changelog (Tap to Download `ZephyrWeather.1.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
-          - **[Live Lightning Strike Distance & Storm ETA](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time distance (`km`) to the nearest thunderstorm or rain cell, arrival countdown (`ETA`), lightning risk %, and storm drift vector.
-          - **[Bottom Clothing & Outdoor Activity Advisor](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Located at the bottom of the Forecast tab — recommends ideal clothing layers, umbrella need, UV/wind gear, and the best upcoming hour for outdoor walking or running.
-          - **[Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `1×` / `−` buttons, continuous zoom slider, 4 satellite tile detail levels (`16x` Streets to `9x` Region), and live Marshall-Palmer dBZ reflectivity telemetry.
-          - **[Night Sky Visible Star Count (`0` – `3,500` Stars)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Real-time naked-eye visible star counter, sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and best stargazing window.
-          - **[Transparent Liquid-Glass UI & Smart Anti-Spam Alerts](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)**: Translucent liquid-glass cards scrolling behind the transparent glass navigation bar (hidden during Location Setup) plus strict 6-hour anti-spam cooldown so alerts only fire for critical weather.
+          ### 🚀 [What's New in v1.2 — Full Changelog (Tap to Download `ZephyrWeather.1.2.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
+          - **[Live Lightning Strike Distance & Storm ETA](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Real-time distance (`km`) to the nearest thunderstorm or rain cell, arrival countdown (`ETA`), lightning risk %, and storm drift vector.
+          - **[Bottom Clothing & Outdoor Activity Advisor](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Located at the bottom of the Forecast tab — recommends ideal clothing layers, umbrella need, UV/wind gear, and the best upcoming hour for outdoor walking or running.
+          - **[Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `1×` / `−` buttons, continuous zoom slider, 4 satellite tile detail levels (`16x` Streets to `9x` Region), and live Marshall-Palmer dBZ reflectivity telemetry.
+          - **[Night Sky Visible Star Count (`0` – `3,500` Stars)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Real-time naked-eye visible star counter, sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and best stargazing window.
+          - **[Transparent Liquid-Glass UI & Smart Anti-Spam Alerts](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Translucent liquid-glass cards scrolling behind the transparent glass navigation bar (hidden during Location Setup) plus strict 6-hour anti-spam cooldown so alerts only fire for critical weather.
 
-          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.apk` (v3.0.0)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.apk)
+          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.2.apk` (v1.2)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
           EOF
 
-          # If existing 'zephyrweather' release exists, remove old ZephyrWeather.apk (keep ZephyrWeather.1.apk) and update notes
+          # If existing 'zephyrweather' release exists, remove older APK files and upload ZephyrWeather.1.2.apk
           if gh release view zephyrweather >/dev/null 2>&1; then
             gh release delete-asset zephyrweather ZephyrWeather.apk --yes || true
-            gh release upload zephyrweather ZephyrWeather.1.apk --clobber
-            gh release edit zephyrweather --title "Zephyr Weather v3.0.0 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
+            gh release delete-asset zephyrweather ZephyrWeather.1.apk --yes || true
+            gh release upload zephyrweather ZephyrWeather.1.2.apk --clobber
+            gh release edit zephyrweather --title "Zephyr Weather v1.2 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
           else
-            gh release create zephyrweather ZephyrWeather.1.apk --title "Zephyr Weather v3.0.0 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
+            gh release create zephyrweather ZephyrWeather.1.2.apk --title "Zephyr Weather v1.2 — Lightning Distance, Clothing Advisor, Radar Zoom & Liquid Glass" --notes-file release_notes.md --latest
           fi

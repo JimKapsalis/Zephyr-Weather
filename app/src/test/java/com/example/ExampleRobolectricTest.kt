@@ -388,7 +388,7 @@ class ExampleRobolectricTest {
                 repo: String,
                 accept: String,
                 userAgent: String
-            ) = com.example.network.GitHubReleaseResponse(tagName = "v2.7.0")
+            ) = com.example.network.GitHubReleaseResponse(tagName = "v1.2")
         }
         val repo = WeatherRepository(
             cityDao = WeatherDatabase.getInstance(context).cityDao(),
@@ -539,7 +539,7 @@ class ExampleRobolectricTest {
                 repo: String,
                 accept: String,
                 userAgent: String
-            ) = com.example.network.GitHubReleaseResponse(tagName = "v2.7.0")
+            ) = com.example.network.GitHubReleaseResponse(tagName = "v1.2")
         }
         val repo = WeatherRepository(
             cityDao = WeatherDatabase.getInstance(context).cityDao(),
@@ -655,6 +655,14 @@ class ExampleRobolectricTest {
 
     @Test
     fun `export debug apk and offline html installer to project root for zip download`() {
+        assertEquals("v1.2", com.example.ui.WeatherViewModel.CURRENT_APP_VERSION_TAG)
+        assertEquals("v1.2", com.example.ui.WeatherViewModel.extractSemanticVersionToken("ZephyrWeather.1.2.apk"))
+        assertEquals("v1.3", com.example.ui.WeatherViewModel.extractSemanticVersionToken("Zephyr Weather v1.3 — Official Release"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.3", "v1.2"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.3.apk", "v1.2"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.2", "v1.2"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.apk", "v1.2"))
+
         val candidates = listOf(
             java.io.File("/app/applet/app/build/outputs/apk/debug/app-debug.apk"),
             java.io.File("/app/applet/.build-outputs/app-debug.apk"),
@@ -666,7 +674,8 @@ class ExampleRobolectricTest {
             val apkBytes = sourceApk.readBytes()
             val rootDir = java.io.File("/app/applet").takeIf { it.exists() } ?: java.io.File("..").canonicalFile
             java.io.File(rootDir, "ZephyrWeather.apk").delete()
-            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.apk")
+            java.io.File(rootDir, "ZephyrWeather.1.apk").delete()
+            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.2.apk")
             rootApk.writeBytes(apkBytes)
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
         }

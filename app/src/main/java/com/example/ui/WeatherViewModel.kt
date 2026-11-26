@@ -107,11 +107,11 @@ data class WeatherUiState(
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v3.0.0 (Build 30)",
+    val appVersionLabel: String = "v1.2 (Build 12)",
     val lastUpdateCheckStatus: String? = null,
     val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
-    val latestReleaseTag: String = "v3.0.0",
-    val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.1.apk",
+    val latestReleaseTag: String = "v1.2",
+    val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.1.2.apk",
     val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
     val latestReleaseNotes: String? = null,
     val isNewGitHubReleaseAvailable: Boolean = false
@@ -921,7 +921,7 @@ class WeatherViewModel(
         _uiState.update {
             it.copy(
                 githubRepoSlug = cleaned,
-                latestReleaseDownloadUrl = "https://github.com/$cleaned/releases/latest/download/ZephyrWeather.1.apk",
+                latestReleaseDownloadUrl = "https://github.com/$cleaned/releases/latest/download/ZephyrWeather.1.2.apk",
                 latestReleasePageUrl = "https://github.com/$cleaned/releases/latest"
             )
         }
@@ -931,7 +931,7 @@ class WeatherViewModel(
         val state = _uiState.value
         val targetUrl = if (directApk) {
             state.latestReleaseDownloadUrl.ifBlank {
-                "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.apk"
+                "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.2.apk"
             }
         } else {
             state.latestReleasePageUrl.ifBlank {
@@ -946,9 +946,9 @@ class WeatherViewModel(
         }
         val lang = state.language
         val msg = if (lang == AppLanguage.GREEK) {
-            if (directApk) "Λήψη ZephyrWeather.1.apk από το GitHub Releases…" else "Άνοιγμα σελίδας GitHub Releases…"
+            if (directApk) "Λήψη ZephyrWeather.1.2.apk από το GitHub Releases…" else "Άνοιγμα σελίδας GitHub Releases…"
         } else {
-            if (directApk) "Downloading ZephyrWeather.1.apk from GitHub Releases…" else "Opening GitHub Releases page…"
+            if (directApk) "Downloading ZephyrWeather.1.2.apk from GitHub Releases…" else "Opening GitHub Releases page…"
         }
         _uiState.update { it.copy(statusBanner = msg) }
     }
@@ -980,8 +980,8 @@ class WeatherViewModel(
                 val appCtx = context.applicationContext ?: context
                 // 1. Check GitHub Releases API for latest tag and APK asset
                 val slugParts = repoSlug.split("/").filter { it.isNotBlank() }
-                val owner = slugParts.getOrNull(0) ?: "zephyr-weather"
-                val repo = slugParts.getOrNull(1) ?: "zephyr-weather"
+                val owner = slugParts.getOrNull(0) ?: "JimKapsalis"
+                val repo = slugParts.getOrNull(1) ?: "Zephyr-Weather"
 
                 val release = withTimeoutOrNull(5_500L) {
                     withContext(Dispatchers.IO) {
@@ -991,15 +991,27 @@ class WeatherViewModel(
                         )
                     }
                 }
-                if (release != null && release.tagName.isNotBlank()) {
-                    remoteTag = release.tagName.trim()
+                if (release != null && (release.tagName.isNotBlank() || !release.name.isNullOrBlank())) {
                     val apkAsset = release.assets?.firstOrNull {
-                        it.name.equals("ZephyrWeather.1.apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
+                        it.name.equals("ZephyrWeather.1.2.apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
                     } ?: release.assets?.firstOrNull {
                         it.name.endsWith(".apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
                     }
+
+                    val extractedVersionCandidate = listOfNotNull(
+                        release.name,
+                        apkAsset?.name,
+                        release.tagName,
+                        release.body?.lineSequence()?.firstOrNull()
+                    ).firstNotNullOfOrNull { text ->
+                        extractSemanticVersionToken(text)
+                    }
+
+                    remoteTag = extractedVersionCandidate
+                        ?: release.tagName.trim().ifBlank { CURRENT_APP_VERSION_TAG }
+
                     remoteDownloadUrl = apkAsset?.browserDownloadUrl
-                        ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.apk"
+                        ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.2.apk"
                     remotePageUrl = release.htmlUrl?.takeIf { it.isNotBlank() }
                         ?: "https://github.com/$owner/$repo/releases/latest"
                     remoteNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
@@ -1046,7 +1058,7 @@ class WeatherViewModel(
                     statusBanner = doneStatus,
                     latestReleaseTag = resolvedTag,
                     latestReleaseDownloadUrl = remoteDownloadUrl
-                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.apk",
+                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.2.apk",
                     latestReleasePageUrl = remotePageUrl
                         ?: "https://github.com/${state.githubRepoSlug}/releases/latest",
                     latestReleaseNotes = remoteNotes,
@@ -1741,14 +1753,24 @@ class WeatherViewModel(
 
     companion object {
         const val FEEDBACK_RECIPIENT_EMAIL = ""
-        const val CURRENT_APP_VERSION_TAG = "v3.0.0"
+        const val CURRENT_APP_VERSION_TAG = "v1.2"
+
+        fun extractSemanticVersionToken(raw: String): String? {
+            // Matches version numbers like "v1.2", "1.2", "1.2.1", or "ZephyrWeather.1.2.apk"
+            val regex = Regex("""(?:v|V|ZephyrWeather\.)?(\d+\.\d+(?:\.\d+)?)(?:\.apk|\b)""")
+            val match = regex.find(raw) ?: return null
+            val digits = match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return null
+            return "v$digits"
+        }
 
         fun isRemoteVersionNewer(remoteTag: String, currentTag: String): Boolean {
-            val remoteParts = remoteTag.trim().removePrefix("v").removePrefix("V")
+            val normalizedRemote = extractSemanticVersionToken(remoteTag) ?: remoteTag
+            val normalizedCurrent = extractSemanticVersionToken(currentTag) ?: currentTag
+            val remoteParts = normalizedRemote.trim().removePrefix("v").removePrefix("V")
                 .substringBefore("-")
                 .split(".")
                 .map { it.toIntOrNull() ?: 0 }
-            val currentParts = currentTag.trim().removePrefix("v").removePrefix("V")
+            val currentParts = normalizedCurrent.trim().removePrefix("v").removePrefix("V")
                 .substringBefore("-")
                 .split(".")
                 .map { it.toIntOrNull() ?: 0 }
