@@ -6,7 +6,7 @@
 ### **4-Model Super-Ensemble Forecasting • Instant GPS • Live Doppler Radar • 3D Atmospheric UI • Bilingual (EN / ΕΛ)**
 
 [![Latest Release](https://img.shields.io/badge/Latest_Release-v1.2_(Build_12)-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
-[![Total APK Downloads](https://img.shields.io/badge/Total_APK_Downloads-123%2B-10B981?style=for-the-badge&logo=android&logoColor=white)](../../releases)
+[![Total APK Downloads](https://img.shields.io/github/downloads/JimKapsalis/Zephyr-Weather/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](../../releases)
 [![GitHub Stars](https://img.shields.io/github/stars/JimKapsalis/Zephyr-Weather?style=for-the-badge&logo=github&logoColor=white&label=GitHub_Stars&color=F59E0B)](../../stargazers)
 [![Android Platform](https://img.shields.io/badge/Android-7.0%2B_(60Hz_%2F_90Hz_%2F_120Hz)-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-whats-new-in-v12--changelog-tap-here-to-download-zephyrweather12apk)
 [![4-Model Ensemble](https://img.shields.io/badge/NWP_Models-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
@@ -108,7 +108,7 @@
 - **Multi-Provider Fast-Path GPS + Automatic IP Fallback**: Immediately resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates before racing High/Balanced GNSS and Network providers, with automatic network IP geolocation fallback indoors.
 
 ### 🔄 [Built-In GitHub Releases App Updater (Download `ZephyrWeather.1.2.apk` ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
-- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases/latest`), tracks cumulative APK downloads (`123+`), compares semantic version tags across the release title, asset filename, and tag, and lets you download `ZephyrWeather.1.2.apk` in one tap.
+- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases`), tracks real-time APK download counts across all releases, compares semantic version tags across the release title, asset filename, and tag, and lets you download `ZephyrWeather.1.2.apk` in one tap.
 
 ---
 

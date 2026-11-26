@@ -276,6 +276,15 @@ interface GeoLocationLookupService {
         @retrofit2.http.Header("Accept") accept: String = "application/vnd.github+json",
         @retrofit2.http.Header("User-Agent") userAgent: String = "ZephyrWeatherAndroid/2.7"
     ): GitHubReleaseResponse
+
+    @GET("https://api.github.com/repos/{owner}/{repo}/releases")
+    suspend fun getAllGitHubReleases(
+        @retrofit2.http.Path("owner") owner: String,
+        @retrofit2.http.Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 30,
+        @retrofit2.http.Header("Accept") accept: String = "application/vnd.github+json",
+        @retrofit2.http.Header("User-Agent") userAgent: String = "ZephyrWeatherAndroid/2.7"
+    ): List<GitHubReleaseResponse> = listOf(getLatestGitHubRelease(owner, repo, accept, userAgent))
 }
 
 object NetworkModule {

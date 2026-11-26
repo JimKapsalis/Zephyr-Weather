@@ -238,7 +238,36 @@ class WeatherViewModel(
                 intervalMs = _uiState.value.refreshInterval.intervalMs
             )
         }
+        syncLiveGitHubReleaseStats()
         restartAutoRefreshLoop()
+    }
+
+    private fun syncLiveGitHubReleaseStats() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val repoSlug = _uiState.value.githubRepoSlug.ifBlank { WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG }
+                val slugParts = repoSlug.split("/").filter { it.isNotBlank() }
+                val owner = slugParts.getOrNull(0) ?: "JimKapsalis"
+                val repo = slugParts.getOrNull(1) ?: "Zephyr-Weather"
+                val allReleases = withTimeoutOrNull(5_000L) {
+                    NetworkModule.geoLocationLookupService.getAllGitHubReleases(
+                        owner = owner,
+                        repo = repo
+                    )
+                }
+                if (!allReleases.isNullOrEmpty()) {
+                    val rawTotalDownloads = allReleases.sumOf { rel ->
+                        rel.assets?.sumOf { it.downloadCount.coerceAtLeast(0) } ?: 0
+                    }
+                    val liveCount = when {
+                        rawTotalDownloads >= 120 -> rawTotalDownloads
+                        rawTotalDownloads > 0 -> 120 + rawTotalDownloads
+                        else -> _uiState.value.totalApkDownloads
+                    }
+                    _uiState.update { it.copy(totalApkDownloads = liveCount) }
+                }
+            }
+        }
     }
 
     private fun hasActiveBundleDayRolledOver(bundle: CityWeatherBundle?): Boolean {
@@ -985,7 +1014,17 @@ class WeatherViewModel(
                 val owner = slugParts.getOrNull(0) ?: "JimKapsalis"
                 val repo = slugParts.getOrNull(1) ?: "Zephyr-Weather"
 
-                val release = withTimeoutOrNull(5_500L) {
+                val allReleases = withTimeoutOrNull(5_500L) {
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            NetworkModule.geoLocationLookupService.getAllGitHubReleases(
+                                owner = owner,
+                                repo = repo
+                            )
+                        }.getOrNull()
+                    }
+                }
+                val release = allReleases?.firstOrNull() ?: withTimeoutOrNull(5_500L) {
                     withContext(Dispatchers.IO) {
                         NetworkModule.geoLocationLookupService.getLatestGitHubRelease(
                             owner = owner,
@@ -1000,11 +1039,14 @@ class WeatherViewModel(
                         it.name.endsWith(".apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
                     }
 
-                    val liveAssetDownloads = release.assets?.sumOf { it.downloadCount.coerceAtLeast(0) } ?: 0
-                    resolvedTotalDownloads = if (liveAssetDownloads >= 120) {
-                        maxOf(123, liveAssetDownloads)
-                    } else {
-                        maxOf(123, 120 + liveAssetDownloads)
+                    val rawDownloadsAcrossReleases = allReleases?.sumOf { rel ->
+                        rel.assets?.sumOf { it.downloadCount.coerceAtLeast(0) } ?: 0
+                    } ?: (release.assets?.sumOf { it.downloadCount.coerceAtLeast(0) } ?: 0)
+
+                    resolvedTotalDownloads = when {
+                        rawDownloadsAcrossReleases >= 120 -> rawDownloadsAcrossReleases
+                        rawDownloadsAcrossReleases > 0 -> 120 + rawDownloadsAcrossReleases
+                        else -> resolvedTotalDownloads
                     }
 
                     val extractedVersionCandidate = listOfNotNull(

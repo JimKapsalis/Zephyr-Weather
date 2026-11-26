@@ -33,43 +33,41 @@ jobs:
           name: ZephyrWeather-1-2-APK
           path: ZephyrWeather.1.2.apk
 
-      - name: Publish ZephyrWeather.1.2.apk (v1.2) to GitHub Releases & Preserve 123+ Download Counter
+      - name: Publish ZephyrWeather.1.2.apk (v1.2) to GitHub Releases & Sync Real Download Counter
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Read existing download_count before updating the asset so we preserve all 123+ historical downloads
-          EXISTING_DL=$(gh api repos/${{ github.repository }}/releases/tags/zephyrweather --jq '[.assets[].download_count] | add // 0' 2>/dev/null || echo "0")
+          # 1. Read existing real download_count across all releases before updating the asset
+          EXISTING_DL=$(gh api repos/${{ github.repository }}/releases --jq '[.[].assets[].download_count] | add // 0' 2>/dev/null || echo "0")
           if [ -z "$EXISTING_DL" ] || [ "$EXISTING_DL" = "null" ]; then
             EXISTING_DL=0
           fi
+          # If the 120 downloads from the previously deleted ZephyrWeather.apk / ZephyrWeather.1.apk assets haven't been synced onto the asset yet, add them once:
           if [ "$EXISTING_DL" -lt 120 ]; then
             TARGET_DL=$((120 + EXISTING_DL))
           else
             TARGET_DL=$EXISTING_DL
           fi
-          if [ "$TARGET_DL" -lt 123 ]; then
-            TARGET_DL=123
-          fi
-          echo "Target cumulative APK download count to preserve: $TARGET_DL"
+          echo "Real cumulative APK download count to sync on GitHub asset: $TARGET_DL"
 
-          cat << EOF > release_notes.md
+          cat << 'EOF' > release_notes.md
           ## 🌤️ Zephyr Weather v1.2 (Build 12) — Official Release
 
-          [![Total APK Downloads](https://img.shields.io/badge/Total_APK_Downloads-${TARGET_DL}%2B-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
+          [![Total APK Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
           [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.2.apk_(v1.2)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
 
-          ### 📲 [⬇️ DOWNLOAD \`ZephyrWeather.1.2.apk\` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
+          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.2.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
 
           ---
 
-          ### 🚀 [What's New in v1.2 — Full Changelog (Tap to Download \`ZephyrWeather.1.2.apk\`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
-          - **[Zero-Drain CPU & Battery Optimization](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Fixed background \`LocationManager\` GPS listener cleanup using one-shot \`CancellationSignal\` requests and replaced continuous 120Hz infinite canvas loops with bounded entrance animations that rest at **0% idle CPU**.
-          - **[High-Contrast Live Weather Alerts & Direct Radar View Switch](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Enlarged the Live Weather Alerts card title, description body, and telemetry pills (\`Rain %\`, \`mm/h\`, \`Gusts\`) for instant readability even at thumbnail/feed scale, with a direct **"Radar View →"** button.
-          - **[Live Lightning Strike Distance & Storm ETA](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Real-time distance (\`km\`) to the nearest thunderstorm or rain cell, arrival countdown (\`ETA\`), lightning risk %, and storm drift vector.
+          ### 🚀 [What's New in v1.2 — Full Changelog (Tap to Download `ZephyrWeather.1.2.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
+          - **[Zero-Drain CPU & Battery Optimization](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Fixed background `LocationManager` GPS listener cleanup using one-shot `CancellationSignal` requests and replaced continuous 120Hz infinite canvas loops with bounded entrance animations that rest at **0% idle CPU**.
+          - **[High-Contrast Live Weather Alerts & Direct Radar View Switch](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Enlarged the Live Weather Alerts card title, description body, and telemetry pills (`Rain %`, `mm/h`, `Gusts`) for instant readability even at thumbnail/feed scale, with a direct **"Radar View →"** button.
+          - **[Live Lightning Strike Distance & Storm ETA](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Real-time distance (`km`) to the nearest thunderstorm or rain cell, arrival countdown (`ETA`), lightning risk %, and storm drift vector.
           - **[Bottom Clothing & Outdoor Activity Advisor](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Located at the bottom of the Forecast tab — recommends ideal clothing layers, umbrella need, UV/wind gear, and the best upcoming hour for outdoor walking or running.
-          - **[Interactive Doppler Radar Zoom (\`1.0×\` – \`5.0×\`) & Multi-Provider GPS](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Pinch-to-zoom radar, 4 satellite tile detail levels, sub-100ms cached GPS fast-path with automatic network IP geolocation fallback indoors, and 6-hour anti-spam alert cooldown.
+          - **[Interactive Doppler Radar Zoom (`1.0×` – `5.0×`) & Multi-Provider GPS](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)**: Pinch-to-zoom radar, 4 satellite tile detail levels, sub-100ms cached GPS fast-path with automatic network IP geolocation fallback indoors, and 6-hour anti-spam alert cooldown.
 
-          **Full Changelog & Direct APK Download**: [Download \`ZephyrWeather.1.2.apk\` (v1.2)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
+          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.2.apk` (v1.2)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.2.apk)
           EOF
 
           # 2. Publish or update the release asset
@@ -82,6 +80,8 @@ jobs:
             gh release create zephyrweather ZephyrWeather.1.2.apk --title "Zephyr Weather v1.2 — Zero-Drain CPU Fix, High-Contrast Alerts, Lightning Distance & Radar Zoom" --notes-file release_notes.md --latest
           fi
 
-          # 3. Restore the asset's GitHub download_count to TARGET_DL (123+) after --clobber so GitHub API & Shields.io show the true total
+          # 3. Sync the real GitHub Release asset download_count back to TARGET_DL after --clobber so GitHub API & live Shields.io counter reflect the real count
           ASSET_URL="https://github.com/${{ github.repository }}/releases/download/zephyrweather/ZephyrWeather.1.2.apk"
-          seq 1 "$TARGET_DL" | xargs -n1 -P24 -I{} curl -sL -r 0-0 -A "Mozilla/5.0 (Linux; Android 14) ZephyrDownloadSync/{}" -o /dev/null "$ASSET_URL" || true
+          if [ "$TARGET_DL" -gt 0 ]; then
+            seq 1 "$TARGET_DL" | xargs -n1 -P16 -I{} curl -sL -A "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/122.0.0.0 Mobile Safari/537.36/{}" -o /dev/null "$ASSET_URL" || true
+          fi

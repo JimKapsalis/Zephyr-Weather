@@ -1104,9 +1104,9 @@ fun SettingsTabScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (language == AppLanguage.GREEK) {
-                                    "GitHub Release: $latestReleaseTag • ${totalApkDownloads.coerceAtLeast(123)} Συνολικές Λήψεις APK"
+                                    "GitHub Release: $latestReleaseTag • $totalApkDownloads Συνολικές Λήψεις APK"
                                 } else {
-                                    "GitHub Release: $latestReleaseTag • ${totalApkDownloads.coerceAtLeast(123)} Total APK Downloads"
+                                    "GitHub Release: $latestReleaseTag • $totalApkDownloads Total APK Downloads"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = CyanGlow
