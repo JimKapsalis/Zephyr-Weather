@@ -680,6 +680,14 @@ class ExampleRobolectricTest {
             val rootApk = java.io.File(rootDir, "ZephyrWeather.1.2.apk")
             rootApk.writeBytes(apkBytes)
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
+
+            val assetsDir = java.io.File(rootDir, "public/assets")
+            assetsDir.mkdirs()
+            java.io.File(assetsDir, "ZephyrWeather.apk").delete()
+            java.io.File(assetsDir, "ZephyrWeather.1.apk").delete()
+            val assetsApk = java.io.File(assetsDir, "ZephyrWeather.1.2.apk")
+            assetsApk.writeBytes(apkBytes)
+            assertTrue(assetsApk.exists() && assetsApk.length() > 100_000L)
         }
     }
 }

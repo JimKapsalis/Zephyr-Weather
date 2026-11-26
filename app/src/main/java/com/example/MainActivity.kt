@@ -829,6 +829,7 @@ fun ZephyrWeatherApp(
                                 latestReleaseTag = state.latestReleaseTag,
                                 latestReleaseNotes = state.latestReleaseNotes,
                                 isNewGitHubReleaseAvailable = state.isNewGitHubReleaseAvailable,
+                                totalApkDownloads = state.totalApkDownloads,
                                 onUpdateGitHubRepoSlug = { viewModel.updateGitHubRepoSlug(it) },
                                 onOpenGitHubReleaseDownload = { directApk ->
                                     viewModel.openGitHubReleaseDownload(context, directApk)

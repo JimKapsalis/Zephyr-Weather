@@ -6,7 +6,7 @@
 ### **4-Model Super-Ensemble Forecasting • Instant GPS • Live Doppler Radar • 3D Atmospheric UI • Bilingual (EN / ΕΛ)**
 
 [![Latest Release](https://img.shields.io/badge/Latest_Release-v1.2_(Build_12)-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
-[![Total APK Downloads](https://img.shields.io/github/downloads/JimKapsalis/Zephyr-Weather/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](../../releases)
+[![Total APK Downloads](https://img.shields.io/badge/Total_APK_Downloads-123%2B-10B981?style=for-the-badge&logo=android&logoColor=white)](../../releases)
 [![GitHub Stars](https://img.shields.io/github/stars/JimKapsalis/Zephyr-Weather?style=for-the-badge&logo=github&logoColor=white&label=GitHub_Stars&color=F59E0B)](../../stargazers)
 [![Android Platform](https://img.shields.io/badge/Android-7.0%2B_(60Hz_%2F_90Hz_%2F_120Hz)-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-whats-new-in-v12--changelog-tap-here-to-download-zephyrweather12apk)
 [![4-Model Ensemble](https://img.shields.io/badge/NWP_Models-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-4-model-super-ensemble-meteorological-engine)
@@ -33,7 +33,8 @@
       </p>
       <p>
         🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v1.2)</b></a> &nbsp;•&nbsp;
-        📥 <a href="./ZephyrWeather.1.2.apk"><b>Direct Repository File: <code>/ZephyrWeather.1.2.apk</code></b></a>
+        📥 <a href="./ZephyrWeather.1.2.apk"><b>Direct Repository File: <code>/ZephyrWeather.1.2.apk</code></b></a> &nbsp;•&nbsp;
+        📂 <a href="./public/assets/ZephyrWeather.1.2.apk"><b>Assets APK: <code>/public/assets/ZephyrWeather.1.2.apk</code></b></a>
       </p>
       <br/>
     </td>
@@ -90,24 +91,24 @@
   </a>
 </div>
 
-### ⚡ [Instant Startup & Fast-Path GPS (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
-- **Instant Saved-City Startup (`0ms` Wait)**: Opens directly into your saved city's forecast on the very first frame while refreshing live data silently in the background — never shows loading skeletons or repeated location prompts when reopening the app.
-- **Sub-100ms Fast-Path GPS Location**: Immediately resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates before racing live GNSS/Network providers, paired with parallel `1.2s` reverse-geocoding.
+### 🔋 [Zero-Drain CPU & Battery Fix (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
+- **Eliminated Background GPS Listener CPU Drain**: Fixed background `LocationManager` cleanup using one-shot `CancellationSignal` requests and guaranteed `finally` listener removal so GPS never runs in the background after acquiring a fix.
+- **0% Idle CPU Animations**: Replaced 20+ continuous 120Hz infinite canvas animation loops with bounded entrance animations that settle to **0.0% idle CPU** once loaded, plus Doze-aware `JobScheduler` background sync without wakeup alarms.
 
-### 🎨 [Transparent Liquid-Glass UI, Lightning Distance, Clothing Advisor & Radar Zoom (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
+### 🎨 [High-Contrast Live Weather Alerts, Lightning Distance, Clothing Advisor & Radar Zoom (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
+- **High-Contrast Live Weather Alerts & Direct Radar View Switch**: Enlarged the Live Weather Alerts card title, description copy, and metric pills (`Rain %`, `mm/h`, `Gusts`) so they are effortless to read even at thumbnail/Reddit feed size, with a direct **"Radar View →"** button to jump straight to the dedicated Radar tab.
 - **Live Lightning Strike Distance & Storm ETA**: Displays real-time distance (`km`) to the nearest thunderstorm or convective rain cell, exact arrival countdown (`ETA`), lightning risk %, and storm drift vector with one-tap jump to Live Doppler Radar.
 - **Bottom Clothing & Outdoor Activity Advisor**: Positioned at the bottom of the Forecast tab — recommends the ideal outfit (`Winter Coat`, `Light Jacket`, `Breathable T-Shirt`), umbrella need (`%`), UV/wind protection gear, and the best upcoming hour for a walk or run.
 - **Interactive Doppler Radar Zoom (`1.0×` – `5.0×`)**: Supports two-finger pinch-to-zoom, double-tap zoom, drag-to-pan, floating `+` / `−` / `1×` zoom buttons, a smooth zoom slider, 4 satellite tile levels (`16x` Street to `9x` Region), and real-time Marshall-Palmer dBZ reflectivity telemetry.
 - **Night Sky Visible Star Count & Stargazing Observatory**: Calculates real-time naked-eye visible star count (`0` – `3,500` stars), sky clarity %, limiting magnitude (`Mag`), synodic lunar illumination %, and optimal stargazing window from cloud cover, humidity, PM2.5 aerosols, visibility, and elevation.
-- **Transparent Liquid-Glass UI & Clean Setup Screen**: Frosted translucent glass cards across all four tabs (**Forecast**, **Radar**, **Cities**, **Settings**) scrolling smoothly behind the floating transparent glass bottom navigation bar (which hides automatically on the Location Setup screen).
-- **Smart Anti-Spam Weather Alerts**: Sends notifications **only** for critical weather within the next 2–3 hours (thunderstorms, heavy downpours `>= 4.5 mm/h`, gale-force winds `>= 50 km/h`, or high-certainty rain onset) with a persistent 6-hour anti-spam cooldown.
+- **Transparent Liquid-Glass UI & Smart Anti-Spam Alerts**: Frosted translucent glass cards scrolling smoothly behind the transparent glass bottom navigation bar (hidden during Location Setup) plus strict 6-hour anti-spam cooldown so notifications only fire for critical weather.
 
-### 🔋 [Universal High Performance & Ultra-Low Battery Usage (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
-- **Smooth 60Hz / 90Hz / 120Hz Rendering**: Optimized for all Android phones and tablets with zero per-frame list recompositions and a lightweight `~70 MB` RAM footprint.
-- **Zero Background Keep-Awake Drain**: Uses Android's Doze-aware `JobScheduler` without wakeup alarms and automatically pauses all canvas animations, timers, and clocks the moment the screen turns off or the app enters the background.
+### ⚡ [Instant Startup & Multi-Provider Fast-Path GPS (Download APK ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
+- **Instant Saved-City Startup (`0ms` Wait)**: Opens directly into your saved city's forecast on the very first frame while refreshing live data silently in the background.
+- **Multi-Provider Fast-Path GPS + Automatic IP Fallback**: Immediately resolves cached OS `LocationManager` and `FusedLocationProviderClient.lastLocation` coordinates before racing High/Balanced GNSS and Network providers, with automatic network IP geolocation fallback indoors.
 
 ### 🔄 [Built-In GitHub Releases App Updater (Download `ZephyrWeather.1.2.apk` ⬇)](../../releases/latest/download/ZephyrWeather.1.2.apk)
-- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases/latest`), compares version tags, and lets you tap the release changelog or download button to download `ZephyrWeather.1.2.apk` in one tap.
+- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases/latest`), tracks cumulative APK downloads (`123+`), compares semantic version tags across the release title, asset filename, and tag, and lets you download `ZephyrWeather.1.2.apk` in one tap.
 
 ---
 

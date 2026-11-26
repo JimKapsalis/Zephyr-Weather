@@ -231,7 +231,8 @@ data class NominatimPlaceDto(
 data class GitHubReleaseAssetDto(
     val name: String = "",
     @Json(name = "browser_download_url") val browserDownloadUrl: String = "",
-    val size: Long = 0L
+    val size: Long = 0L,
+    @Json(name = "download_count") val downloadCount: Int = 0
 )
 
 @JsonClass(generateAdapter = true)
