@@ -1057,16 +1057,16 @@ fun SettingsTabScreen(
 
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (language == AppLanguage.GREEK) {
-                "• Βροχή Επόμενων 60 Λεπτών (Nowcast Bar Chart ανά 10λ) & Καιρός Πρωινής/Βραδινής Μετακίνησης\n" +
+                "• Έξυπνη Συγχώνευση Διπλότυπων Πόλεων (π.χ. Λάρισα GPS & Αναζήτηση Λάρισας) & Ακριβής Ποσοστιαία Βροχή 10ημέρου\n" +
+                    "• Βελτιστοποίηση 60fps Ζωντανών Εφέ Βροχής/Καιρού στο Παρασκήνιο χωρίς Καθυστέρηση (Zero UI Lag)\n" +
+                    "• Βροχή Επόμενων 60 Λεπτών (Nowcast Bar Chart ανά 10λ) & Καιρός Πρωινής/Βραδινής Μετακίνησης\n" +
                     "• Δείκτης Ακρίβειας 4 Μοντέλων (%), Ανιχνευτής Αφρικανικής Σκόνης (PM10) & Βιο-Μετεωρολογική Πίεση\n" +
-                    "• Πρόγνωση Σαββατοκύριακου (Σάββατο & Κυριακή) & Άμεση Κοινοποίηση Καιρού με 1 πάτημα\n" +
-                    "• Μηδενική Κατανάλωση CPU/Μπαταρίας (0% σε αναμονή) & Ευανάγνωστες Ειδοποιήσεις με Κουμπί «Προβολή Ραντάρ →»\n" +
                     "• Ζουμ Ραντάρ (1.0× – 5.0×), Απόσταση Κεραυνών, Μετρητής Ορατών Άστρων & Σύμβουλος Ένδυσης"
             } else {
-                "• 60-Minute Hyper-Local Rain Nowcast (10-min precipitation bar graph) & Morning/Evening Commute Slots\n" +
+                "• Smart City Deduplication (GPS Auto-Detect + Search Larissa/Athens merge) & True 10-Day Rain Probability %\n" +
+                    "• Ultra-Smooth 60fps Live Background Rain & Atmospheric Sky Effects with Zero UI Scroll Lag\n" +
+                    "• 60-Minute Hyper-Local Rain Nowcast (10-min precipitation bar graph) & Morning/Evening Commute Slots\n" +
                     "• 4-Model Ensemble Forecast Confidence %, Sahara Dust (PM10) Car-Wash Advisor & Barometric Bio-Weather\n" +
-                    "• Weekend Weather Planner (Saturday & Sunday outlook) & One-Tap Shareable Forecast Snapshot\n" +
-                    "• Zero-Drain CPU & Battery Optimization (0% idle CPU) & High-Contrast Live Alerts with 'Radar View →' switch\n" +
                     "• Interactive Doppler Radar Zoom (1.0× – 5.0×), Lightning Distance, Visible Star Count & Clothing Advisor"
             }
 

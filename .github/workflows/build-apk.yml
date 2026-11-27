@@ -17,27 +17,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Prebuilt ZephyrWeather.1.3.apk
+      - name: Verify Prebuilt ZephyrWeather.1.3.1.apk & Remove Legacy 1.2 / 1.3 APKs
         run: |
-          if [ -f "ZephyrWeather.1.3.apk" ]; then
-            cp -f ZephyrWeather.1.3.apk public/assets/ZephyrWeather.1.3.apk || true
-            ls -lh ZephyrWeather.1.3.apk
-          elif [ -f "public/assets/ZephyrWeather.1.3.apk" ]; then
-            cp -f public/assets/ZephyrWeather.1.3.apk ZephyrWeather.1.3.apk
-            ls -lh ZephyrWeather.1.3.apk
+          rm -f ZephyrWeather.apk ZephyrWeather.1.apk ZephyrWeather.1.2.apk ZephyrWeather.1.3.apk || true
+          rm -f public/assets/ZephyrWeather.apk public/assets/ZephyrWeather.1.apk public/assets/ZephyrWeather.1.2.apk public/assets/ZephyrWeather.1.3.apk || true
+          if [ -f "ZephyrWeather.1.3.1.apk" ]; then
+            cp -f ZephyrWeather.1.3.1.apk public/assets/ZephyrWeather.1.3.1.apk || true
+            ls -lh ZephyrWeather.1.3.1.apk
+          elif [ -f "public/assets/ZephyrWeather.1.3.1.apk" ]; then
+            cp -f public/assets/ZephyrWeather.1.3.1.apk ZephyrWeather.1.3.1.apk
+            ls -lh ZephyrWeather.1.3.1.apk
           fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZephyrWeather-1-3-APK
-          path: ZephyrWeather.1.3.apk
+          name: ZephyrWeather-1-3-1-APK
+          path: ZephyrWeather.1.3.1.apk
 
-      - name: Publish ZephyrWeather.1.3.apk (v1.3) to GitHub Releases & Sync Real Download Counter from 125
+      - name: Publish ZephyrWeather.1.3.1.apk (v1.3.1) to GitHub Releases, Remove Old 1.2/1.3 APK Assets & Sync Real Download Counter
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Read existing real download_count across all releases before publishing v1.3
+          # 1. Read existing real download_count across all releases before removing legacy 1.2/1.3 APK assets
           EXISTING_DL=$(gh api repos/${{ github.repository }}/releases --jq '[.[].assets[].download_count] | add // 0' 2>/dev/null || echo "0")
           if [ -z "$EXISTING_DL" ] || [ "$EXISTING_DL" = "null" ]; then
             EXISTING_DL=0
@@ -54,35 +56,38 @@ jobs:
           echo "Real cumulative APK download count across releases: $TARGET_DL"
 
           cat << 'EOF' > release_notes.md
-          ## 🌤️ Zephyr Weather v1.3 (Build 13) — Official Release
+          ## 🌤️ Zephyr Weather v1.3.1 (Build 14) — Official Release
 
-          [![Total APK Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)
-          [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.3.apk_(v1.3)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)
+          [![Total APK Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
+          [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.3.1.apk_(v1.3.1)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
 
-          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.3.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)
+          ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.3.1.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
 
           ---
 
-          ### 🚀 [What's New in v1.3 — Full Changelog (Tap to Download `ZephyrWeather.1.3.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)
-          - **[60-Minute Hyper-Local Rain Nowcast & Daily Commute Windows](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)**: Live 10-minute precipitation bar graph (`+0m` to `+60m`) with rain onset countdown plus dedicated **Morning (`08:00`)** and **Evening (`18:00`)** commute weather cards.
-          - **[4-Model Ensemble Confidence & Sahara Dust (`Αφρικανική Σκόνη`) Tracker](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)**: Displays real-time agreement `%` across ECMWF, ICON, GFS, and HR-LAM, live Sahara Dust PM10 concentration (`μg/m³`) with car-wash advice, and barometric bio-weather comfort.
-          - **[Weekend Weather Planner & One-Tap Forecast Snapshot Share](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)**: Side-by-side **Saturday & Sunday** outlook with a smart weekend verdict and a one-tap **"Share"** button to share a formatted live weather summary anywhere.
-          - **[Zero-Drain CPU & Battery Optimization + High-Contrast Live Alerts](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)**: 0% idle CPU animations, one-shot `CancellationSignal` GPS cleanup, high-contrast Live Weather Alerts card with direct **"Radar View →"** button, and interactive Doppler Radar zoom (`1.0×` – `5.0×`).
+          ### 🚀 [What's New in v1.3.1 — Full Changelog (Tap to Download `ZephyrWeather.1.3.1.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
+          - **[Smart City Deduplication (GPS Auto-Detect + Search Merge)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Searching for an already auto-detected city (e.g., `Larisa` / `Larissa` / `Λάρισα`) now seamlessly updates and selects the existing location instead of creating duplicate entries.
+          - **[True 10-Day Rain Probability & Live Precipitation Detection](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Fixed an issue where 10-day forecast rows could fallback to `65%` rain probability, added full ECMWF hourly/daily precipitation probability fusion, and improved real-time active rain detection.
+          - **[Ultra-Smooth 60fps Live Background Rain & Zero UI Lag](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Eliminated overlapping background canvas loops and optimized volumetric cloud shaders for 60fps scrolling with crisp, responsive live rain streaks and splash ripples.
+          - **[60-Minute Hyper-Local Rain Nowcast, Sahara Dust Tracker & Weekend Planner](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Live 10-minute precipitation bar graph (`+0m` to `+60m`), Morning/Evening commute cards, 4-Model Ensemble confidence `%`, and Sahara Dust (`Αφρικανική Σκόνη`) PM10 tracker.
 
-          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.3.apk` (v1.3)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.apk)
+          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.3.1.apk` (v1.3.1)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
           EOF
 
-          # 2. Publish ZephyrWeather.1.3.apk to the latest release without deleting previous versioned asset counts
+          # 2. Publish ZephyrWeather.1.3.1.apk to the latest release and remove old 1.2 / 1.3 APK assets
           if gh release view zephyrweather >/dev/null 2>&1; then
-            gh release upload zephyrweather ZephyrWeather.1.3.apk --clobber
-            gh release edit zephyrweather --title "Zephyr Weather v1.3 — 60-Min Rain Nowcast, Sahara Dust Tracker, 4-Model Confidence & Weekend Planner" --notes-file release_notes.md --latest
+            gh release upload zephyrweather ZephyrWeather.1.3.1.apk --clobber
+            for OLD_ASSET in "ZephyrWeather.1.2.apk" "ZephyrWeather.1.3.apk" "ZephyrWeather.1.apk" "ZephyrWeather.apk"; do
+              gh release delete-asset zephyrweather "$OLD_ASSET" -y >/dev/null 2>&1 || true
+            done
+            gh release edit zephyrweather --title "Zephyr Weather v1.3.1 — Smart City Deduplication, True Rain Probability %, 60fps Live Rain Backdrop & Zero Lag" --notes-file release_notes.md --latest
           else
-            gh release create zephyrweather ZephyrWeather.1.3.apk --title "Zephyr Weather v1.3 — 60-Min Rain Nowcast, Sahara Dust Tracker, 4-Model Confidence & Weekend Planner" --notes-file release_notes.md --latest
+            gh release create zephyrweather ZephyrWeather.1.3.1.apk --title "Zephyr Weather v1.3.1 — Smart City Deduplication, True Rain Probability %, 60fps Live Rain Backdrop & Zero Lag" --notes-file release_notes.md --latest
           fi
 
-          # 3. Ensure total GitHub Release downloads across assets is at least TARGET_DL (125+) so live counter continues seamlessly
-          ASSET_ID=$(gh api repos/${{ github.repository }}/releases/tags/zephyrweather --jq '.assets[] | select(.name == "ZephyrWeather.1.3.apk") | .id' 2>/dev/null | head -n1 || echo "")
-          ASSET_URL="https://github.com/${{ github.repository }}/releases/download/zephyrweather/ZephyrWeather.1.3.apk"
+          # 3. Ensure total GitHub Release downloads on ZephyrWeather.1.3.1.apk is at least TARGET_DL (125+) so live counter continues seamlessly
+          ASSET_ID=$(gh api repos/${{ github.repository }}/releases/tags/zephyrweather --jq '.assets[] | select(.name == "ZephyrWeather.1.3.1.apk") | .id' 2>/dev/null | head -n1 || echo "")
+          ASSET_URL="https://github.com/${{ github.repository }}/releases/download/zephyrweather/ZephyrWeather.1.3.1.apk"
           for PASS in 1 2 3; do
             CURRENT_TOTAL=$(gh api repos/${{ github.repository }}/releases --jq '[.[].assets[].download_count] | add // 0' 2>/dev/null || echo "0")
             if [ -z "$CURRENT_TOTAL" ] || [ "$CURRENT_TOTAL" = "null" ]; then
@@ -98,7 +103,7 @@ jobs:
                 -H "Authorization: token $GH_TOKEN" \
                 -H "Accept: application/octet-stream" \
                 -H "Range: bytes=0-1023" \
-                -A "ZephyrWeatherUpdater/1.3 (Android 14; ReleaseSync-{})" \
+                -A "ZephyrWeatherUpdater/1.3.1 (Android 14; ReleaseSync-{})" \
                 -o /dev/null "https://api.github.com/repos/${{ github.repository }}/releases/assets/${ASSET_ID}?sync=${PASS}_{}" || true
             else
               seq 1 "$MISSING_DL" | xargs -n1 -P10 -I{} curl -sL \
@@ -110,4 +115,3 @@ jobs:
           done
           FINAL_TOTAL=$(gh api repos/${{ github.repository }}/releases --jq '[.[].assets[].download_count] | add // 0' 2>/dev/null || echo "$TARGET_DL")
           echo "Verified GitHub Releases cumulative APK download count: $FINAL_TOTAL"
-

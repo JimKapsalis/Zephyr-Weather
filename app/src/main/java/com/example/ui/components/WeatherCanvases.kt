@@ -127,10 +127,10 @@ fun buildParticlesForEffect(
                 id = i,
                 baseX = seed1,
                 baseY = seed2,
-                speed = 1.0f + layer * 0.5f,
-                radiusFactor = 0.8f + layer * 0.35f,
-                baseAlpha = 0.22f + layer * 0.16f,
-                driftAmplitude = 0.06f + layer * 0.02f,
+                speed = 2.0f + layer * 1.0f,
+                radiusFactor = 1.05f + layer * 0.45f,
+                baseAlpha = 0.42f + layer * 0.22f,
+                driftAmplitude = 0.08f + layer * 0.025f,
                 phaseOffset = seed3,
                 layerIndex = layer
             )
@@ -266,7 +266,11 @@ fun WeatherParticleSystem(
     val cyclePhaseAnim = remember { Animatable(0f) }
     LaunchedEffect(visualSpec.particleEffect, isCompactOverlay, isResumed) {
         if (isResumed) {
-            val cycleDurationMs = if (isCompactOverlay) 14000 else 11000
+            val cycleDurationMs = when (visualSpec.particleEffect) {
+                SkyParticleEffect.RAIN, SkyParticleEffect.THUNDER -> if (isCompactOverlay) 5500 else 4200
+                SkyParticleEffect.SNOW_STORM -> if (isCompactOverlay) 7000 else 5800
+                else -> if (isCompactOverlay) 12000 else 10000
+            }
             while (isResumed) {
                 cyclePhaseAnim.snapTo(0f)
                 cyclePhaseAnim.animateTo(
@@ -307,66 +311,68 @@ fun WeatherParticleSystem(
                 }
 
                 // Multi-layered brooding volumetric cumulonimbus storm cloud canopy
-                val stormCloudCount = if (isCompactOverlay) 3 else 5
+                val stormCloudCount = if (isCompactOverlay) 2 else 3
                 for (c in 0 until stormCloudCount) {
-                    val cloudDrift = ((c * 0.26f + phase * (0.14f + (c % 2) * 0.06f)) % 1.36f - 0.18f) * w
+                    val cloudDrift = ((c * 0.36f + phase * (0.14f + (c % 2) * 0.06f)) % 1.36f - 0.18f) * w
                     val cloudY = h * (if (isCompactOverlay) (0.10f + (c % 2) * 0.07f) else (0.06f + (c % 3) * 0.045f))
-                    val cloudR = w * (if (isCompactOverlay) (0.18f + (c % 2) * 0.04f) else (0.20f + (c % 3) * 0.045f))
+                    val cloudR = w * (if (isCompactOverlay) (0.18f + (c % 2) * 0.04f) else (0.22f + (c % 2) * 0.045f))
                     drawRealisticVolumetricCloud(
                         centerX = cloudDrift,
                         centerY = cloudY,
                         baseRadius = cloudR,
                         crestColor = if (lightningIntensity > 0f && c % 2 == 0) {
-                            Color(0xFFFEF08A).copy(alpha = 0.34f * lightningIntensity + 0.16f)
+                            Color(0xFFFEF08A).copy(alpha = 0.36f * lightningIntensity + 0.18f)
                         } else {
-                            Color(0xFFCBD5E1).copy(alpha = if (isCompactOverlay) 0.20f else 0.26f)
+                            Color(0xFFCBD5E1).copy(alpha = if (isCompactOverlay) 0.22f else 0.30f)
                         },
-                        bodyColor = Color(0xFF475569).copy(alpha = if (isCompactOverlay) 0.24f else 0.32f),
-                        shadowColor = Color(0xFF0F172A).copy(alpha = if (isCompactOverlay) 0.30f else 0.42f),
+                        bodyColor = Color(0xFF475569).copy(alpha = if (isCompactOverlay) 0.26f else 0.36f),
+                        shadowColor = Color(0xFF0F172A).copy(alpha = if (isCompactOverlay) 0.32f else 0.46f),
                         rimLightColor = if (lightningIntensity > 0f) {
-                            Color(0xFFFDE047).copy(alpha = 0.40f * lightningIntensity)
+                            Color(0xFFFDE047).copy(alpha = 0.42f * lightningIntensity)
                         } else {
-                            Color(0xFF94A3B8).copy(alpha = 0.16f)
+                            Color(0xFF94A3B8).copy(alpha = 0.20f)
                         }
                     )
                 }
 
-                // Falling slanted rain streaks with motion-blurred gradient tails + splash rings
-                val maxDropY = if (isCompactOverlay) h * 0.94f else h * 0.87f
+                // Falling slanted rain streaks with crisp two-layer core + splash rings
+                val maxDropY = if (isCompactOverlay) h * 0.95f else h * 0.90f
                 particles.forEach { p ->
                     val progress = (p.baseY + phase * p.speed + p.phaseOffset) % 1f
                     val dropY = progress * maxDropY
                     val windShift = progress * w * p.driftAmplitude
                     val dropX = ((p.baseX * w - windShift) + w) % w
-                    val streakLen = (if (isCompactOverlay) 18f else 32f) * p.radiusFactor
-                    val slantX = streakLen * 0.26f
+                    val streakLen = (if (isCompactOverlay) 22f else 42f) * p.radiusFactor
+                    val slantX = streakLen * 0.24f
                     val startPt = Offset(dropX, dropY)
+                    val midPt = Offset(dropX - slantX * 0.38f, dropY + streakLen * 0.38f)
                     val endPt = Offset(dropX - slantX, dropY + streakLen)
 
+                    // Outer cyan rain trail
                     drawLine(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                CyanZephyr.copy(alpha = p.baseAlpha * 0.85f),
-                                Color(0xFFE0F2FE).copy(alpha = (p.baseAlpha * 1.25f).coerceAtMost(0.85f))
-                            ),
-                            start = startPt,
-                            end = endPt
-                        ),
+                        color = CyanZephyr.copy(alpha = (p.baseAlpha * 0.72f).coerceIn(0.22f, 0.75f)),
                         start = startPt,
                         end = endPt,
-                        strokeWidth = 1.3f + p.layerIndex * 0.55f,
+                        strokeWidth = 1.6f + p.layerIndex * 0.65f,
+                        cap = StrokeCap.Round
+                    )
+                    // Bright silver-white raindrop tip
+                    drawLine(
+                        color = Color(0xFFE0F2FE).copy(alpha = (p.baseAlpha * 1.15f).coerceIn(0.38f, 0.92f)),
+                        start = midPt,
+                        end = endPt,
+                        strokeWidth = 1.3f + p.layerIndex * 0.45f,
                         cap = StrokeCap.Round
                     )
 
                     // Subtle splash ripple when raindrop nears the bottom horizon
-                    if (progress > 0.88f && p.layerIndex == 2) {
-                        val rippleProgress = (progress - 0.88f) / 0.12f
+                    if (progress > 0.86f && p.layerIndex >= 1) {
+                        val rippleProgress = (progress - 0.86f) / 0.14f
                         drawCircle(
-                            color = Color(0xFFBAE6FD).copy(alpha = (1f - rippleProgress) * 0.36f),
-                            radius = 2f + rippleProgress * (if (isCompactOverlay) 8f else 14f),
+                            color = Color(0xFFBAE6FD).copy(alpha = (1f - rippleProgress) * 0.48f),
+                            radius = 2.5f + rippleProgress * (if (isCompactOverlay) 9f else 16f),
                             center = Offset(dropX - slantX, maxDropY),
-                            style = Stroke(width = 1.1f)
+                            style = Stroke(width = 1.3f)
                         )
                     }
                 }
@@ -796,23 +802,24 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRealisticVolume
         cornerRadius = CornerRadius(baseHeight / 2f, baseHeight / 2f)
     )
 
-    // 2. Six asymmetric billowing cumulus lobes with soft feathered radial edges (zero hard circle edges)
-    val lobeOffsetsX = floatArrayOf(-1.12f, -0.66f, -0.18f, 0.30f, 0.76f, 1.14f)
-    val lobeOffsetsY = floatArrayOf(0.22f, -0.06f, -0.28f, -0.16f, 0.04f, 0.24f)
-    val lobeRadii = floatArrayOf(0.68f, 0.94f, 1.18f, 1.02f, 0.84f, 0.64f)
+    // 2. Three billowing cumulus lobes with soft feathered radial edges (fast GPU draw with zero hard edges)
+    val lobeOffsetsX = floatArrayOf(-0.82f, -0.06f, 0.78f)
+    val lobeOffsetsY = floatArrayOf(0.08f, -0.22f, 0.10f)
+    val lobeRadii = floatArrayOf(0.88f, 1.22f, 0.84f)
 
     for (i in lobeOffsetsX.indices) {
         val lx = centerX + lobeOffsetsX[i] * baseRadius
         val ly = centerY + lobeOffsetsY[i] * baseRadius
-        val lr = baseRadius * lobeRadii[i] * 1.28f
+        val lr = baseRadius * lobeRadii[i] * 1.25f
         val lightCenter = Offset(lx + lr * 0.14f, ly - lr * 0.18f)
 
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
+                    if (i == 1) rimLightColor else crestColor,
                     crestColor,
                     bodyColor,
-                    shadowColor.copy(alpha = shadowColor.alpha * 0.55f),
+                    shadowColor.copy(alpha = shadowColor.alpha * 0.50f),
                     Color.Transparent
                 ),
                 center = lightCenter,
@@ -821,25 +828,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRealisticVolume
             center = Offset(lx, ly),
             radius = lr
         )
-
-        // 3. Sunlit / moonlit silver-lining rim highlight on the upper central domes
-        if (i in 1..4) {
-            val rimRadius = lr * 0.72f
-            val rimCenter = Offset(lx + lr * 0.10f, ly - lr * 0.22f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        rimLightColor,
-                        crestColor.copy(alpha = crestColor.alpha * 0.45f),
-                        Color.Transparent
-                    ),
-                    center = rimCenter,
-                    radius = rimRadius
-                ),
-                center = rimCenter,
-                radius = rimRadius
-            )
-        }
     }
 }
 
@@ -1268,12 +1256,6 @@ fun HeroWeatherSceneOverlay(
                 else -> {}
             }
         }
-
-        WeatherParticleSystem(
-            visualSpec = visualSpec,
-            isCompactOverlay = true,
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 
@@ -1857,16 +1839,14 @@ fun LottieStyleWeatherHeroBadge(
     }
 
     val isResumed = rememberIsAppResumed()
-    val orbitAngleAnim = remember { Animatable(0f) }
+    val orbitAngleAnim = remember { Animatable(45f) }
     LaunchedEffect(triggerKey, visualSpec.particleEffect, isResumed) {
         if (isResumed) {
-            while (isResumed) {
-                orbitAngleAnim.snapTo(0f)
-                orbitAngleAnim.animateTo(
-                    targetValue = 360f,
-                    animationSpec = tween(durationMillis = 12000, easing = LinearEasing)
-                )
-            }
+            orbitAngleAnim.snapTo(0f)
+            orbitAngleAnim.animateTo(
+                targetValue = 45f,
+                animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing)
+            )
         } else {
             orbitAngleAnim.snapTo(45f)
         }
@@ -1966,7 +1946,7 @@ fun LottieStyleWeatherHeroBadge(
             visualSpec = visualSpec,
             iconSize = 42.dp,
             contentDescription = visualSpec.label,
-            animateContinuous = true,
+            animateContinuous = false,
             modifier = Modifier.graphicsLayer {
                 scaleX = entranceScale.value
                 scaleY = entranceScale.value

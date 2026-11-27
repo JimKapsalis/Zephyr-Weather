@@ -107,11 +107,11 @@ data class WeatherUiState(
     val dismissedAlertIds: Set<String> = emptySet(),
     val statusBanner: String? = null,
     val isCheckingUpdates: Boolean = false,
-    val appVersionLabel: String = "v1.3 (Build 13)",
+    val appVersionLabel: String = "v1.3.1 (Build 14)",
     val lastUpdateCheckStatus: String? = null,
     val githubRepoSlug: String = WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG,
-    val latestReleaseTag: String = "v1.3",
-    val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.1.3.apk",
+    val latestReleaseTag: String = "v1.3.1",
+    val latestReleaseDownloadUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest/download/ZephyrWeather.1.3.1.apk",
     val latestReleasePageUrl: String = "https://github.com/${WeatherPreferences.DEFAULT_GITHUB_REPO_SLUG}/releases/latest",
     val latestReleaseNotes: String? = null,
     val isNewGitHubReleaseAvailable: Boolean = false,
@@ -152,7 +152,7 @@ class WeatherViewModel(
             activeSevereAlert = null,
             activeSevereAlerts = emptyList(),
             githubRepoSlug = initialRepoSlug,
-            latestReleaseDownloadUrl = "https://github.com/$initialRepoSlug/releases/latest/download/ZephyrWeather.1.3.apk",
+            latestReleaseDownloadUrl = "https://github.com/$initialRepoSlug/releases/latest/download/ZephyrWeather.1.3.1.apk",
             latestReleasePageUrl = "https://github.com/$initialRepoSlug/releases/latest"
         )
     )
@@ -207,16 +207,41 @@ class WeatherViewModel(
             runCatching {
                 repository.savedCitiesFlow.collect { cities ->
                     if (cities.isNotEmpty()) {
+                        val deduplicated = mutableListOf<SavedCityEntity>()
+                        val duplicateIdsToDelete = mutableListOf<Long>()
+                        for (candidate in cities) {
+                            val existingIdx = deduplicated.indexOfFirst {
+                                WeatherRepository.areCitiesSameLocation(it, candidate)
+                            }
+                            if (existingIdx == -1) {
+                                deduplicated.add(candidate)
+                            } else {
+                                val kept = deduplicated[existingIdx]
+                                val preferCandidate = candidate.isCurrentGps && !kept.isCurrentGps
+                                val winner = (if (preferCandidate) candidate else kept).copy(
+                                    isCurrentGps = kept.isCurrentGps || candidate.isCurrentGps,
+                                    isPinned = kept.isPinned || candidate.isPinned
+                                )
+                                val loser = if (preferCandidate) kept else candidate
+                                if (loser.id != winner.id) {
+                                    duplicateIdsToDelete.add(loser.id)
+                                }
+                                deduplicated[existingIdx] = winner
+                            }
+                        }
+                        for (dupId in duplicateIdsToDelete) {
+                            repository.deleteCity(dupId)
+                        }
                         _uiState.update { state ->
-                            val validSelectedId = if (cities.any { it.id == state.selectedCityId }) {
+                            val validSelectedId = if (deduplicated.any { it.id == state.selectedCityId }) {
                                 state.selectedCityId
                             } else {
-                                val fallbackId = cities.first().id
+                                val fallbackId = deduplicated.first().id
                                 preferences?.saveSelectedCityId(fallbackId)
                                 fallbackId
                             }
                             state.copy(
-                                savedCities = cities,
+                                savedCities = deduplicated,
                                 selectedCityId = validSelectedId
                             )
                         }
@@ -281,7 +306,7 @@ class WeatherViewModel(
                         val resolvedTag = extractedVersionCandidate
                             ?: latestRelease.tagName.trim().ifBlank { CURRENT_APP_VERSION_TAG }
                         val resolvedDownloadUrl = apkAsset?.browserDownloadUrl
-                            ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.3.apk"
+                            ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.3.1.apk"
                         val resolvedPageUrl = latestRelease.htmlUrl?.takeIf { it.isNotBlank() }
                             ?: "https://github.com/$owner/$repo/releases/latest"
                         val remoteNotes = latestRelease.body?.trim()?.takeIf { it.isNotBlank() }
@@ -568,13 +593,6 @@ class WeatherViewModel(
         if (currentCity == null) return
         viewModelScope.launch {
             loadWeatherForCity(currentCity, forceRefresh = true, showRefreshConfirmation = true)
-            // Also refresh any other saved cities in the background so horizontal pager & cities list stay fresh
-            val otherCities = _uiState.value.savedCities.filter { it.id != currentCity.id }
-            for (other in otherCities) {
-                runCatching {
-                    repository.fetchWeatherForCity(other, _uiState.value.selectedProvider, forceRefresh = true)
-                }
-            }
         }
     }
 
@@ -894,23 +912,60 @@ class WeatherViewModel(
     fun addAndSelectCity(city: SavedCityEntity) {
         viewModelScope.launch {
             val cleanName = WeatherRepository.sanitizeCityDisplayName(city.name).ifBlank { city.name }
+            val candidate = city.copy(name = cleanName)
+
+            // Check if this city already exists in savedCities (including an auto-detected GPS entry for the same city, e.g., Larissa / Λάρισα)
+            val existingMatches = _uiState.value.savedCities.filter { existing ->
+                WeatherRepository.areCitiesSameLocation(existing, candidate)
+            }
+            val primaryExisting = existingMatches.firstOrNull { it.isCurrentGps } ?: existingMatches.firstOrNull()
+
+            // Remove any extra duplicate rows if more than one match existed
+            for (extra in existingMatches) {
+                if (primaryExisting != null && extra.id != primaryExisting.id) {
+                    repository.deleteCity(extra.id)
+                }
+            }
+
+            val saved = if (primaryExisting != null) {
+                primaryExisting.copy(
+                    name = cleanName,
+                    regionName = candidate.regionName.ifBlank { primaryExisting.regionName },
+                    countryName = candidate.countryName.ifBlank { primaryExisting.countryName },
+                    elevationMeters = if (candidate.elevationMeters > 0.0) candidate.elevationMeters else primaryExisting.elevationMeters,
+                    lastUpdatedEpochMs = System.currentTimeMillis()
+                )
+            } else {
+                candidate.copy(
+                    isCurrentGps = false,
+                    sortOrder = _uiState.value.savedCities.size,
+                    lastUpdatedEpochMs = System.currentTimeMillis()
+                )
+            }
+
+            preferences?.removeDeletedCityId(saved.id)
             preferences?.removeDeletedCityId(city.id)
             preferences?.removeDeletedCityName(city.name)
             preferences?.removeDeletedCityName(cleanName)
-            preferences?.saveSelectedCityId(city.id)
+            preferences?.saveSelectedCityId(saved.id)
             preferences?.markInitialGpsSetupCompleted()
-            val saved = city.copy(
-                name = cleanName,
-                isCurrentGps = false,
-                sortOrder = _uiState.value.savedCities.size,
-                lastUpdatedEpochMs = System.currentTimeMillis()
-            )
+
             repository.saveCity(saved)
             val instantBundle = repository.buildInstantPreviewBundle(saved, _uiState.value.selectedProvider)
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                val updatedList = state.savedCities
+                    .filterNot { WeatherRepository.areCitiesSameLocation(it, saved) && it.id != saved.id }
+                    .let { list ->
+                        if (list.any { it.id == saved.id }) {
+                            list.map { if (it.id == saved.id) saved else it }
+                        } else {
+                            list + saved
+                        }
+                    }
+                state.copy(
                     loadingState = LoadingState.Success(instantBundle),
                     primaryBundle = instantBundle,
+                    savedCities = updatedList,
                     searchQuery = "",
                     searchResults = emptyList(),
                     selectedCityId = saved.id,
@@ -1011,7 +1066,7 @@ class WeatherViewModel(
         _uiState.update {
             it.copy(
                 githubRepoSlug = cleaned,
-                latestReleaseDownloadUrl = "https://github.com/$cleaned/releases/latest/download/ZephyrWeather.1.3.apk",
+                latestReleaseDownloadUrl = "https://github.com/$cleaned/releases/latest/download/ZephyrWeather.1.3.1.apk",
                 latestReleasePageUrl = "https://github.com/$cleaned/releases/latest"
             )
         }
@@ -1021,7 +1076,7 @@ class WeatherViewModel(
         val state = _uiState.value
         val targetUrl = if (directApk) {
             state.latestReleaseDownloadUrl.ifBlank {
-                "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.apk"
+                "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.1.apk"
             }
         } else {
             state.latestReleasePageUrl.ifBlank {
@@ -1036,9 +1091,9 @@ class WeatherViewModel(
         }
         val lang = state.language
         val msg = if (lang == AppLanguage.GREEK) {
-            if (directApk) "Λήψη ZephyrWeather.1.3.apk από το GitHub Releases…" else "Άνοιγμα σελίδας GitHub Releases…"
+            if (directApk) "Λήψη ZephyrWeather.1.3.1.apk από το GitHub Releases…" else "Άνοιγμα σελίδας GitHub Releases…"
         } else {
-            if (directApk) "Downloading ZephyrWeather.1.3.apk from GitHub Releases…" else "Opening GitHub Releases page…"
+            if (directApk) "Downloading ZephyrWeather.1.3.1.apk from GitHub Releases…" else "Opening GitHub Releases page…"
         }
         _uiState.update { it.copy(statusBanner = msg) }
     }
@@ -1094,7 +1149,7 @@ class WeatherViewModel(
                 }
                 if (release != null && (release.tagName.isNotBlank() || !release.name.isNullOrBlank())) {
                     val apkAsset = release.assets?.firstOrNull {
-                        it.name.equals("ZephyrWeather.1.3.apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
+                        it.name.equals("ZephyrWeather.1.3.1.apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
                     } ?: release.assets?.firstOrNull {
                         it.name.endsWith(".apk", ignoreCase = true) && it.browserDownloadUrl.isNotBlank()
                     }
@@ -1122,7 +1177,7 @@ class WeatherViewModel(
                         ?: release.tagName.trim().ifBlank { CURRENT_APP_VERSION_TAG }
 
                     remoteDownloadUrl = apkAsset?.browserDownloadUrl
-                        ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.3.apk"
+                        ?: "https://github.com/$owner/$repo/releases/latest/download/ZephyrWeather.1.3.1.apk"
                     remotePageUrl = release.htmlUrl?.takeIf { it.isNotBlank() }
                         ?: "https://github.com/$owner/$repo/releases/latest"
                     remoteNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
@@ -1169,7 +1224,7 @@ class WeatherViewModel(
                     statusBanner = doneStatus,
                     latestReleaseTag = resolvedTag,
                     latestReleaseDownloadUrl = remoteDownloadUrl
-                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.apk",
+                        ?: "https://github.com/${state.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.1.apk",
                     latestReleasePageUrl = remotePageUrl
                         ?: "https://github.com/${state.githubRepoSlug}/releases/latest",
                     latestReleaseNotes = remoteNotes,
@@ -1180,7 +1235,7 @@ class WeatherViewModel(
             }
             if (hasNewerRelease) {
                 val resolvedDownload = remoteDownloadUrl
-                    ?: "https://github.com/${_uiState.value.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.apk"
+                    ?: "https://github.com/${_uiState.value.githubRepoSlug}/releases/latest/download/ZephyrWeather.1.3.1.apk"
                 SevereWeatherNotifier.dispatchAppUpdateNotificationIfPermitted(
                     context = context.applicationContext,
                     remoteVersionTag = resolvedTag,
@@ -1863,13 +1918,13 @@ class WeatherViewModel(
         preferences?.removeDeletedCityId(gpsCity.id)
         preferences?.saveSelectedCityId(gpsCity.id)
 
-        val staleGpsCities = _uiState.value.savedCities.filter {
-            (it.isCurrentGps && it.id != gpsCity.id) ||
+        val staleOrDuplicateCities = _uiState.value.savedCities.filter {
+            (it.id != gpsCity.id && (it.isCurrentGps || WeatherRepository.areCitiesSameLocation(it, gpsCity))) ||
                 (it.id == WeatherPreferences.DEFAULT_LARISSA_CITY_ID && gpsCity.id != WeatherPreferences.DEFAULT_LARISSA_CITY_ID && it.isCurrentGps) ||
                 it.name.contains("Dimos", ignoreCase = true) ||
                 it.name.contains("Δήμος", ignoreCase = true)
         }
-        for (stale in staleGpsCities) {
+        for (stale in staleOrDuplicateCities) {
             repository.deleteCity(stale.id)
         }
 
@@ -1878,6 +1933,7 @@ class WeatherViewModel(
             val updatedList = (listOf(gpsCity) + state.savedCities.filter {
                 it.id != gpsCity.id &&
                     !it.isCurrentGps &&
+                    !WeatherRepository.areCitiesSameLocation(it, gpsCity) &&
                     !it.name.contains("Dimos", ignoreCase = true) &&
                     !it.name.contains("Δήμος", ignoreCase = true)
             })
@@ -1895,7 +1951,7 @@ class WeatherViewModel(
 
     companion object {
         const val FEEDBACK_RECIPIENT_EMAIL = ""
-        const val CURRENT_APP_VERSION_TAG = "v1.3"
+        const val CURRENT_APP_VERSION_TAG = "v1.3.1"
 
         fun extractSemanticVersionToken(raw: String): String? {
             // Matches version numbers like "v1.2", "1.2", "1.2.1", or "ZephyrWeather.1.2.apk"

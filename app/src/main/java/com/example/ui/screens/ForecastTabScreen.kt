@@ -1739,8 +1739,14 @@ private fun DailyRangeRow(
     onToggleExpand: () -> Unit
 ) {
     val spec = WmoWeatherMapper.resolve(day.weatherCode, isDay = true)
-    val rainPercent = if (day.weatherCode >= 51 && day.maxPrecipProb == 0) 65 else day.maxPrecipProb
-    val showRainPercent = rainPercent > 0 || day.weatherCode >= 51
+    val rainPercent = if (day.maxPrecipProb > 0) {
+        day.maxPrecipProb
+    } else if (day.precipSumMm >= 0.3) {
+        (day.precipSumMm * 18.0).roundToInt().coerceIn(20, 85)
+    } else {
+        0
+    }
+    val showRainPercent = rainPercent >= 10
     val localizedDay = localizeDayLabel(day.dayLabel, language)
 
     Column(

@@ -291,6 +291,29 @@ class WeatherRepository(
                     )
                 }
             }
+            // Deduplicate any existing duplicate cities (e.g., GPS Larissa + manually searched Larissa)
+            val allCurrent = cityDao.getAllCitiesOnce()
+            val deduplicated = mutableListOf<SavedCityEntity>()
+            for (candidate in allCurrent) {
+                val existingIdx = deduplicated.indexOfFirst { areCitiesSameLocation(it, candidate) }
+                if (existingIdx == -1) {
+                    deduplicated.add(candidate)
+                } else {
+                    val kept = deduplicated[existingIdx]
+                    // Prefer keeping the GPS-tagged or pinned entry, merging flags and deleting the redundant DB row
+                    val preferCandidate = (candidate.isCurrentGps && !kept.isCurrentGps)
+                    val winner = (if (preferCandidate) candidate else kept).copy(
+                        isCurrentGps = kept.isCurrentGps || candidate.isCurrentGps,
+                        isPinned = kept.isPinned || candidate.isPinned
+                    )
+                    val loser = if (preferCandidate) kept else candidate
+                    if (loser.id != winner.id) {
+                        cityDao.deleteCityById(loser.id)
+                    }
+                    cityDao.upsertCity(winner)
+                    deduplicated[existingIdx] = winner
+                }
+            }
             cityDao.getAllCitiesOnce()
         }.getOrDefault(emptyList())
     }
@@ -830,7 +853,7 @@ class WeatherRepository(
         val combined = mutableListOf<SavedCityEntity>()
         combined.addAll(localMatches)
         for (remote in (remoteOpenMeteo + remoteNominatim)) {
-            if (combined.none { kotlin.math.abs(it.latitude - remote.latitude) < 0.015 && kotlin.math.abs(it.longitude - remote.longitude) < 0.015 }) {
+            if (combined.none { areCitiesSameLocation(it, remote) }) {
                 combined.add(remote)
             }
         }
@@ -871,8 +894,8 @@ class WeatherRepository(
 
         val queryElevation = city.elevationMeters.takeIf { it > 0.0 }
         val ecmwfCurrentParams = "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
-        val ecmwfHourlyParams = "temperature_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,relative_humidity_2m"
-        val ecmwfDailyParams = "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,snowfall_sum,wind_speed_10m_max"
+        val ecmwfHourlyParams = "temperature_2m,apparent_temperature,precipitation_probability,precipitation,rain,showers,snowfall,freezing_level_height,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,uv_index,relative_humidity_2m,visibility"
+        val ecmwfDailyParams = "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,daylight_duration,uv_index_max,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max"
         val minutely15NowcastParams = "precipitation,rain,snowfall,weather_code"
 
         val forecastDeferred = async {
@@ -1072,63 +1095,53 @@ class WeatherRepository(
         freezingLevelM: Double?,
         elevationM: Double
     ): Int {
-        val snowCodes = setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)
-        val stormSnowCodes = setOf(57, 67, 75, 86)
-        val isBelowFreezingLevel = freezingLevelM != null && elevationM > 0.0 && freezingLevelM <= (elevationM + 140.0)
-        val isSnowCondition = primaryCode in snowCodes ||
-            (secondaryCode != null && secondaryCode in snowCodes) ||
-            (tertiaryCode != null && tertiaryCode in snowCodes) ||
-            (quaternaryCode != null && quaternaryCode in snowCodes) ||
-            snowfallCm >= 0.04 ||
-            (precipMm >= 0.15 && (tempC <= 1.8 || isBelowFreezingLevel))
+        val pureSnowCodes = setOf(71, 73, 75, 77, 85, 86)
+        val freezingRainCodes = setOf(56, 57, 66, 67)
+        val stormSnowCodes = setOf(75, 86)
+        val isBelowFreezingLevel = freezingLevelM != null && elevationM > 50.0 && freezingLevelM <= (elevationM + 100.0)
+        val isColdEnoughForSnow = tempC <= 2.5 || isBelowFreezingLevel
+        val hasActualSnowfall = snowfallCm >= 0.05 && isColdEnoughForSnow
+        val isSnowCondition = (primaryCode in pureSnowCodes && (snowfallCm >= 0.02 || precipMm >= 0.05 || precipProb >= 25 || isColdEnoughForSnow)) ||
+            (primaryCode in freezingRainCodes && isColdEnoughForSnow && (precipMm >= 0.05 || precipProb >= 25)) ||
+            (secondaryCode != null && secondaryCode in pureSnowCodes && isColdEnoughForSnow && (snowfallCm >= 0.04 || precipMm >= 0.15)) ||
+            (tertiaryCode != null && tertiaryCode in pureSnowCodes && isColdEnoughForSnow && (snowfallCm >= 0.04 || precipMm >= 0.15)) ||
+            hasActualSnowfall ||
+            (precipMm >= 0.25 && (tempC <= 1.5 || isBelowFreezingLevel))
 
         if (isSnowCondition) {
             val effectiveSnowCm = maxOf(
                 snowfallCm,
-                if (tempC <= 1.8 || isBelowFreezingLevel) precipMm * 0.75 else 0.0
+                if (tempC <= 1.5 || isBelowFreezingLevel) precipMm * 0.75 else 0.0
             )
             return when {
                 primaryCode in stormSnowCodes ||
-                    (secondaryCode != null && secondaryCode in stormSnowCodes) ||
-                    (tertiaryCode != null && tertiaryCode in stormSnowCodes) ||
-                    (quaternaryCode != null && quaternaryCode in stormSnowCodes) ||
+                    (secondaryCode != null && secondaryCode in stormSnowCodes && effectiveSnowCm >= 0.25) ||
                     effectiveSnowCm >= 1.1 ||
-                    (effectiveSnowCm >= 0.40 && windSpeedKmh >= 26.0) -> {
-                    if (primaryCode == 86 || secondaryCode == 86 || tertiaryCode == 86 || quaternaryCode == 86) 86 else 75
+                    (effectiveSnowCm >= 0.45 && windSpeedKmh >= 28.0) -> {
+                    if (primaryCode == 86 || secondaryCode == 86) 86 else 75
                 }
-                effectiveSnowCm >= 0.22 || primaryCode == 73 || secondaryCode == 73 || tertiaryCode == 73 || quaternaryCode == 73 -> 73
-                primaryCode in snowCodes -> primaryCode
-                secondaryCode != null && secondaryCode in snowCodes -> secondaryCode
-                tertiaryCode != null && tertiaryCode in snowCodes -> tertiaryCode
-                quaternaryCode != null && quaternaryCode in snowCodes -> quaternaryCode
+                effectiveSnowCm >= 0.22 || primaryCode == 73 || (secondaryCode == 73 && effectiveSnowCm >= 0.10) -> 73
+                primaryCode in pureSnowCodes -> primaryCode
+                primaryCode in freezingRainCodes && isColdEnoughForSnow -> primaryCode
+                secondaryCode != null && secondaryCode in pureSnowCodes -> secondaryCode
                 else -> 71
             }
         }
 
-        // Preserve thunderstorm codes from any ensemble model
-        if (primaryCode in 95..99) return primaryCode
-        if (secondaryCode != null && secondaryCode in 95..99 && precipProb >= 35) return secondaryCode
-        if (tertiaryCode != null && tertiaryCode in 95..99 && precipProb >= 35) return tertiaryCode
-        if (quaternaryCode != null && quaternaryCode in 95..99 && precipProb >= 35) return quaternaryCode
+        // Preserve thunderstorm codes from primary or high-confidence ensemble models
+        if (primaryCode in 95..99 && (precipMm >= 0.05 || precipProb >= 25)) return primaryCode
+        if (secondaryCode != null && secondaryCode in 95..99 && precipProb >= 40 && precipMm >= 0.15) return secondaryCode
+        if (tertiaryCode != null && tertiaryCode in 95..99 && precipProb >= 45 && precipMm >= 0.20) return tertiaryCode
 
         var resolved = primaryCode
-        if ((resolved in 51..65 || resolved in 80..82) && precipMm < 0.08 && precipProb < 35) {
-            if (secondaryCode != null && (secondaryCode in 51..67 || secondaryCode in 80..82) && precipMm >= 0.05) {
-                return secondaryCode
-            }
-            if (tertiaryCode != null && (tertiaryCode in 51..67 || tertiaryCode in 80..82) && precipMm >= 0.05) {
-                return tertiaryCode
-            }
-            if (quaternaryCode != null && (quaternaryCode in 51..67 || quaternaryCode in 80..82) && precipMm >= 0.05) {
-                return quaternaryCode
-            }
+        if ((resolved in 51..67 || resolved in 80..82) && precipMm < 0.06 && precipProb < 25) {
             resolved = when {
                 cloudCover >= 75 -> 3
                 cloudCover >= 25 -> 2
                 else -> 1
             }
-        } else if (resolved < 51 && precipMm >= 0.30) {
-            resolved = if (tempC <= 1.8) {
+        } else if (resolved < 51 && precipMm >= 0.35 && precipProb >= 30) {
+            resolved = if (tempC <= 1.5) {
                 if (precipMm >= 1.8) 73 else 71
             } else {
                 if (precipMm >= 2.5) 63 else 61
@@ -1344,17 +1357,21 @@ class WeatherRepository(
         val currentSnowfallCm = maxOf(
             currentDto.snowfall ?: 0.0,
             nowcastSnowCm,
-            if (useEnsembleBlend) (secondaryCurrent?.snowfall ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryCurrent?.snowfall ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (quaternaryCurrent?.snowfall ?: 0.0) else 0.0,
-            hourlyDto?.snowfall?.getOrNull(startIndex) ?: 0.0,
-            if (useEnsembleBlend) (secondaryHourly?.snowfall?.getOrNull(startIndex) ?: 0.0) else 0.0
+            if (useEnsembleBlend) (secondaryCurrent?.snowfall ?: 0.0) else 0.0
+        )
+        val currentHourlyPrecipMm = maxOf(
+            hourlyDto?.precipitation?.getOrNull(startIndex) ?: 0.0,
+            hourlyDto?.rain?.getOrNull(startIndex) ?: 0.0,
+            hourlyDto?.showers?.getOrNull(startIndex) ?: 0.0,
+            if (useEnsembleBlend) (secondaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0
         )
         val fusedCurrentPrecipMm = maxOf(
             currentDto.precipitation ?: 0.0,
             currentDto.rain ?: 0.0,
             currentDto.showers ?: 0.0,
             nowcastPrecipMm,
+            currentHourlyPrecipMm,
             if (useEnsembleBlend) (secondaryCurrent?.precipitation ?: 0.0) else 0.0,
             if (useEnsembleBlend) (tertiaryCurrent?.precipitation ?: 0.0) else 0.0,
             if (useEnsembleBlend) (quaternaryCurrent?.precipitation ?: 0.0) else 0.0,
@@ -1371,8 +1388,27 @@ class WeatherRepository(
             ?: tertiaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
             ?: quaternaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
 
+        val currentCandidateCodes = listOfNotNull(
+            currentDto.weatherCode,
+            nowcastCode,
+            hourlyDto?.weatherCode?.getOrNull(startIndex),
+            if (useEnsembleBlend) secondaryCurrent?.weatherCode else null,
+            if (useEnsembleBlend) tertiaryCurrent?.weatherCode else null,
+            if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null
+        )
+        val activeRainCodeFromEnsemble = currentCandidateCodes.firstOrNull {
+            it in 51..67 || it in 80..82 || it in 95..99
+        }
+        val effectivePrimaryCurrentCode = when {
+            activeRainCodeFromEnsemble != null && (fusedCurrentPrecipMm >= 0.04 || rawCurrentProb >= 35 || currentDto.weatherCode in 51..99 || nowcastCode in 51..99) ->
+                activeRainCodeFromEnsemble
+            (currentDto.weatherCode ?: 0) < 51 && (fusedCurrentPrecipMm >= 0.10 || (rawCurrentProb >= 55 && currentCloudCover >= 65)) ->
+                if (fusedCurrentPrecipMm >= 1.5) 63 else if (fusedCurrentPrecipMm >= 0.3) 61 else 51
+            else -> currentDto.weatherCode ?: nowcastCode ?: 0
+        }
+
         val fusedCurrentCode = resolveBestSnowAndWeatherCode(
-            primaryCode = currentDto.weatherCode ?: nowcastCode ?: 0,
+            primaryCode = effectivePrimaryCurrentCode,
             secondaryCode = if (useEnsembleBlend) (secondaryCurrent?.weatherCode ?: nowcastCode) else nowcastCode,
             tertiaryCode = if (useEnsembleBlend) tertiaryCurrent?.weatherCode else null,
             quaternaryCode = if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null,
@@ -1385,8 +1421,8 @@ class WeatherRepository(
             freezingLevelM = currentFreezingLevelM,
             elevationM = effectiveElevation
         )
-        val fusedCurrentProb = if (fusedCurrentCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)) {
-            maxOf(rawCurrentProb, if (fusedCurrentCode in setOf(75, 86)) 82 else 65)
+        val fusedCurrentProb = if (fusedCurrentPrecipMm >= 0.10 && rawCurrentProb == 0) {
+            (fusedCurrentPrecipMm * 28.0).roundToInt().coerceIn(25, 90)
         } else {
             rawCurrentProb
         }
@@ -1426,26 +1462,27 @@ class WeatherRepository(
                 ) + lapseRateCorrectionC
             }
 
-            val hSnowCm = maxOf(
-                hourlyDto?.snowfall?.getOrNull(idx) ?: 0.0,
-                if (useEnsembleBlend) (secondaryHourly?.snowfall?.getOrNull(idx) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (tertiaryHourly?.snowfall?.getOrNull(idx) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (quaternaryHourly?.snowfall?.getOrNull(idx) ?: 0.0) else 0.0
-            )
+            val hSnowCm = blendMetric(
+                hourlyDto?.snowfall?.getOrNull(idx),
+                secondaryHourly?.snowfall?.getOrNull(idx),
+                0.0,
+                useEnsembleBlend,
+                tertiaryHourly?.snowfall?.getOrNull(idx),
+                quaternaryHourly?.snowfall?.getOrNull(idx)
+            ).coerceAtLeast(0.0)
             val primaryHProb = (hourlyDto?.precipitationProbability?.getOrNull(idx)
                 ?: secondaryHourly?.precipitationProbability?.getOrNull(idx)
                 ?: tertiaryHourly?.precipitationProbability?.getOrNull(idx)
                 ?: quaternaryHourly?.precipitationProbability?.getOrNull(idx)
                 ?: 0).coerceIn(0, 100)
-            val primaryHPrecip = maxOf(
-                hourlyDto?.precipitation?.getOrNull(idx) ?: 0.0,
-                hourlyDto?.rain?.getOrNull(idx) ?: 0.0,
-                hourlyDto?.showers?.getOrNull(idx) ?: 0.0,
-                if (useEnsembleBlend) (secondaryHourly?.precipitation?.getOrNull(idx) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(idx) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (quaternaryHourly?.precipitation?.getOrNull(idx) ?: 0.0) else 0.0,
-                hSnowCm * 1.0
-            )
+            val primaryHPrecip = blendMetric(
+                hourlyDto?.precipitation?.getOrNull(idx) ?: hourlyDto?.rain?.getOrNull(idx),
+                secondaryHourly?.precipitation?.getOrNull(idx),
+                0.0,
+                useEnsembleBlend,
+                tertiaryHourly?.precipitation?.getOrNull(idx),
+                quaternaryHourly?.precipitation?.getOrNull(idx)
+            ).coerceAtLeast(0.0)
 
             val hWindSpeed = if (i == 0) {
                 currentWindSpeed
@@ -1501,8 +1538,8 @@ class WeatherRepository(
             }
             val hProb = if (i == 0) {
                 fusedCurrentProb
-            } else if (hCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)) {
-                maxOf(primaryHProb, if (hCode in setOf(75, 86)) 82 else 65)
+            } else if (primaryHProb == 0 && hPrecipMm >= 0.15) {
+                (hPrecipMm * 25.0).roundToInt().coerceIn(20, 85)
             } else {
                 primaryHProb
             }
@@ -1565,24 +1602,27 @@ class WeatherRepository(
             val rawDCode = dailyDto.weatherCode?.getOrNull(i) ?: fusedCurrentCode
             val secondaryDCode = if (useEnsembleBlend) secondaryDaily?.weatherCode?.getOrNull(i) else null
             val tertiaryDCode = if (useEnsembleBlend) tertiaryDaily?.weatherCode?.getOrNull(i) else null
-            val quaternaryDCode = if (useEnsembleBlend) quaternaryDaily?.weatherCode?.getOrNull(i) else null
             val rawDProb = (dailyDto.precipitationProbabilityMax?.getOrNull(i)
                 ?: secondaryDaily?.precipitationProbabilityMax?.getOrNull(i)
                 ?: tertiaryDaily?.precipitationProbabilityMax?.getOrNull(i)
                 ?: quaternaryDaily?.precipitationProbabilityMax?.getOrNull(i)
                 ?: 0).coerceIn(0, 100)
-            val rawDSumMm = maxOf(
-                dailyDto.precipitationSum?.getOrNull(i) ?: 0.0,
-                if (useEnsembleBlend) (secondaryDaily?.precipitationSum?.getOrNull(i) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (tertiaryDaily?.precipitationSum?.getOrNull(i) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (quaternaryDaily?.precipitationSum?.getOrNull(i) ?: 0.0) else 0.0
-            )
-            val dailySnowSumCm = maxOf(
-                dailyDto.snowfallSum?.getOrNull(i) ?: 0.0,
-                if (useEnsembleBlend) (secondaryDaily?.snowfallSum?.getOrNull(i) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (tertiaryDaily?.snowfallSum?.getOrNull(i) ?: 0.0) else 0.0,
-                if (useEnsembleBlend) (quaternaryDaily?.snowfallSum?.getOrNull(i) ?: 0.0) else 0.0
-            )
+            val rawDSumMm = blendMetric(
+                dailyDto.precipitationSum?.getOrNull(i),
+                secondaryDaily?.precipitationSum?.getOrNull(i),
+                0.0,
+                useEnsembleBlend,
+                tertiaryDaily?.precipitationSum?.getOrNull(i),
+                quaternaryDaily?.precipitationSum?.getOrNull(i)
+            ).coerceAtLeast(0.0)
+            val dailySnowSumCm = blendMetric(
+                dailyDto.snowfallSum?.getOrNull(i),
+                secondaryDaily?.snowfallSum?.getOrNull(i),
+                0.0,
+                useEnsembleBlend,
+                tertiaryDaily?.snowfallSum?.getOrNull(i),
+                quaternaryDaily?.snowfallSum?.getOrNull(i)
+            ).coerceAtLeast(0.0)
             val dWindMax = maxOf(
                 dailyDto.windMaxKmh(i),
                 if (useEnsembleBlend) (secondaryDaily?.windSpeed10mMax?.getOrNull(i) ?: 0.0) else 0.0,
@@ -1622,27 +1662,28 @@ class WeatherRepository(
                         tertiaryHourly?.apparentTemperature?.getOrNull(hIdx),
                         quaternaryHourly?.apparentTemperature?.getOrNull(hIdx)
                     ) + lapseRateCorrectionC
-                    val hSnowCm = maxOf(
-                        hourlyDto?.snowfall?.getOrNull(hIdx) ?: 0.0,
-                        if (useEnsembleBlend) (secondaryHourly?.snowfall?.getOrNull(hIdx) ?: 0.0) else 0.0,
-                        if (useEnsembleBlend) (tertiaryHourly?.snowfall?.getOrNull(hIdx) ?: 0.0) else 0.0,
-                        if (useEnsembleBlend) (quaternaryHourly?.snowfall?.getOrNull(hIdx) ?: 0.0) else 0.0
-                    )
+                    val hSnowCm = blendMetric(
+                        hourlyDto?.snowfall?.getOrNull(hIdx),
+                        secondaryHourly?.snowfall?.getOrNull(hIdx),
+                        0.0,
+                        useEnsembleBlend,
+                        tertiaryHourly?.snowfall?.getOrNull(hIdx),
+                        quaternaryHourly?.snowfall?.getOrNull(hIdx)
+                    ).coerceAtLeast(0.0)
                     dayHourlyTotalSnowCm += hSnowCm
                     val rawHProb = (hourlyDto?.precipitationProbability?.getOrNull(hIdx)
                         ?: secondaryHourly?.precipitationProbability?.getOrNull(hIdx)
                         ?: tertiaryHourly?.precipitationProbability?.getOrNull(hIdx)
                         ?: quaternaryHourly?.precipitationProbability?.getOrNull(hIdx)
-                        ?: rawDProb).coerceIn(0, 100)
-                    val hPrecipMm = maxOf(
-                        hourlyDto?.precipitation?.getOrNull(hIdx) ?: 0.0,
-                        hourlyDto?.rain?.getOrNull(hIdx) ?: 0.0,
-                        hourlyDto?.showers?.getOrNull(hIdx) ?: 0.0,
-                        if (useEnsembleBlend) (secondaryHourly?.precipitation?.getOrNull(hIdx) ?: 0.0) else 0.0,
-                        if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(hIdx) ?: 0.0) else 0.0,
-                        if (useEnsembleBlend) (quaternaryHourly?.precipitation?.getOrNull(hIdx) ?: 0.0) else 0.0,
-                        hSnowCm * 1.0
-                    )
+                        ?: 0).coerceIn(0, 100)
+                    val hPrecipMm = blendMetric(
+                        hourlyDto?.precipitation?.getOrNull(hIdx) ?: hourlyDto?.rain?.getOrNull(hIdx),
+                        secondaryHourly?.precipitation?.getOrNull(hIdx),
+                        0.0,
+                        useEnsembleBlend,
+                        tertiaryHourly?.precipitation?.getOrNull(hIdx),
+                        quaternaryHourly?.precipitation?.getOrNull(hIdx)
+                    ).coerceAtLeast(0.0)
                     val hWindSpeed = blendMetric(
                         hourlyDto?.windSpeed10m?.getOrNull(hIdx),
                         secondaryHourly?.windSpeed10m?.getOrNull(hIdx),
@@ -1678,10 +1719,12 @@ class WeatherRepository(
                         freezingLevelM = hFreezingLevel,
                         elevationM = effectiveElevation
                     )
-                    val hProb = if (hCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)) {
+                    if (hCode in setOf(71, 73, 75, 77, 85, 86)) {
                         dayHourlySnowHours++
-                        if (hCode in setOf(57, 67, 75, 86)) dayHourlyStormSnowHours++
-                        maxOf(rawHProb, if (hCode in setOf(75, 86)) 82 else 65)
+                        if (hCode in setOf(75, 86)) dayHourlyStormSnowHours++
+                    }
+                    val hProb = if (rawHProb == 0 && hPrecipMm >= 0.15) {
+                        (hPrecipMm * 25.0).roundToInt().coerceIn(20, 85)
                     } else {
                         rawHProb
                     }
@@ -1711,25 +1754,25 @@ class WeatherRepository(
             }
 
             val totalDaySnowCm = maxOf(dailySnowSumCm, dayHourlyTotalSnowCm)
+            val isColdDayForSnow = dMin <= 2.5
             val dCode = when {
-                dayHourlyStormSnowHours >= 1 || totalDaySnowCm >= 3.5 ||
-                    rawDCode in setOf(57, 67, 75, 86) ||
-                    secondaryDCode in setOf(57, 67, 75, 86) ||
-                    tertiaryDCode in setOf(57, 67, 75, 86) -> {
+                isColdDayForSnow && (dayHourlyStormSnowHours >= 2 || totalDaySnowCm >= 3.5 || rawDCode in setOf(75, 86)) -> {
                     if (rawDCode == 86 || secondaryDCode == 86 || tertiaryDCode == 86) 86 else 75
                 }
-                dayHourlySnowHours >= 1 || totalDaySnowCm >= 0.15 ||
-                    rawDCode in setOf(56, 66, 71, 73, 77, 85) ||
-                    secondaryDCode in setOf(56, 66, 71, 73, 77, 85) ||
-                    tertiaryDCode in setOf(56, 66, 71, 73, 77, 85) -> {
-                    if (totalDaySnowCm >= 1.0 || rawDCode == 73 || secondaryDCode == 73 || tertiaryDCode == 73) 73 else 71
+                isColdDayForSnow && (dayHourlySnowHours >= 2 || totalDaySnowCm >= 0.30 || rawDCode in setOf(71, 73, 77, 85)) -> {
+                    if (totalDaySnowCm >= 1.2 || rawDCode == 73) 73 else 71
+                }
+                (rawDCode in 51..67 || rawDCode in 80..82) && rawDSumMm < 0.15 && dayHourlyMaxProb < 25 -> {
+                    // Clean up false drizzle codes when daily total precipitation is negligible (<0.15 mm) and prob < 25%
+                    2
                 }
                 else -> rawDCode
             }
-            val dProb = if (dCode in setOf(56, 57, 66, 67, 71, 73, 75, 77, 85, 86)) {
-                maxOf(dayHourlyMaxProb, if (dCode in setOf(75, 86)) 85 else 68)
-            } else {
-                dayHourlyMaxProb
+            val dProb = when {
+                rawDProb > 0 -> rawDProb
+                dayHourlyMaxProb > 0 -> dayHourlyMaxProb
+                rawDSumMm >= 0.25 -> (rawDSumMm * 18.0).roundToInt().coerceIn(20, 85)
+                else -> 0
             }
             val dSumMm = maxOf(rawDSumMm, totalDaySnowCm * 1.0)
 
@@ -2405,6 +2448,144 @@ class WeatherRepository(
 
     companion object {
         const val GPS_CITY_ID: Long = 999_999_001L
+
+        fun canonicalCityNameKey(rawName: String): String {
+            val cleaned = sanitizeCityDisplayName(rawName).ifBlank { rawName.trim() }
+            var s = cleaned.lowercase(Locale.ROOT)
+                .replace('ά', 'α')
+                .replace('έ', 'ε')
+                .replace('ή', 'η')
+                .replace('ί', 'ι')
+                .replace('ϊ', 'ι')
+                .replace('ΐ', 'ι')
+                .replace('ό', 'ο')
+                .replace('ύ', 'υ')
+                .replace('ϋ', 'υ')
+                .replace('ΰ', 'υ')
+                .replace('ώ', 'ω')
+                .replace('ς', 'σ')
+                .trim()
+            val aliases = mapOf(
+                "αθηνα" to "athens",
+                "athina" to "athens",
+                "athens" to "athens",
+                "θεσσαλονικη" to "thessaloniki",
+                "σαλονικη" to "thessaloniki",
+                "salonika" to "thessaloniki",
+                "thessaloniki" to "thessaloniki",
+                "λαρισα" to "larissa",
+                "λαρισαιων" to "larissa",
+                "λαρισασ" to "larissa",
+                "larisa" to "larissa",
+                "larissa" to "larissa",
+                "larisas" to "larissa",
+                "βολοσ" to "volos",
+                "volos" to "volos",
+                "τρικαλα" to "trikala",
+                "trikala" to "trikala",
+                "καρδιτσα" to "karditsa",
+                "karditsa" to "karditsa",
+                "μουζακι" to "mouzaki",
+                "mouzaki" to "mouzaki",
+                "πατρα" to "patras",
+                "patra" to "patras",
+                "patras" to "patras",
+                "ηρακλειο" to "heraklion",
+                "irakleio" to "heraklion",
+                "heraklion" to "heraklion",
+                "ιωαννινα" to "ioannina",
+                "γιαννενα" to "ioannina",
+                "ioannina" to "ioannina",
+                "χανια" to "chania",
+                "chania" to "chania",
+                "κατερινη" to "katerini",
+                "katerini" to "katerini",
+                "κοζανη" to "kozani",
+                "kozani" to "kozani",
+                "λαμια" to "lamia",
+                "lamia" to "lamia",
+                "καλαματα" to "kalamata",
+                "kalamata" to "kalamata",
+                "ροδοσ" to "rhodes",
+                "rodos" to "rhodes",
+                "rhodes" to "rhodes",
+                "κερκυρα" to "corfu",
+                "kerkyra" to "corfu",
+                "corfu" to "corfu"
+            )
+            aliases[s]?.let { return it }
+
+            val digraphs = listOf(
+                "ου" to "u",
+                "αι" to "e",
+                "ει" to "i",
+                "οι" to "i",
+                "υι" to "i",
+                "μπ" to "b",
+                "ντ" to "d",
+                "γκ" to "g",
+                "γγ" to "g",
+                "τσ" to "ts",
+                "τζ" to "tz",
+                "θ" to "th",
+                "χ" to "ch",
+                "ψ" to "ps",
+                "ξ" to "ks"
+            )
+            for ((gr, lat) in digraphs) {
+                s = s.replace(gr, lat)
+            }
+            val sb = StringBuilder(s.length)
+            for (ch in s) {
+                when (ch) {
+                    'α' -> sb.append('a')
+                    'β' -> sb.append('v')
+                    'γ' -> sb.append('g')
+                    'δ' -> sb.append('d')
+                    'ε' -> sb.append('e')
+                    'ζ' -> sb.append('z')
+                    'η', 'ι', 'υ', 'y', 'u' -> sb.append('i')
+                    'κ', 'c', 'q' -> sb.append('k')
+                    'λ' -> sb.append('l')
+                    'μ' -> sb.append('m')
+                    'ν' -> sb.append('n')
+                    'ο', 'ω', 'w' -> sb.append('o')
+                    'π' -> sb.append('p')
+                    'ρ' -> sb.append('r')
+                    'σ' -> sb.append('s')
+                    'τ' -> sb.append('t')
+                    'φ' -> sb.append('f')
+                    'h', 'x' -> sb.append("ch")
+                    else -> sb.append(ch)
+                }
+            }
+            return sb.toString()
+                .replace("ai", "e")
+                .replace("ei", "i")
+                .replace("oi", "i")
+                .replace("ou", "i")
+                .replace("ua", "ia")
+                .replace("ya", "ia")
+                .replace("ch", "k")
+                .replace(Regex("(.)\\1+"), "$1")
+                .trim()
+        }
+
+        fun areCitiesSameLocation(a: SavedCityEntity, b: SavedCityEntity): Boolean {
+            if (a.id == b.id) return true
+            val dLat = abs(a.latitude - b.latitude)
+            val dLon = abs(a.longitude - b.longitude)
+            // Very close coordinates (~3.5 km) are always the same place
+            if (dLat < 0.035 && dLon < 0.035) return true
+            val keyA = canonicalCityNameKey(a.name)
+            val keyB = canonicalCityNameKey(b.name)
+            if (keyA.isNotBlank() && keyA == keyB) {
+                // Same canonical city name (e.g., "Larissa" / "Larisa" / "Λάρισα") within ~40 km
+                if (dLat < 0.35 && dLon < 0.35) return true
+                if (a.countryName.equals(b.countryName, ignoreCase = true)) return true
+            }
+            return false
+        }
 
         fun sanitizeCityDisplayName(raw: String): String {
             var cleaned = raw.trim()

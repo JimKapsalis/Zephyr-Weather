@@ -393,27 +393,27 @@ fun ZephyrWeatherApp(
 
     MyApplicationTheme(themeSetting = state.selectedTheme) {
         val currentLoadingState = state.loadingState
-        val activeBundle = (currentLoadingState as? LoadingState.Success)?.bundle
+        val activeBundle = state.primaryBundle ?: (currentLoadingState as? LoadingState.Success)?.bundle
         val liveClock = rememberLiveGreeceClock(activeBundle?.timezoneId)
         val sunsetTime = activeBundle?.daily?.firstOrNull()?.sunsetTime ?: "18:05"
-        val visualSpec = remember(activeBundle, state.selectedHourIndex, liveClock, sunsetTime) {
+        val visualSpec = remember(activeBundle, state.selectedHourIndex, liveClock, sunsetTime, state.skyAtmospherePreset) {
             if (activeBundle != null) {
                 val inspectedHour = activeBundle.hourly.getOrNull(state.selectedHourIndex)
                 if (state.selectedHourIndex > 0 && inspectedHour != null) {
                     val isHourNight = !inspectedHour.isDay || WmoWeatherMapper.isNightHourLabel(inspectedHour.displayHour)
                     val isHourSunset = WmoWeatherMapper.isSunsetClockTime(inspectedHour.displayHour, sunsetTime)
-                    WmoWeatherMapper.resolve(
-                        code = inspectedHour.weatherCode,
-                        isDay = !isHourNight,
-                        isSunset = isHourSunset
+                    state.skyAtmospherePreset.resolveVisualSpec(
+                        liveCode = inspectedHour.weatherCode,
+                        liveIsDay = !isHourNight,
+                        liveIsSunset = isHourSunset
                     )
                 } else {
                     val isLiveNight = !activeBundle.current.isDay || WmoWeatherMapper.isNightHourLabel(liveClock)
                     val isLiveSunset = WmoWeatherMapper.isSunsetClockTime(liveClock, sunsetTime)
-                    WmoWeatherMapper.resolve(
-                        code = activeBundle.current.weatherCode,
-                        isDay = !isLiveNight,
-                        isSunset = isLiveSunset
+                    state.skyAtmospherePreset.resolveVisualSpec(
+                        liveCode = activeBundle.current.weatherCode,
+                        liveIsDay = !isLiveNight,
+                        liveIsSunset = isLiveSunset
                     )
                 }
             } else {
