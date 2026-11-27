@@ -842,12 +842,77 @@ fun ZephyrWeatherApp(
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = state.statusBanner != null,
-                        enter = slideInVertically() + fadeIn(),
-                        exit = slideOutVertically() + fadeOut(),
-                        modifier = Modifier.align(Alignment.TopCenter)
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
                     ) {
+                        AnimatedVisibility(
+                            visible = state.isNewGitHubReleaseAvailable,
+                            enter = slideInVertically() + fadeIn(),
+                            exit = slideOutVertically() + fadeOut()
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(22.dp),
+                                color = Color(0xFF0A2E26).copy(alpha = 0.96f),
+                                border = BorderStroke(1.2.dp, Color(0xFF34D399).copy(alpha = 0.7f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                                    .clickable {
+                                        viewModel.openGitHubReleaseDownload(context, directApk = true)
+                                    }
+                                    .testTag("new_app_update_available_banner")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = WeatherIcons.Refresh,
+                                            contentDescription = null,
+                                            tint = Color(0xFF34D399),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = if (state.language == AppLanguage.GREEK) {
+                                                "🚀 Νέα ενημέρωση διαθέσιμη (${state.latestReleaseTag})! Πατήστε για άμεση λήψη APK"
+                                            } else {
+                                                "🚀 New Update Available (${state.latestReleaseTag})! Tap to download latest APK"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = Color(0xFF10B981).copy(alpha = 0.25f),
+                                        border = BorderStroke(1.dp, Color(0xFF34D399).copy(alpha = 0.6f))
+                                    ) {
+                                        Text(
+                                            text = if (state.language == AppLanguage.GREEK) "ΛΗΨΗ" else "GET APK",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color(0xFF6EE7B7),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.statusBanner != null,
+                            enter = slideInVertically() + fadeIn(),
+                            exit = slideOutVertically() + fadeOut()
+                        ) {
                         state.statusBanner?.let { msg ->
                             Surface(
                                 shape = RoundedCornerShape(22.dp),
@@ -893,6 +958,7 @@ fun ZephyrWeatherApp(
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }

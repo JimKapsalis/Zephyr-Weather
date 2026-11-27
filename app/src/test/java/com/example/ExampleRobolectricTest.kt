@@ -657,13 +657,19 @@ class ExampleRobolectricTest {
 
     @Test
     fun `export debug apk and offline html installer to project root for zip download`() {
-        assertEquals("v1.2", com.example.ui.WeatherViewModel.CURRENT_APP_VERSION_TAG)
-        assertEquals("v1.2", com.example.ui.WeatherViewModel.extractSemanticVersionToken("ZephyrWeather.1.2.apk"))
-        assertEquals("v1.3", com.example.ui.WeatherViewModel.extractSemanticVersionToken("Zephyr Weather v1.3 — Official Release"))
-        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.3", "v1.2"))
-        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.3.apk", "v1.2"))
-        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.2", "v1.2"))
-        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.apk", "v1.2"))
+        assertEquals("v1.3", com.example.ui.WeatherViewModel.CURRENT_APP_VERSION_TAG)
+        assertEquals("v1.3", com.example.ui.WeatherViewModel.extractSemanticVersionToken("ZephyrWeather.1.3.apk"))
+        assertEquals("v1.4", com.example.ui.WeatherViewModel.extractSemanticVersionToken("Zephyr Weather v1.4 — Official Release"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.4", "v1.3"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.4.apk", "v1.3"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.3", "v1.3"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.2.apk", "v1.3"))
+
+        // Verify v1.3 Sahara Dust & Shareable Forecast generator
+        val clearDust = com.example.ui.components.computeSaharaDustLevel(pm10 = 14.0, isSouthFlow = false, isGreek = false)
+        assertEquals(14, clearDust.second)
+        val highDust = com.example.ui.components.computeSaharaDustLevel(pm10 = 60.0, isSouthFlow = true, isGreek = true)
+        assertTrue(highDust.second >= 60)
 
         val candidates = listOf(
             java.io.File("/app/applet/app/build/outputs/apk/debug/app-debug.apk"),
@@ -677,7 +683,8 @@ class ExampleRobolectricTest {
             val rootDir = java.io.File("/app/applet").takeIf { it.exists() } ?: java.io.File("..").canonicalFile
             java.io.File(rootDir, "ZephyrWeather.apk").delete()
             java.io.File(rootDir, "ZephyrWeather.1.apk").delete()
-            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.2.apk")
+            java.io.File(rootDir, "ZephyrWeather.1.2.apk").delete()
+            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.3.apk")
             rootApk.writeBytes(apkBytes)
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
 
@@ -685,7 +692,8 @@ class ExampleRobolectricTest {
             assetsDir.mkdirs()
             java.io.File(assetsDir, "ZephyrWeather.apk").delete()
             java.io.File(assetsDir, "ZephyrWeather.1.apk").delete()
-            val assetsApk = java.io.File(assetsDir, "ZephyrWeather.1.2.apk")
+            java.io.File(assetsDir, "ZephyrWeather.1.2.apk").delete()
+            val assetsApk = java.io.File(assetsDir, "ZephyrWeather.1.3.apk")
             assetsApk.writeBytes(apkBytes)
             assertTrue(assetsApk.exists() && assetsApk.length() > 100_000L)
         }

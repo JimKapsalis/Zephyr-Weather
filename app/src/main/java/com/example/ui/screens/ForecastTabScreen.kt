@@ -88,13 +88,16 @@ import com.example.model.WeatherUnits
 import com.example.model.WmoWeatherMapper
 import com.example.ui.components.AirQualityArcCanvas
 import com.example.ui.components.AnimatedWeatherStatusIcon
+import com.example.ui.components.EnsembleConfidenceAndSaharaDustCard
 import com.example.ui.components.HeroWeatherSceneOverlay
 import com.example.ui.components.HomeCitySearchAndQuickSwitchCard
+import com.example.ui.components.HyperLocalRainAndCommuteCard
 import com.example.ui.components.InteractiveHourlyCurveChart
 import com.example.ui.components.LottieStyleWeatherHeroBadge
 import com.example.ui.components.SevereWeatherAlertsDashboardSection
 import com.example.ui.components.SolarHorizonCanvas
 import com.example.ui.components.TenDayRangeBar
+import com.example.ui.components.WeekendOutlookAndQuickShareCard
 import com.example.ui.components.WindCompassCanvas
 import com.example.ui.theme.AmberSol
 import com.example.ui.theme.CyanGlow
@@ -554,6 +557,43 @@ fun ForecastTabScreen(
                     units = units,
                     language = language,
                     onNavigateToRadar = onNavigateToRadar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 6d. v1.3 Update: 60-Min Hyper-Local Rain Nowcast Bar Chart & Daily Commute Windows
+            item(key = "hyper_local_rain_commute_section") {
+                HyperLocalRainAndCommuteCard(
+                    bundle = bundle,
+                    units = units,
+                    language = language,
+                    onNavigateToRadar = onNavigateToRadar,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 6e. v1.3 Update: 4-Model Ensemble Confidence, Sahara Dust (Αφρικανική Σκόνη) & Bio-Weather Pressure
+            item(key = "ensemble_confidence_sahara_dust_section") {
+                EnsembleConfidenceAndSaharaDustCard(
+                    bundle = bundle,
+                    units = units,
+                    language = language,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // 6f. v1.3 Update: Weekend Weather Planner (Sat/Sun) & One-Tap Share Forecast Snapshot
+            item(key = "weekend_outlook_share_section") {
+                WeekendOutlookAndQuickShareCard(
+                    bundle = bundle,
+                    units = units,
+                    language = language,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)

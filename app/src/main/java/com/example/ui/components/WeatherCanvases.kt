@@ -35,10 +35,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -263,15 +263,17 @@ fun WeatherParticleSystem(
     }
 
     val isResumed = rememberIsAppResumed()
-    val cyclePhaseAnim = remember { Animatable(0.25f) }
+    val cyclePhaseAnim = remember { Animatable(0f) }
     LaunchedEffect(visualSpec.particleEffect, isCompactOverlay, isResumed) {
-        if (isResumed && !isCompactOverlay) {
-            cyclePhaseAnim.snapTo(0f)
-            cyclePhaseAnim.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 2400, easing = LinearEasing)
-            )
-            cyclePhaseAnim.snapTo(0.25f)
+        if (isResumed) {
+            val cycleDurationMs = if (isCompactOverlay) 14000 else 11000
+            while (isResumed) {
+                cyclePhaseAnim.snapTo(0f)
+                cyclePhaseAnim.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = cycleDurationMs, easing = LinearEasing)
+                )
+            }
         } else {
             cyclePhaseAnim.snapTo(0.25f)
         }
@@ -1314,15 +1316,16 @@ fun WeatherConditionAnimation(
     modifier: Modifier = Modifier
 ) {
     val isResumed = rememberIsAppResumed()
-    val phaseAnim = remember { Animatable(0.25f) }
+    val phaseAnim = remember { Animatable(0f) }
     LaunchedEffect(visualSpec.particleEffect, isResumed) {
         if (isResumed) {
-            phaseAnim.snapTo(0f)
-            phaseAnim.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 2200, easing = LinearEasing)
-            )
-            phaseAnim.snapTo(0.25f)
+            while (isResumed) {
+                phaseAnim.snapTo(0f)
+                phaseAnim.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 9000, easing = LinearEasing)
+                )
+            }
         } else {
             phaseAnim.snapTo(0.25f)
         }
@@ -1854,15 +1857,16 @@ fun LottieStyleWeatherHeroBadge(
     }
 
     val isResumed = rememberIsAppResumed()
-    val orbitAngleAnim = remember { Animatable(45f) }
+    val orbitAngleAnim = remember { Animatable(0f) }
     LaunchedEffect(triggerKey, visualSpec.particleEffect, isResumed) {
         if (isResumed) {
-            orbitAngleAnim.snapTo(0f)
-            orbitAngleAnim.animateTo(
-                targetValue = 360f,
-                animationSpec = tween(durationMillis = 2200, easing = FastOutSlowInEasing)
-            )
-            orbitAngleAnim.snapTo(45f)
+            while (isResumed) {
+                orbitAngleAnim.snapTo(0f)
+                orbitAngleAnim.animateTo(
+                    targetValue = 360f,
+                    animationSpec = tween(durationMillis = 12000, easing = LinearEasing)
+                )
+            }
         } else {
             orbitAngleAnim.snapTo(45f)
         }

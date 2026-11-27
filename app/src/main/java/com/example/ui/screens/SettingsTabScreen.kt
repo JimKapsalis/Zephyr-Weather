@@ -89,13 +89,13 @@ fun SettingsTabScreen(
     onOpenLocationSetup: () -> Unit = {},
     onTriggerTestAlert: () -> Unit = {},
     isCheckingUpdates: Boolean = false,
-    appVersionLabel: String = "v1.2 (Build 12)",
+    appVersionLabel: String = "v1.3 (Build 13)",
     lastUpdateCheckStatus: String? = null,
     githubRepoSlug: String = "JimKapsalis/Zephyr-Weather",
-    latestReleaseTag: String = "v1.2",
+    latestReleaseTag: String = "v1.3",
     latestReleaseNotes: String? = null,
     isNewGitHubReleaseAvailable: Boolean = false,
-    totalApkDownloads: Int = 123,
+    totalApkDownloads: Int = 125,
     onUpdateGitHubRepoSlug: (String) -> Unit = {},
     onOpenGitHubReleaseDownload: (directApk: Boolean) -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
@@ -1057,17 +1057,17 @@ fun SettingsTabScreen(
 
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (language == AppLanguage.GREEK) {
-                "• Διόρθωση Κατανάλωσης CPU & Μπαταρίας: 0% CPU σε αναμονή & άμεσος τερματισμός GPS στο παρασκήνιο\n" +
-                    "• Μεγαλύτερα, Ευανάγνωστα Γράμματα στις Ζωντανές Ειδοποιήσεις Καιρού + Άμεσο Κουμπί «Προβολή Ραντάρ →»\n" +
-                    "• Απόσταση Κεραυνών & Άφιξη Καταιγίδας (χλμ & ETA) + Σύμβουλος Ένδυσης στο κάτω μέρος της Πρόγνωσης\n" +
-                    "• Ζουμ στο Ζωντανό Ραντάρ (1.0× – 5.0×), Μετρητής Ορατών Άστρων (0 – 3.500) & Ειδοποιήσεις Χωρίς Spam\n" +
-                    "• Πολλαπλοί Πάροχοι GPS + Αυτόματη Εφεδρεία Δικτύου & Διάφανο Liquid-Glass UI"
+                "• Βροχή Επόμενων 60 Λεπτών (Nowcast Bar Chart ανά 10λ) & Καιρός Πρωινής/Βραδινής Μετακίνησης\n" +
+                    "• Δείκτης Ακρίβειας 4 Μοντέλων (%), Ανιχνευτής Αφρικανικής Σκόνης (PM10) & Βιο-Μετεωρολογική Πίεση\n" +
+                    "• Πρόγνωση Σαββατοκύριακου (Σάββατο & Κυριακή) & Άμεση Κοινοποίηση Καιρού με 1 πάτημα\n" +
+                    "• Μηδενική Κατανάλωση CPU/Μπαταρίας (0% σε αναμονή) & Ευανάγνωστες Ειδοποιήσεις με Κουμπί «Προβολή Ραντάρ →»\n" +
+                    "• Ζουμ Ραντάρ (1.0× – 5.0×), Απόσταση Κεραυνών, Μετρητής Ορατών Άστρων & Σύμβουλος Ένδυσης"
             } else {
-                "• Zero-Drain CPU & Battery Fix: 0% idle CPU animations & guaranteed one-shot background GPS cleanup\n" +
-                    "• High-Contrast Live Weather Alerts Card: Larger scannable typography & direct 'Radar View →' button\n" +
-                    "• Live Lightning Strike Distance & Storm ETA countdown + Bottom Clothing & Outdoor Activity Advisor\n" +
-                    "• Interactive Doppler Radar Zoom (1.0× – 5.0×), Visible Star Count (0 – 3,500) & 6h Anti-Spam Alerts\n" +
-                    "• Multi-Provider Fast-Path GPS + Automatic IP Fallback & Transparent Liquid-Glass UI"
+                "• 60-Minute Hyper-Local Rain Nowcast (10-min precipitation bar graph) & Morning/Evening Commute Slots\n" +
+                    "• 4-Model Ensemble Forecast Confidence %, Sahara Dust (PM10) Car-Wash Advisor & Barometric Bio-Weather\n" +
+                    "• Weekend Weather Planner (Saturday & Sunday outlook) & One-Tap Shareable Forecast Snapshot\n" +
+                    "• Zero-Drain CPU & Battery Optimization (0% idle CPU) & High-Contrast Live Alerts with 'Radar View →' switch\n" +
+                    "• Interactive Doppler Radar Zoom (1.0× – 5.0×), Lightning Distance, Visible Star Count & Clothing Advisor"
             }
 
             Card(

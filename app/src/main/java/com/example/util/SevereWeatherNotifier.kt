@@ -56,13 +56,16 @@ object SevereWeatherNotifier {
 
     const val CHANNEL_SEVERE_ALERTS = "zephyr_severe_weather_alerts_v3"
     const val CHANNEL_RAIN_ALERTS = "zephyr_rain_onset_alerts_v3"
+    const val CHANNEL_APP_UPDATES = "zephyr_app_updates_v3"
 
     private const val NOTIFICATION_ID_SEVERE = 4101
     private const val NOTIFICATION_ID_TEST = 4102
+    private const val NOTIFICATION_ID_APP_UPDATE = 4103
 
     private const val PREFS_ALERT_COOLDOWN = "zephyr_alert_cooldown_prefs"
     private const val KEY_LAST_ALERT_SIG = "last_alert_signature"
     private const val KEY_LAST_ALERT_TIME = "last_alert_epoch_ms"
+    private const val KEY_LAST_NOTIFIED_UPDATE_TAG = "last_notified_update_tag"
     // Minimum 6 hours between automatic notifications for the same city/condition so phones are never spammed
     private const val AUTOMATIC_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000L
 
@@ -109,8 +112,19 @@ object SevereWeatherNotifier {
                 setSound(null, null)
             }
 
+            val updateChannel = NotificationChannel(
+                CHANNEL_APP_UPDATES,
+                "App Updates & New GitHub Releases",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifies you when a new Zephyr Weather APK version is published on GitHub Releases."
+                enableVibration(true)
+                enableLights(true)
+            }
+
             manager.createNotificationChannel(severeChannel)
             manager.createNotificationChannel(rainChannel)
+            manager.createNotificationChannel(updateChannel)
         }
     }
 
@@ -425,6 +439,91 @@ object SevereWeatherNotifier {
                 true
             } else {
                 false
+            }
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Posts a system notification alerting the user that a new Zephyr Weather APK release is available
+     * on GitHub Releases, with a direct one-tap download action.
+     */
+    fun dispatchAppUpdateNotificationIfPermitted(
+        context: Context,
+        remoteVersionTag: String,
+        downloadUrl: String,
+        releaseNotes: String? = null,
+        language: AppLanguage = AppLanguage.ENGLISH,
+        forceDispatch: Boolean = false
+    ): Boolean {
+        ensureChannelsCreated(context)
+        if (!canPostNotifications(context)) {
+            return false
+        }
+
+        val prefs = runCatching {
+            context.getSharedPreferences(PREFS_ALERT_COOLDOWN, Context.MODE_PRIVATE)
+        }.getOrNull()
+
+        if (!forceDispatch) {
+            val lastNotifiedTag = prefs?.getString(KEY_LAST_NOTIFIED_UPDATE_TAG, null)
+            if (lastNotifiedTag != null && lastNotifiedTag.equals(remoteVersionTag, ignoreCase = true)) {
+                return false
+            }
+        }
+        prefs?.edit()?.putString(KEY_LAST_NOTIFIED_UPDATE_TAG, remoteVersionTag)?.apply()
+
+        val isGreek = language == AppLanguage.GREEK
+        val title = if (isGreek) {
+            "🚀 Νέα Ενημέρωση Zephyr Weather ($remoteVersionTag)"
+        } else {
+            "🚀 New Zephyr Weather Update Available ($remoteVersionTag)"
+        }
+        val cleanNotes = releaseNotes
+            ?.lineSequence()
+            ?.map { it.trim().removePrefix("#").removePrefix("*").removePrefix("-").trim() }
+            ?.firstOrNull { it.isNotBlank() && !it.startsWith("[!") }
+        val message = if (isGreek) {
+            cleanNotes?.let { "Διαθέσιμη η νέα έκδοση $remoteVersionTag στο GitHub Releases: $it. Πατήστε για λήψη APK." }
+                ?: "Η νέα έκδοση $remoteVersionTag είναι διαθέσιμη στο GitHub Releases! Πατήστε για άμεση λήψη και εγκατάσταση του APK."
+        } else {
+            cleanNotes?.let { "Version $remoteVersionTag is live on GitHub Releases: $it. Tap to download the new APK." }
+                ?: "Version $remoteVersionTag is now available on GitHub Releases! Tap to download and install the latest APK."
+        }
+
+        val downloadIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(downloadUrl)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val downloadPendingIntent = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID_APP_UPDATE,
+            downloadIntent,
+            pendingFlags
+        )
+
+        val actionLabel = if (isGreek) "⬇ Λήψη APK ($remoteVersionTag)" else "⬇ Download APK ($remoteVersionTag)"
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_APP_UPDATES)
+            .setSmallIcon(R.drawable.ic_widget_partly_sunny)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(downloadPendingIntent)
+            .addAction(R.drawable.ic_widget_partly_sunny, actionLabel, downloadPendingIntent)
+            .build()
+
+        return runCatching {
+            val sysManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            if (sysManager != null) {
+                sysManager.notify(NOTIFICATION_ID_APP_UPDATE, notification)
+                true
+            } else {
+                NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_APP_UPDATE, notification)
+                true
             }
         }.getOrDefault(false)
     }
