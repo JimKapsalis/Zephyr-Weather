@@ -657,14 +657,14 @@ class ExampleRobolectricTest {
 
     @Test
     fun `export debug apk and offline html installer to project root for zip download`() {
-        assertEquals("v1.3.1", com.example.ui.WeatherViewModel.CURRENT_APP_VERSION_TAG)
-        assertEquals("v1.3.1", com.example.ui.WeatherViewModel.extractSemanticVersionToken("ZephyrWeather.1.3.1.apk"))
-        assertEquals("v1.4", com.example.ui.WeatherViewModel.extractSemanticVersionToken("Zephyr Weather v1.4 — Official Release"))
-        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.4", "v1.3.1"))
-        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.4.apk", "v1.3.1"))
-        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.3.1", "v1.3.1"))
-        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.3.apk", "v1.3.1"))
-        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.2.apk", "v1.3.1"))
+        assertEquals("v1.4.2", com.example.ui.WeatherViewModel.CURRENT_APP_VERSION_TAG)
+        assertEquals("v1.4.2", com.example.ui.WeatherViewModel.extractSemanticVersionToken("ZephyrWeather.1.4.2.apk"))
+        assertEquals("v1.5", com.example.ui.WeatherViewModel.extractSemanticVersionToken("Zephyr Weather v1.5 — Official Release"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.5", "v1.4.2"))
+        assertTrue(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.5.apk", "v1.4.2"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("v1.4.2", "v1.4.2"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.3.1.apk", "v1.4.2"))
+        assertFalse(com.example.ui.WeatherViewModel.isRemoteVersionNewer("ZephyrWeather.1.2.apk", "v1.4.2"))
 
         // Verify GPS Auto-Detected Larissa and Searched Larisa / Λάρισα are recognized as the same city (preventing duplicates)
         val gpsLarissa = SavedCityEntity(
@@ -729,11 +729,11 @@ class ExampleRobolectricTest {
         val sourceApk = candidates.firstOrNull { it.exists() && it.length() > 100_000L }
         if (sourceApk != null) {
             val apkBytes = sourceApk.readBytes()
-            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.3.1.apk")
+            val rootApk = java.io.File(rootDir, "ZephyrWeather.1.4.2.apk")
             rootApk.writeBytes(apkBytes)
             assertTrue(rootApk.exists() && rootApk.length() > 100_000L)
 
-            val assetsApk = java.io.File(assetsDir, "ZephyrWeather.1.3.1.apk")
+            val assetsApk = java.io.File(assetsDir, "ZephyrWeather.1.4.2.apk")
             assetsApk.writeBytes(apkBytes)
             assertTrue(assetsApk.exists() && assetsApk.length() > 100_000L)
         }
@@ -1105,7 +1105,7 @@ class ExampleRobolectricTest {
                 "4-Model Agreement: 96% High Confidence (Spread ±0.6°C)" to java.awt.Color(251, 191, 36),
                 "Solar Water Heater: 88% Efficiency • Peak 12:00–16:00" to java.awt.Color(251, 191, 36),
                 "Smart City Deduplication: Auto-Detect + Search Merged" to java.awt.Color(125, 211, 252),
-                "GitHub Releases App Updater: v1.3.1 (Build 14) • Latest" to java.awt.Color(16, 185, 129)
+                "GitHub Releases App Updater: v1.4.2 (Build 15) • Latest" to java.awt.Color(16, 185, 129)
             )
             for (i in metrics.indices) {
                 val my = 1422 + i * 96

@@ -433,9 +433,25 @@ fun ZephyrWeatherApp(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF14141B))
+                .background(
+                    Brush.verticalGradient(
+                        colors = if (visualSpec != null) {
+                            listOf(
+                                visualSpec.gradientTop,
+                                visualSpec.gradientMid,
+                                visualSpec.gradientBottom
+                            )
+                        } else {
+                            listOf(
+                                Color(0xFF0A1628),
+                                Color(0xFF0D213D),
+                                Color(0xFF071120)
+                            )
+                        }
+                    )
+                )
         ) {
-            if (visualSpec != null && state.activeTab == WeatherNavTab.FORECAST && !state.isLocationSetupOpen) {
+            if (visualSpec != null) {
                 WeatherSkyBackdrop(
                     visualSpec = visualSpec,
                     modifier = Modifier.fillMaxSize()
@@ -457,8 +473,8 @@ fun ZephyrWeatherApp(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFF102542).copy(alpha = 0.90f),
-                                    border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.50f)),
+                                    color = Color(0xFF0F2644).copy(alpha = 0.72f),
+                                    border = BorderStroke(1.2.dp, CyanZephyr.copy(alpha = 0.45f)),
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -500,11 +516,11 @@ fun ZephyrWeatherApp(
                             // Location Setup / Search Quick Button
                             Surface(
                                 shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.45f)),
+                                color = EmeraldBreeze.copy(alpha = 0.20f),
+                                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.55f)),
                                 modifier = Modifier
                                     .padding(end = 6.dp)
-                                    .size(32.dp)
+                                    .size(34.dp)
                                     .clip(CircleShape)
                                     .clickable { viewModel.openLocationSetup() }
                                     .testTag("top_bar_location_setup_button")
@@ -521,8 +537,8 @@ fun ZephyrWeatherApp(
                             // Language Quick Toggle Pill (EN / ΕΛ)
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = Color.White.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.35f)),
+                                color = Color.White.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
                                 modifier = Modifier
                                     .padding(end = 6.dp)
                                     .clip(RoundedCornerShape(50))
@@ -533,16 +549,16 @@ fun ZephyrWeatherApp(
                                     text = state.language.shortBadge,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = CyanGlow,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                                 )
                             }
 
                             // Unit Toggle Pill Button (°C / °F)
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = Color.White.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, AmberSol.copy(alpha = 0.35f)),
+                                color = AmberSol.copy(alpha = 0.22f),
+                                border = BorderStroke(1.dp, AmberSol.copy(alpha = 0.55f)),
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .clip(RoundedCornerShape(50))
@@ -552,9 +568,9 @@ fun ZephyrWeatherApp(
                                 Text(
                                     text = if (state.units.useFahrenheit) "°F" else "°C",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = AmberSol,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                                 )
                             }
                         },
@@ -654,7 +670,7 @@ fun ZephyrWeatherApp(
                                                 onToggleExpandDay = { viewModel.toggleExpandedDay(it) },
                                                 onNavigateToRadar = { viewModel.selectTab(WeatherNavTab.RADAR) }
                                             )
-                                        } else if (state.isInitialDbLoaded && (state.isLocatingGps || state.savedCities.isEmpty())) {
+                                        } else {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
@@ -676,9 +692,6 @@ fun ZephyrWeatherApp(
                                                     }
                                                 )
                                             }
-                                        } else {
-                                            // Silent 1-frame empty box while Room DB reads saved cities on startup (< 30ms)
-                                            Box(modifier = Modifier.fillMaxSize())
                                         }
                                     }
 
@@ -1021,16 +1034,15 @@ fun ZephyrBottomNavBar(
             .testTag("weather_bottom_bar")
     ) {
         Surface(
-            shape = RoundedCornerShape(30.dp),
-            color = Color(0xFF0A1D35).copy(alpha = 0.28f),
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF0A192E).copy(alpha = 0.86f),
             border = BorderStroke(
-                width = 1.2.dp,
+                width = 1.1.dp,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.36f),
-                        CyanZephyr.copy(alpha = 0.42f),
-                        Color.White.copy(alpha = 0.22f),
-                        AmberSol.copy(alpha = 0.34f)
+                        CyanZephyr.copy(alpha = 0.45f),
+                        Color.White.copy(alpha = 0.25f),
+                        AmberSol.copy(alpha = 0.40f)
                     )
                 )
             ),
@@ -1041,45 +1053,22 @@ fun ZephyrBottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.14f),
-                                Color.White.copy(alpha = 0.03f),
-                                Color(0xFF061325).copy(alpha = 0.20f)
-                            )
-                        )
-                    )
                     .padding(horizontal = 8.dp, vertical = 7.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items.forEach { item ->
                     val isSelected = activeTab == item.tab
-                    val activeAccent = when (item.tab) {
-                        WeatherNavTab.FORECAST -> AmberSol
-                        WeatherNavTab.RADAR -> CyanZephyr
-                        WeatherNavTab.CITIES -> CyanGlow
-                        WeatherNavTab.SETTINGS -> CyanZephyr
-                    }
 
                     Surface(
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = if (isSelected) {
-                            Color.White.copy(alpha = 0.15f)
+                            Color(0xFF1A355B).copy(alpha = 0.85f)
                         } else {
                             Color.Transparent
                         },
                         border = if (isSelected) {
-                            BorderStroke(
-                                1.2.dp,
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.48f),
-                                        activeAccent.copy(alpha = 0.55f)
-                                    )
-                                )
-                            )
+                            BorderStroke(1.1.dp, AmberSol.copy(alpha = 0.65f))
                         } else {
                             null
                         },
@@ -1087,62 +1076,30 @@ fun ZephyrBottomNavBar(
                         tonalElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(22.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .clickable { onSelectTab(item.tab) }
                             .testTag(item.tag)
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isSelected) {
-                                            Brush.radialGradient(
-                                                colors = listOf(
-                                                    activeAccent.copy(alpha = 0.34f),
-                                                    activeAccent.copy(alpha = 0.10f),
-                                                    Color.Transparent
-                                                )
-                                            )
-                                        } else {
-                                            Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = 0.08f),
-                                                    Color.Transparent
-                                                )
-                                            )
-                                        }
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
-                                    contentDescription = item.label,
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(if (isSelected) 26.dp else 23.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Icon(
+                                imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
+                                contentDescription = item.label,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = item.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.68f),
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.72f),
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(width = if (isSelected) 18.dp else 0.dp, height = 3.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isSelected) activeAccent else Color.Transparent)
                             )
                         }
                     }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +66,7 @@ import com.example.model.AutoRefreshInterval
 import com.example.model.WeatherProvider
 import com.example.model.WeatherUnits
 import com.example.ui.theme.AmberSol
+import com.example.ui.theme.CoralWarmth
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanZephyr
 import com.example.ui.theme.EmeraldBreeze
@@ -105,10 +107,10 @@ fun SettingsTabScreen(
     onOpenLocationSetup: () -> Unit = {},
     onTriggerTestAlert: () -> Unit = {},
     isCheckingUpdates: Boolean = false,
-    appVersionLabel: String = "v1.3.1 (Build 14)",
+    appVersionLabel: String = "v1.4.2 (Build 15)",
     lastUpdateCheckStatus: String? = null,
     githubRepoSlug: String = "JimKapsalis/Zephyr-Weather",
-    latestReleaseTag: String = "v1.3.1",
+    latestReleaseTag: String = "v1.4.2",
     latestReleaseNotes: String? = null,
     isNewGitHubReleaseAvailable: Boolean = false,
     totalApkDownloads: Int = 1803,
@@ -150,12 +152,11 @@ fun SettingsTabScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(M3DarkBackground.copy(alpha = 0.88f))
             .testTag("settings_tab_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 116.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Top Segmented Pill Switcher ("Recommended" | "All settings") matching the reference UI
+        // 1. Top Segmented Pill Switcher ("Recommended" | "All settings")
         item {
             MaterialYouSegmentedPillBar(
                 leftLabel = if (isGreek) "Προτεινόμενα" else "Recommended",
@@ -167,13 +168,13 @@ fun SettingsTabScreen(
             )
         }
 
-        // 2. 2-Column Material You Bento Cards Grid (6 cards in 3 rows of 2)
+        // 2. 2-Column Colorful Material You Bento Cards Grid (6 cards in 3 rows of 2)
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Row 1: App Updater & Discord Server
+                // Row 1: App Updater (Emerald Green) & Discord Server (Vibrant Indigo/Cyan)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -182,6 +183,7 @@ fun SettingsTabScreen(
                 ) {
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.Refresh,
+                        accent = EmeraldBreeze,
                         title = if (isGreek) "Ενημέρωση\nΕφαρμογής" else "App\nUpdater",
                         description = if (isGreek) {
                             "Έκδοση $latestReleaseTag με $formattedDownloads λήψεις APK. Έλεγχος GitHub Releases για νέες εκδόσεις."
@@ -211,6 +213,7 @@ fun SettingsTabScreen(
 
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.Send,
+                        accent = Color(0xFF818CF8),
                         title = if (isGreek) "Κοινότητα\nDiscord" else "Discord\nServer",
                         description = if (isGreek) {
                             "Μπείτε στον επίσημο server discord.gg/aHynb4QKC για ζωντανές αναφορές καιρού και νέα APK."
@@ -241,7 +244,7 @@ fun SettingsTabScreen(
                     )
                 }
 
-                // Row 2: Forecast Models & GPS Location Hub
+                // Row 2: Forecast Models (Cyan Glow) & GPS Location Hub (Amber Gold)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -254,6 +257,7 @@ fun SettingsTabScreen(
                     }
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.CompassCalibration,
+                        accent = CyanGlow,
                         title = if (isGreek) "Μοντέλα\nΠρόγνωσης" else "Forecast\nModels",
                         description = if (isGreek) {
                             "Ενεργό: ${selectedProvider.displayName} (${selectedProvider.resolutionBadge}). Συνδυασμός 4 μοντέλων ακριβείας."
@@ -271,6 +275,7 @@ fun SettingsTabScreen(
 
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.MyLocation,
+                        accent = AmberSol,
                         title = if (isGreek) "Εύρεση\nΤοποθεσίας" else "Location\nHub",
                         description = if (isGreek) {
                             "Αυτόματος εντοπισμός συντεταγμένων GPS & υψομέτρου ή αναζήτηση πόλης και χωριού."
@@ -287,7 +292,7 @@ fun SettingsTabScreen(
                     )
                 }
 
-                // Row 3: Units & Language + Weather Alerts & Sync
+                // Row 3: Units & Language (Sky Cyan) + Weather Alerts & Sync (Coral Orange)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -296,6 +301,7 @@ fun SettingsTabScreen(
                 ) {
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.Public,
+                        accent = CyanZephyr,
                         title = if (isGreek) "Μονάδες &\nΓλώσσα" else "Units &\nLanguage",
                         description = if (isGreek) {
                             "Κλίμακα: ${if (units.useFahrenheit) "Fahrenheit (°F)" else "Κελσίου (°C)"}, ${if (units.useMph) "mph" else "km/h"} • Γλώσσα: ${language.displayName}."
@@ -316,6 +322,7 @@ fun SettingsTabScreen(
 
                     MaterialYouBentoServiceCard(
                         icon = WeatherIcons.NotificationsActive,
+                        accent = Color(0xFFFB7185),
                         title = if (isGreek) "Ειδοποιήσεις\nΚαιρού" else "Weather\nAlerts",
                         description = if (isGreek) {
                             "Δελτία ΕΜΥ: ${if (emyAlertsEnabled) "ΕΝΕΡΓΑ" else "ΚΛΕΙΣΤΑ"} • Βροχή: ${if (rainAlertsEnabled) "ΕΝΕΡΓΗ" else "ΚΛΕΙΣΤΗ"} • Ανανέωση: ${refreshInterval.badge}."
@@ -339,7 +346,7 @@ fun SettingsTabScreen(
             }
         }
 
-        // Top Section 1: Official Discord Community Server Card (Matte Material You surface)
+        // Top Section 1: Official Discord Community Server Card (Vibrant Indigo Accent)
         item {
             Card(
                 modifier = Modifier
@@ -347,7 +354,16 @@ fun SettingsTabScreen(
                     .testTag("settings_discord_server_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = M3CardSurface
+                    containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)
+                ),
+                border = BorderStroke(
+                    width = 1.1.dp,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFF818CF8).copy(alpha = 0.65f),
+                            CyanZephyr.copy(alpha = 0.35f)
+                        )
+                    )
                 )
             ) {
                 Column(
@@ -361,23 +377,32 @@ fun SettingsTabScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = WeatherIcons.Send,
-                            contentDescription = "Discord Server",
-                            tint = M3IconTint,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF818CF8).copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, Color(0xFF818CF8).copy(alpha = 0.55f)),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = WeatherIcons.Send,
+                                    contentDescription = "Discord Server",
+                                    tint = Color(0xFFA5B4FC),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (isGreek) "Επίσημος Discord Server" else "Official Discord Community",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = M3TitleText
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                             Text(
                                 text = discordInviteUrl,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = M3PeriwinkleAction
+                                color = Color(0xFFA5B4FC)
                             )
                         }
                     }
@@ -389,7 +414,7 @@ fun SettingsTabScreen(
                             "Chat about live weather, report local rain or snow conditions, suggest new features, and get instant notifications for new APK builds."
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = M3BodyText
+                        color = Color.White.copy(alpha = 0.85f)
                     )
 
                     Row(
@@ -399,8 +424,8 @@ fun SettingsTabScreen(
                         Text(
                             text = if (isGreek) "Είσοδος στον Discord Server" else "Join Discord Server",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3PeriwinkleAction,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFA5B4FC),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
@@ -419,19 +444,21 @@ fun SettingsTabScreen(
             }
         }
 
-        // Top Section 2: GitHub Releases App Updater & 1.8k+ (1,803) Downloads Counter
+        // Top Section 2: GitHub Releases App Updater & 1.8k+ (1,803) Downloads Counter (Emerald Green Accent)
         item {
             var repoInput by remember(githubRepoSlug) { mutableStateOf(githubRepoSlug) }
             val defaultChangelog = if (isGreek) {
-                "• Material You Dark UI με 2-στηλο Bento Grid & Segmented Pill Switcher\n" +
-                    "• Έξυπνη Διατήρηση Πόλεων (Αθήνα + GPS τοποθεσία χωρίς διαγραφή)\n" +
-                    "• 60fps Κινούμενα Εικονίδια Καιρού & Νυχτερινό Φόντο με Βροχή & Σύννεφα\n" +
-                    "• Επίσημος Discord Server (discord.gg/aHynb4QKC) & 1.8k+ (1,803) Λήψεις APK"
+                "🚀 ΜΕΓΑΛΗ ΕΝΗΜΕΡΩΣΗ v1.4.2 (Build 15):\n" +
+                    "• Νέες 2-στηλες Material You Bento Κάρτες για Δείκτη UV, Άνεμο & Ριπές, Υγρασία & Δρόσο, Πίεση & Ορατότητα\n" +
+                    "• Ανανεωμένη Σειρά Πρόγνωσης: 10ήμερη Πρόγνωση Πρώτα, 24ωρη Καμπύλη & Τροχιά Ηλίου (Ανατολή/Δύση)\n" +
+                    "• Εξάλειψη Ψευδούς Βροχής στη Λάρισα & Θεσσαλία με διασταύρωση 3+ μοντέλων\n" +
+                    "• Πλήρως Πολύχρωμο Glassmorphic UI με Ζωντανό Ουρανό, Κινούμενα Εικονίδια & Discord (discord.gg/aHynb4QKC)"
             } else {
-                "• Material You Dark UI with 2-Column Bento Cards & Segmented Pill Switcher\n" +
-                    "• Smart City Deduplication & Preserved Saved Cities (Athens + GPS location stay intact)\n" +
-                    "• 60fps Animated Weather Icons & Night Moon Sky Backdrop with Live Rain & Clouds\n" +
-                    "• Official Discord Server (discord.gg/aHynb4QKC) & 1.8k+ (1,803) Total APK Downloads"
+                "🚀 BIG UPDATE v1.4.2 (Build 15) CHANGELOG:\n" +
+                    "• New 2-Column Material You Bento Cards for UV Index, Wind & Gusts, Humidity & Dew, and Pressure & Visibility\n" +
+                    "• Redesigned Forecast Flow: 10-Day Forecast First, 24-Hour Horizon Curve, Bento Metrics & Sunset/Sunrise Arc\n" +
+                    "• Multi-Model Anti-False-Rain Engine for Larissa & Greece (requires 3+ model agreement for active rain)\n" +
+                    "• Full Colorful Glassmorphic UI over Live Animated Sky Backdrop & Discord (discord.gg/aHynb4QKC)"
             }
 
             Card(
@@ -440,7 +467,16 @@ fun SettingsTabScreen(
                     .testTag("settings_app_updater_card"),
                 shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = M3CardSurface
+                    containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)
+                ),
+                border = BorderStroke(
+                    width = 1.1.dp,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            EmeraldBreeze.copy(alpha = 0.65f),
+                            CyanZephyr.copy(alpha = 0.35f)
+                        )
+                    )
                 )
             ) {
                 Column(
@@ -459,18 +495,27 @@ fun SettingsTabScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = WeatherIcons.Refresh,
-                                contentDescription = null,
-                                tint = M3IconTint,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = EmeraldBreeze.copy(alpha = 0.22f),
+                                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.55f)),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = WeatherIcons.Refresh,
+                                        contentDescription = null,
+                                        tint = EmeraldBreeze,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                             Column {
                                 Text(
                                     text = "Zephyr Weather $appVersionLabel",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = M3TitleText
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                                 Text(
                                     text = if (isGreek) {
@@ -479,14 +524,15 @@ fun SettingsTabScreen(
                                         "GitHub Release: $latestReleaseTag • $formattedDownloads Total APK Downloads"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = M3PeriwinkleAction
+                                    color = EmeraldBreeze
                                 )
                             }
                         }
 
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = M3PillSelectedContainer
+                            color = EmeraldBreeze.copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.55f))
                         ) {
                             Text(
                                 text = when {
@@ -495,8 +541,8 @@ fun SettingsTabScreen(
                                     else -> if (isGreek) "Ενημερωμένο" else "Up to date"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = M3TitleText,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldBreeze,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             )
                         }
@@ -509,12 +555,13 @@ fun SettingsTabScreen(
                             "Automatically checks your GitHub Releases feed for new APK builds and syncs all 4 NWP forecast models."
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = M3BodyText
+                        color = Color.White.copy(alpha = 0.85f)
                     )
 
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = M3DarkBackground.copy(alpha = 0.65f),
+                        color = Color(0xFF0A192F).copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.35f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(18.dp))
@@ -531,23 +578,23 @@ fun SettingsTabScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isGreek) "Αρχείο Αλλαγών ($latestReleaseTag)" else "Release Changelog ($latestReleaseTag)",
+                                    text = if (isGreek) "Big Update Changelog ($latestReleaseTag)" else "Big Update Changelog ($latestReleaseTag)",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = M3TitleText
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                                 Text(
                                     text = if (isGreek) "Λήψη APK" else "Download APK",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = M3PeriwinkleAction
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldBreeze
                                 )
                             }
                             Text(
                                 text = latestReleaseNotes?.takeIf { it.isNotBlank() } ?: defaultChangelog,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3BodyText,
-                                maxLines = 5,
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 7,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -568,15 +615,15 @@ fun SettingsTabScreen(
                         },
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = M3TitleText,
-                            unfocusedTextColor = M3TitleText,
-                            focusedContainerColor = M3DarkBackground.copy(alpha = 0.65f),
-                            unfocusedContainerColor = M3DarkBackground.copy(alpha = 0.50f),
-                            focusedBorderColor = M3PeriwinkleAction,
-                            unfocusedBorderColor = M3SubtleBorder,
-                            focusedLabelColor = M3PeriwinkleAction,
-                            unfocusedLabelColor = M3BodyText,
-                            cursorColor = M3PeriwinkleAction
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0A192F).copy(alpha = 0.65f),
+                            unfocusedContainerColor = Color(0xFF0A192F).copy(alpha = 0.50f),
+                            focusedBorderColor = EmeraldBreeze,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.24f),
+                            focusedLabelColor = EmeraldBreeze,
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.70f),
+                            cursorColor = EmeraldBreeze
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -592,7 +639,7 @@ fun SettingsTabScreen(
                             text = "GitHub Releases",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
-                            color = M3BodyText,
+                            color = CyanGlow,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onOpenGitHubReleaseDownload(false) }
@@ -604,8 +651,8 @@ fun SettingsTabScreen(
                             Text(
                                 text = if (isGreek) "Λήψη APK" else "Download APK",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = M3PeriwinkleAction,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldBreeze,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable { onOpenGitHubReleaseDownload(true) }
@@ -620,8 +667,8 @@ fun SettingsTabScreen(
                                     if (isGreek) "Έλεγχος ενημέρωσης" else "Check for update"
                                 },
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = M3PeriwinkleAction,
+                                fontWeight = FontWeight.Bold,
+                                color = CyanGlow,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable(enabled = !isCheckingUpdates) { onCheckForUpdates() }
@@ -639,7 +686,8 @@ fun SettingsTabScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
             ) {
                 Column(
                     modifier = Modifier
@@ -654,14 +702,14 @@ fun SettingsTabScreen(
                         Icon(
                             imageVector = WeatherIcons.Public,
                             contentDescription = null,
-                            tint = M3IconTint,
+                            tint = CyanGlow,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = if (isGreek) "Γλώσσα Εφαρμογής" else "App Language",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3TitleText
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -673,7 +721,11 @@ fun SettingsTabScreen(
                             val isSelected = langOption == language
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) M3PillSelectedContainer else M3DarkBackground.copy(alpha = 0.55f),
+                                color = if (isSelected) CyanZephyr.copy(alpha = 0.28f) else Color(0xFF0A192F).copy(alpha = 0.55f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) CyanGlow else Color.White.copy(alpha = 0.18f)
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(16.dp))
@@ -687,8 +739,8 @@ fun SettingsTabScreen(
                                     Text(
                                         text = "${langOption.displayName} (${langOption.shortBadge})",
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) M3TitleText else M3BodyText,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.78f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -707,7 +759,8 @@ fun SettingsTabScreen(
                     .fillMaxWidth()
                     .testTag("gps_location_settings_card"),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(1.dp, AmberSol.copy(alpha = 0.45f))
             ) {
                 Column(
                     modifier = Modifier
@@ -722,14 +775,14 @@ fun SettingsTabScreen(
                         Icon(
                             imageVector = WeatherIcons.MyLocation,
                             contentDescription = null,
-                            tint = M3IconTint,
+                            tint = AmberSol,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = if (isGreek) "Αυτόματη Τοποθεσία GPS" else "Automatic GPS Location",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3TitleText
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -740,7 +793,7 @@ fun SettingsTabScreen(
                             "Auto-detect your current city, coordinates, and altitude or open the location search hub."
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = M3BodyText
+                        color = Color.White.copy(alpha = 0.85f)
                     )
 
                     Row(
@@ -752,7 +805,7 @@ fun SettingsTabScreen(
                             text = if (isGreek) "Αναζήτηση πόλης" else "Search location",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
-                            color = M3BodyText,
+                            color = CyanGlow,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onOpenLocationSetup() }
@@ -763,8 +816,8 @@ fun SettingsTabScreen(
                         Text(
                             text = if (isGreek) "Εντοπισμός GPS" else "Detect GPS",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3PeriwinkleAction,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberSol,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onRequestGpsLocation() }
@@ -783,7 +836,8 @@ fun SettingsTabScreen(
                     .fillMaxWidth()
                     .testTag("units_settings_card"),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -793,14 +847,14 @@ fun SettingsTabScreen(
                         Icon(
                             imageVector = WeatherIcons.Speed,
                             contentDescription = null,
-                            tint = M3IconTint,
+                            tint = CyanGlow,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = if (isGreek) "Μονάδες Μέτρησης" else "Measurement Units",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3TitleText
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -819,7 +873,7 @@ fun SettingsTabScreen(
                                 text = if (isGreek) "Μονάδα Θερμοκρασίας" else "Temperature Scale",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
-                                color = M3TitleText
+                                color = Color.White
                             )
                             Text(
                                 text = if (units.useFahrenheit) {
@@ -828,24 +882,24 @@ fun SettingsTabScreen(
                                     if (isGreek) "Κελσίου (°C)" else "Celsius (°C)"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3PeriwinkleAction
+                                color = CyanGlow
                             )
                         }
                         Switch(
                             checked = units.useFahrenheit,
                             onCheckedChange = { onToggleTemperatureUnit() },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = M3TitleText,
-                                checkedTrackColor = M3PillSelectedContainer,
-                                uncheckedThumbColor = M3TitleText,
-                                uncheckedTrackColor = M3DarkBackground
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AmberSol.copy(alpha = 0.75f),
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = CyanZephyr.copy(alpha = 0.45f)
                             ),
                             modifier = Modifier.testTag("celsius_fahrenheit_switch")
                         )
                     }
 
                     HorizontalDivider(
-                        color = Color.White.copy(alpha = 0.07f),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                     UnitToggleRow(
@@ -855,7 +909,7 @@ fun SettingsTabScreen(
                         testTag = "toggle_wind_unit"
                     )
                     HorizontalDivider(
-                        color = Color.White.copy(alpha = 0.07f),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                     UnitToggleRow(
@@ -868,14 +922,14 @@ fun SettingsTabScreen(
             }
         }
 
-        // Section 6: Weather Forecast Models (2-Column Grid of Model Cards)
+        // Section 6: Weather Forecast Models (2-Column Grid of Colorful Model Cards)
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     text = if (isGreek) "Μετεωρολογικά Μοντέλα Πρόγνωσης" else "Weather Forecast Models",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = M3TitleText,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
 
@@ -889,6 +943,7 @@ fun SettingsTabScreen(
                     ) {
                         rowProviders.forEach { provider ->
                             val isSelected = provider == selectedProvider
+                            val modelAccent = if (isSelected) AmberSol else CyanGlow
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
@@ -898,7 +953,11 @@ fun SettingsTabScreen(
                                     .testTag("provider_card_${provider.id}"),
                                 shape = RoundedCornerShape(26.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) M3PillSelectedContainer else M3CardSurface
+                                    containerColor = if (isSelected) Color(0xFF14355B).copy(alpha = 0.78f) else Color(0xFF0E223A).copy(alpha = 0.65f)
+                                ),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.3.dp else 1.dp,
+                                    color = if (isSelected) AmberSol else CyanZephyr.copy(alpha = 0.40f)
                                 )
                             ) {
                                 Column(
@@ -915,14 +974,14 @@ fun SettingsTabScreen(
                                             Icon(
                                                 imageVector = WeatherIcons.CompassCalibration,
                                                 contentDescription = null,
-                                                tint = if (isSelected) M3PeriwinkleAction else M3IconTint,
+                                                tint = modelAccent,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                             Text(
                                                 text = provider.displayName,
                                                 style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = M3TitleText,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -930,7 +989,7 @@ fun SettingsTabScreen(
                                         Text(
                                             text = provider.localizedSubtitle(language),
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = M3BodyText,
+                                            color = Color.White.copy(alpha = 0.82f),
                                             maxLines = 3,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -949,8 +1008,8 @@ fun SettingsTabScreen(
                                                 if (isGreek) "Επιλογή" else "Select"
                                             },
                                             style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = M3PeriwinkleAction
+                                            fontWeight = FontWeight.Bold,
+                                            color = modelAccent
                                         )
                                     }
                                 }
@@ -971,7 +1030,8 @@ fun SettingsTabScreen(
                     .fillMaxWidth()
                     .testTag("battery_saver_sync_card"),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(1.dp, EmeraldBreeze.copy(alpha = 0.45f))
             ) {
                 Column(
                     modifier = Modifier
@@ -986,14 +1046,14 @@ fun SettingsTabScreen(
                         Icon(
                             imageVector = WeatherIcons.Refresh,
                             contentDescription = null,
-                            tint = M3IconTint,
+                            tint = EmeraldBreeze,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = if (isGreek) "Αυτόματη Ανανέωση & Μπαταρία" else "Auto-Refresh & Battery Sync",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3TitleText
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -1005,7 +1065,11 @@ fun SettingsTabScreen(
                             val isSelected = interval == refreshInterval
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (isSelected) M3PillSelectedContainer else M3DarkBackground.copy(alpha = 0.55f),
+                                color = if (isSelected) EmeraldBreeze.copy(alpha = 0.25f) else Color(0xFF0A192F).copy(alpha = 0.55f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) EmeraldBreeze else Color.White.copy(alpha = 0.18f)
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
@@ -1019,8 +1083,8 @@ fun SettingsTabScreen(
                                     Text(
                                         text = interval.badge,
                                         style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) M3TitleText else M3BodyText,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.78f),
                                         maxLines = 1
                                     )
                                 }
@@ -1038,7 +1102,7 @@ fun SettingsTabScreen(
                                 text = if (isGreek) "Συγχρονισμός Μηδενικής Κατανάλωσης" else "Zero-Drain Background Sync",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
-                                color = M3TitleText
+                                color = Color.White
                             )
                             Text(
                                 text = if (isGreek) {
@@ -1047,17 +1111,17 @@ fun SettingsTabScreen(
                                     "Pauses rapid timers when screen is off to save battery."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3BodyText
+                                color = Color.White.copy(alpha = 0.80f)
                             )
                         }
                         Switch(
                             checked = batterySaverSyncEnabled,
                             onCheckedChange = { onToggleBatterySaverSync() },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = M3TitleText,
-                                checkedTrackColor = M3PillSelectedContainer,
-                                uncheckedThumbColor = M3BodyText,
-                                uncheckedTrackColor = M3DarkBackground
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = EmeraldBreeze.copy(alpha = 0.75f),
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.80f),
+                                uncheckedTrackColor = Color(0xFF0A192F)
                             ),
                             modifier = Modifier.testTag("battery_saver_sync_switch")
                         )
@@ -1073,7 +1137,11 @@ fun SettingsTabScreen(
                     .fillMaxWidth()
                     .testTag("alerts_settings_card"),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(
+                    1.1.dp,
+                    Brush.horizontalGradient(listOf(CoralWarmth.copy(alpha = 0.60f), AmberSol.copy(alpha = 0.35f)))
+                )
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -1083,14 +1151,14 @@ fun SettingsTabScreen(
                         Icon(
                             imageVector = WeatherIcons.NotificationsActive,
                             contentDescription = null,
-                            tint = M3IconTint,
+                            tint = CoralWarmth,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = if (isGreek) "Ειδοποιήσεις ΕΜΥ & Βροχής" else "EMY & Rain Alerts",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3TitleText
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
 
@@ -1106,7 +1174,7 @@ fun SettingsTabScreen(
                                 text = if (isGreek) "Έκτακτα Δελτία ΕΜΥ" else "EMY Severe Weather Warnings",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
-                                color = M3TitleText
+                                color = Color.White
                             )
                             Text(
                                 text = if (isGreek) {
@@ -1115,7 +1183,7 @@ fun SettingsTabScreen(
                                     "Hellenic National Meteorological Service emergency bulletins."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3BodyText
+                                color = Color.White.copy(alpha = 0.78f)
                             )
                         }
                         Switch(
@@ -1127,17 +1195,17 @@ fun SettingsTabScreen(
                                 onToggleEmyAlerts()
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = M3TitleText,
-                                checkedTrackColor = M3PillSelectedContainer,
-                                uncheckedThumbColor = M3BodyText,
-                                uncheckedTrackColor = M3DarkBackground
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = CoralWarmth,
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.80f),
+                                uncheckedTrackColor = Color(0xFF0A192F)
                             ),
                             modifier = Modifier.testTag("emy_alerts_switch")
                         )
                     }
 
                     HorizontalDivider(
-                        color = Color.White.copy(alpha = 0.07f),
+                        color = Color.White.copy(alpha = 0.12f),
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
 
@@ -1151,7 +1219,7 @@ fun SettingsTabScreen(
                                 text = if (isGreek) "Ειδοποίηση Έναρξης Βροχής" else "Rain Onset & Storm Alerts",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
-                                color = M3TitleText
+                                color = Color.White
                             )
                             Text(
                                 text = if (isGreek) {
@@ -1160,7 +1228,7 @@ fun SettingsTabScreen(
                                     "Instant notification before precipitation is detected on radar."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3BodyText
+                                color = Color.White.copy(alpha = 0.78f)
                             )
                         }
                         Switch(
@@ -1172,10 +1240,10 @@ fun SettingsTabScreen(
                                 onToggleRainAlerts()
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = M3TitleText,
-                                checkedTrackColor = M3PillSelectedContainer,
-                                uncheckedThumbColor = M3BodyText,
-                                uncheckedTrackColor = M3DarkBackground
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = CyanGlow,
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.80f),
+                                uncheckedTrackColor = Color(0xFF0A192F)
                             ),
                             modifier = Modifier.testTag("rain_alerts_switch")
                         )
@@ -1203,7 +1271,11 @@ fun SettingsTabScreen(
                     .fillMaxWidth()
                     .testTag("feedback_settings_card"),
                 shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = M3CardSurface)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)),
+                border = BorderStroke(
+                    1.1.dp,
+                    Brush.horizontalGradient(listOf(CyanGlow.copy(alpha = 0.60f), AmberSol.copy(alpha = 0.35f)))
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -1224,21 +1296,22 @@ fun SettingsTabScreen(
                             Icon(
                                 imageVector = WeatherIcons.Send,
                                 contentDescription = null,
-                                tint = M3IconTint,
+                                tint = CyanGlow,
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
                                 text = if (isGreek) "Σχόλια & Υποστήριξη" else "In-App Feedback",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = M3TitleText
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             (1..5).forEach { star ->
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (star <= rating) M3PillSelectedContainer else M3DarkBackground,
+                                    color = if (star <= rating) AmberSol.copy(alpha = 0.25f) else Color(0xFF0A192F).copy(alpha = 0.70f),
+                                    border = BorderStroke(1.dp, if (star <= rating) AmberSol else Color.White.copy(alpha = 0.16f)),
                                     modifier = Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
@@ -1249,7 +1322,7 @@ fun SettingsTabScreen(
                                         Text(
                                             text = "★",
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = if (star <= rating) M3PeriwinkleAction else M3BodyText.copy(alpha = 0.45f)
+                                            color = if (star <= rating) AmberSol else Color.White.copy(alpha = 0.45f)
                                         )
                                     }
                                 }
@@ -1265,7 +1338,11 @@ fun SettingsTabScreen(
                             val isSelected = selectedCategory == id
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (isSelected) M3PillSelectedContainer else M3DarkBackground.copy(alpha = 0.55f),
+                                color = if (isSelected) Color(0xFF3F436E) else Color(0xFF0A192F).copy(alpha = 0.65f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) CyanGlow else Color.White.copy(alpha = 0.16f)
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
@@ -1279,8 +1356,8 @@ fun SettingsTabScreen(
                                     Text(
                                         text = label,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) M3TitleText else M3BodyText,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.78f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1303,20 +1380,20 @@ fun SettingsTabScreen(
                                     "Write your feedback, bug report, or suggestions..."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = M3BodyText.copy(alpha = 0.65f)
+                                color = Color.White.copy(alpha = 0.62f)
                             )
                         },
                         minLines = 3,
                         maxLines = 5,
                         shape = RoundedCornerShape(18.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = M3TitleText,
-                            unfocusedTextColor = M3TitleText,
-                            focusedContainerColor = M3DarkBackground.copy(alpha = 0.65f),
-                            unfocusedContainerColor = M3DarkBackground.copy(alpha = 0.50f),
-                            focusedBorderColor = M3PeriwinkleAction,
-                            unfocusedBorderColor = M3SubtleBorder,
-                            cursorColor = M3PeriwinkleAction
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF0A192F).copy(alpha = 0.75f),
+                            unfocusedContainerColor = Color(0xFF0A192F).copy(alpha = 0.60f),
+                            focusedBorderColor = CyanGlow,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.22f),
+                            cursorColor = CyanGlow
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1326,7 +1403,8 @@ fun SettingsTabScreen(
                     if (feedbackSentConfirmation) {
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = M3PillSelectedContainer,
+                            color = EmeraldBreeze.copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, EmeraldBreeze),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("feedback_sent_confirmation")
@@ -1339,7 +1417,7 @@ fun SettingsTabScreen(
                                 Icon(
                                     imageVector = WeatherIcons.Check,
                                     contentDescription = null,
-                                    tint = M3PeriwinkleAction,
+                                    tint = EmeraldBreeze,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
@@ -1349,7 +1427,7 @@ fun SettingsTabScreen(
                                         "Your feedback has been submitted!"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = M3TitleText
+                                    color = Color.White
                                 )
                             }
                         }
@@ -1362,8 +1440,8 @@ fun SettingsTabScreen(
                         Text(
                             text = if (isGreek) "Αποστολή Σχολίων" else "Submit Feedback",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = M3PeriwinkleAction,
+                            fontWeight = FontWeight.Bold,
+                            color = CyanGlow,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
@@ -1402,7 +1480,11 @@ fun MaterialYouSegmentedPillBar(
         val isLeftSelected = selectedIndex == 0
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (isLeftSelected) M3PillSelectedContainer else M3PillUnselectedContainer,
+            color = if (isLeftSelected) Color(0xFF3F436E) else Color(0xFF0E223A).copy(alpha = 0.62f),
+            border = BorderStroke(
+                width = 1.1.dp,
+                color = if (isLeftSelected) CyanGlow else Color.White.copy(alpha = 0.22f)
+            ),
             modifier = Modifier
                 .weight(1f)
                 .height(44.dp)
@@ -1414,8 +1496,8 @@ fun MaterialYouSegmentedPillBar(
                 Text(
                     text = leftLabel,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (isLeftSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isLeftSelected) M3TitleText else M3BodyText,
+                    fontWeight = if (isLeftSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isLeftSelected) Color.White else Color.White.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1425,7 +1507,11 @@ fun MaterialYouSegmentedPillBar(
         val isRightSelected = selectedIndex == 1
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (isRightSelected) M3PillSelectedContainer else M3PillUnselectedContainer,
+            color = if (isRightSelected) Color(0xFF3F436E) else Color(0xFF0E223A).copy(alpha = 0.62f),
+            border = BorderStroke(
+                width = 1.1.dp,
+                color = if (isRightSelected) AmberSol else Color.White.copy(alpha = 0.22f)
+            ),
             modifier = Modifier
                 .weight(1f)
                 .height(44.dp)
@@ -1437,8 +1523,8 @@ fun MaterialYouSegmentedPillBar(
                 Text(
                     text = rightLabel,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (isRightSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isRightSelected) M3TitleText else M3BodyText,
+                    fontWeight = if (isRightSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isRightSelected) Color.White else Color.White.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1448,11 +1534,11 @@ fun MaterialYouSegmentedPillBar(
 }
 
 /**
- * 2-Column Material You Bento Service Card matching the user's reference screenshot:
- * - Matte dark slate surface (#282832) with 26.dp rounded corners
- * - Icon on top-left beside a 1-2 line title
- * - Conversational multi-line description in muted lavender-gray (#C7C5D0)
- * - Bottom-right periwinkle action text (#B5C4FF)
+ * 2-Column Colorful Material You Bento Service Card:
+ * - Translucent glassmorphic surface over the live sky backdrop with 26.dp rounded corners
+ * - Glowing accent border & colored icon badge on top-left beside a 1-2 line title
+ * - Conversational multi-line description
+ * - Bottom-right colored action text
  */
 @Composable
 fun MaterialYouBentoServiceCard(
@@ -1463,7 +1549,8 @@ fun MaterialYouBentoServiceCard(
     onCardClick: () -> Unit,
     onActionClick: () -> Unit,
     testTag: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accent: Color = CyanGlow
 ) {
     Card(
         modifier = modifier
@@ -1472,34 +1559,60 @@ fun MaterialYouBentoServiceCard(
             .testTag(testTag),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = M3CardSurface
+            containerColor = Color(0xFF0E223A).copy(alpha = 0.65f)
+        ),
+        border = BorderStroke(
+            width = 1.1.dp,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    accent.copy(alpha = 0.60f),
+                    Color.White.copy(alpha = 0.22f)
+                )
+            )
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 18.dp),
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            accent.copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    )
+                )
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = M3IconTint,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = accent.copy(alpha = 0.20f),
+                        border = BorderStroke(1.dp, accent.copy(alpha = 0.50f)),
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp
+                            fontSize = 17.sp,
+                            lineHeight = 21.sp
                         ),
-                        fontWeight = FontWeight.Medium,
-                        color = M3TitleText,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1508,16 +1621,16 @@ fun MaterialYouBentoServiceCard(
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.5.sp,
-                        lineHeight = 19.sp
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     ),
-                    color = M3BodyText,
+                    color = Color.White.copy(alpha = 0.82f),
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1526,8 +1639,8 @@ fun MaterialYouBentoServiceCard(
                 Text(
                     text = actionLabel,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = M3PeriwinkleAction,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
                     textAlign = TextAlign.End,
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -1557,13 +1670,13 @@ private fun UnitToggleRow(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyMedium,
-            color = M3TitleText
+            color = Color.White
         )
         Text(
             text = currentValue,
             style = MaterialTheme.typography.labelLarge,
-            color = M3PeriwinkleAction,
-            fontWeight = FontWeight.SemiBold,
+            color = AmberSol,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
         )
     }

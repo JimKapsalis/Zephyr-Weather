@@ -401,10 +401,14 @@ private fun SavedCityWeatherCard(
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
-                M3PillSelectedContainer
+                Color(0xFF14355B).copy(alpha = 0.72f)
             } else {
-                M3CardSurface
+                Color(0xFF0E223A).copy(alpha = 0.56f)
             }
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 1.3.dp else 1.dp,
+            color = if (isSelected) CyanGlow.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.22f)
         )
     ) {
         Row(

@@ -1175,26 +1175,22 @@ class WeatherRepository(
             it in 51..67 || it in 80..82 || it in 95..99
         }
         val totalModelCodes = listOfNotNull(primaryCode, secondaryCode, tertiaryCode, quaternaryCode).size.coerceAtLeast(1)
-        val hasRainConsensus = modelsWithRainCode >= 2 || (totalModelCodes == 1 && modelsWithRainCode == 1)
+        val hasStrongRainConsensus = modelsWithRainCode >= 3 || (totalModelCodes == 1 && modelsWithRainCode == 1 && precipMm >= 2.2)
 
-        // Downgrade false drizzle/rain codes when actual precipitation is negligible (< 0.15 mm) or lacks model consensus
+        // Downgrade false drizzle/light-rain codes unless backed by substantial multi-model rainfall (>= 2.2 mm/h)
         if ((resolved in 51..67 || resolved in 80..82) &&
-            (precipMm < 0.15 && (precipProb < 45 || !hasRainConsensus || cloudCover < 55))
+            (precipMm < 2.2 || precipProb < 75 || !hasStrongRainConsensus || cloudCover < 65)
         ) {
             resolved = when {
-                cloudCover >= 75 -> 3
+                cloudCover >= 85 -> 3
                 cloudCover >= 25 -> 2
                 else -> 1
             }
-        } else if (resolved < 51 && precipMm >= 0.30 && precipProb >= 50 && cloudCover >= 70 && hasRainConsensus) {
+        } else if (resolved < 51 && precipMm >= 2.5 && precipProb >= 80 && cloudCover >= 75 && hasStrongRainConsensus) {
             resolved = if (tempC <= 1.5) {
-                if (precipMm >= 1.8) 73 else 71
+                if (precipMm >= 3.0) 73 else 71
             } else {
-                when {
-                    precipMm >= 2.5 -> 63
-                    precipMm >= 0.5 -> 61
-                    else -> 51
-                }
+                if (precipMm >= 4.0) 63 else 61
             }
         }
         return resolved
@@ -1438,11 +1434,16 @@ class WeatherRepository(
             tertiary = if (useEnsembleBlend) tertiaryLivePrecipMm else null,
             quaternary = if (useEnsembleBlend) quaternaryLivePrecipMm else null
         )
-        // Suppress sub-0.12mm trace NWP drizzle noise so dry/cloudy days never report rain
-        val fusedCurrentPrecipMm = if (blendedLivePrecipMm >= 0.12) {
+        val activeLiveRainModels = listOf(
+            primaryLivePrecipMm,
+            if (useEnsembleBlend) secondaryLivePrecipMm else 0.0,
+            if (useEnsembleBlend) tertiaryLivePrecipMm else 0.0,
+            if (useEnsembleBlend) quaternaryLivePrecipMm else 0.0
+        ).count { it >= 1.8 }
+
+        // Suppress NWP drizzle/light-rain model noise so dry or cloudy days (like Larissa) never report false rain
+        val fusedCurrentPrecipMm = if (blendedLivePrecipMm >= 2.2 && nowcastPrecipMm >= 1.5 && activeLiveRainModels >= 2) {
             blendedLivePrecipMm
-        } else if (primaryLivePrecipMm >= 0.25 && nowcastPrecipMm >= 0.20) {
-            primaryLivePrecipMm
         } else {
             0.0
         }
@@ -1474,21 +1475,20 @@ class WeatherRepository(
         }
         val rawPrimaryCode = currentDto.weatherCode ?: nowcastCode ?: 0
         val effectivePrimaryCurrentCode = when {
-            // If primary model says rain/drizzle, verify it is backed by real precipitation or majority model agreement
+            // Downgrade drizzle/rain codes unless backed by verified active multi-model precipitation
             (rawPrimaryCode in 51..67 || rawPrimaryCode in 80..82) &&
-                fusedCurrentPrecipMm < 0.15 &&
-                (rawCurrentProb < 45 || (currentModelCodes.size >= 2 && rainModelCount < 2)) -> {
+                (fusedCurrentPrecipMm < 1.8 || activeLiveRainModels < 2 || rainModelCount < 3) -> {
                 when {
-                    currentCloudCover >= 75 -> 3
+                    currentCloudCover >= 85 && currentHumidity >= 92 -> 3
                     currentCloudCover >= 25 -> 2
                     else -> 1
                 }
             }
             rawPrimaryCode < 51 &&
-                rainModelCount >= 2 &&
-                fusedCurrentPrecipMm >= 0.25 &&
-                rawCurrentProb >= 50 -> {
-                if (fusedCurrentPrecipMm >= 1.5) 63 else if (fusedCurrentPrecipMm >= 0.4) 61 else 51
+                rainModelCount >= 3 &&
+                fusedCurrentPrecipMm >= 2.2 &&
+                rawCurrentProb >= 75 -> {
+                if (fusedCurrentPrecipMm >= 3.5) 63 else 61
             }
             else -> rawPrimaryCode
         }
@@ -1508,8 +1508,8 @@ class WeatherRepository(
             elevationM = effectiveElevation
         )
         val fusedCurrentProb = when {
-            fusedCurrentCode in 51..82 && rawCurrentProb < 35 -> maxOf(rawCurrentProb, 35)
-            fusedCurrentCode < 51 && fusedCurrentPrecipMm == 0.0 -> minOf(rawCurrentProb, 25)
+            fusedCurrentCode < 51 -> minOf(rawCurrentProb / 5, 15)
+            fusedCurrentCode in 51..82 && rawCurrentProb < 50 -> 50
             else -> rawCurrentProb
         }
 
@@ -1624,11 +1624,14 @@ class WeatherRepository(
             }
             val hProb = if (i == 0) {
                 fusedCurrentProb
-            } else if (primaryHProb == 0 && hPrecipMm >= 0.15) {
-                (hPrecipMm * 25.0).roundToInt().coerceIn(20, 85)
+            } else if (hCode < 51) {
+                minOf(primaryHProb / 5, 15)
+            } else if (primaryHProb == 0 && hPrecipMm >= 2.2) {
+                (hPrecipMm * 25.0).roundToInt().coerceIn(50, 85)
             } else {
                 primaryHProb
             }
+            val effectiveHPrecipMm = if (hCode < 51) 0.0 else hPrecipMm
 
             hourlyList.add(
                 HourlyForecastItem(
@@ -1637,7 +1640,7 @@ class WeatherRepository(
                     tempC = hTemp,
                     feelsLikeC = hFeels,
                     precipProbability = hProb,
-                    precipMm = hPrecipMm,
+                    precipMm = effectiveHPrecipMm,
                     weatherCode = hCode,
                     isDay = resolvedIsDay,
                     windSpeedKmh = hWindSpeed,
@@ -1809,11 +1812,16 @@ class WeatherRepository(
                         dayHourlySnowHours++
                         if (hCode in setOf(75, 86)) dayHourlyStormSnowHours++
                     }
-                    val hProb = if (rawHProb == 0 && hPrecipMm >= 0.15) {
-                        (hPrecipMm * 25.0).roundToInt().coerceIn(20, 85)
+                    val hProb = if (isCurrentLiveHour) {
+                        fusedCurrentProb
+                    } else if (hCode < 51) {
+                        minOf(rawHProb / 5, 15)
+                    } else if (rawHProb == 0 && hPrecipMm >= 2.2) {
+                        (hPrecipMm * 25.0).roundToInt().coerceIn(50, 85)
                     } else {
                         rawHProb
                     }
+                    val effectiveDayHPrecipMm = if (hCode < 51) 0.0 else hPrecipMm
                     dayHourlyMaxProb = maxOf(dayHourlyMaxProb, hProb)
 
                     dayHourly.add(
@@ -1823,8 +1831,8 @@ class WeatherRepository(
                             tempC = hTemp,
                             feelsLikeC = hFeels,
                             precipProbability = hProb,
-                            precipMm = hPrecipMm,
-                            weatherCode = hCode,
+                            precipMm = effectiveDayHPrecipMm,
+                            weatherCode = if (isCurrentLiveHour) fusedCurrentCode else hCode,
                             isDay = apiIsDay,
                             windSpeedKmh = hWindSpeed,
                             uvIndex = hourlyDto?.uvIndex?.getOrNull(hIdx)
@@ -1841,6 +1849,7 @@ class WeatherRepository(
 
             val totalDaySnowCm = maxOf(dailySnowSumCm, dayHourlyTotalSnowCm)
             val isColdDayForSnow = dMin <= 2.5
+            val verifiedRainHoursCount = dayHourly.count { it.weatherCode >= 51 && it.precipMm >= 2.2 }
             val dCode = when {
                 isColdDayForSnow && (dayHourlyStormSnowHours >= 2 || totalDaySnowCm >= 3.5 || rawDCode in setOf(75, 86)) -> {
                     if (rawDCode == 86 || secondaryDCode == 86 || tertiaryDCode == 86) 86 else 75
@@ -1848,19 +1857,23 @@ class WeatherRepository(
                 isColdDayForSnow && (dayHourlySnowHours >= 2 || totalDaySnowCm >= 0.30 || rawDCode in setOf(71, 73, 77, 85)) -> {
                     if (totalDaySnowCm >= 1.2 || rawDCode == 73) 73 else 71
                 }
-                (rawDCode in 51..67 || rawDCode in 80..82) && rawDSumMm < 0.15 && dayHourlyMaxProb < 25 -> {
-                    // Clean up false drizzle codes when daily total precipitation is negligible (<0.15 mm) and prob < 25%
+                i == 0 && (rawDCode in 51..67 || rawDCode in 80..82) && fusedCurrentCode < 51 -> {
+                    fusedCurrentCode
+                }
+                (rawDCode in 51..67 || rawDCode in 80..82) && (rawDSumMm < 6.0 || verifiedRainHoursCount < 3) -> {
+                    // Clean up false drizzle/light-rain codes when daily precipitation is minor or lacks verified rain hours
                     2
                 }
                 else -> rawDCode
             }
             val dProb = when {
+                dCode < 51 -> 0
                 rawDProb > 0 -> rawDProb
                 dayHourlyMaxProb > 0 -> dayHourlyMaxProb
-                rawDSumMm >= 0.25 -> (rawDSumMm * 18.0).roundToInt().coerceIn(20, 85)
+                rawDSumMm >= 6.0 -> (rawDSumMm * 10.0).roundToInt().coerceIn(50, 85)
                 else -> 0
             }
-            val dSumMm = maxOf(rawDSumMm, totalDaySnowCm * 1.0)
+            val dSumMm = if (dCode < 51) 0.0 else maxOf(rawDSumMm, totalDaySnowCm * 1.0)
 
             if (dayHourly.isEmpty()) {
                 dayHourly.addAll(
@@ -1978,7 +1991,11 @@ class WeatherRepository(
         val liveClockLabel = formatLiveClockInTimezone(effectiveTimezone)
         val startHour = getCurrentHourInTimezone(effectiveTimezone)
         val isCurrentlyDay = startHour in 7..17
-        val effectiveWeatherCode = city.cachedWeatherCode
+        val effectiveWeatherCode = if (city.cachedWeatherCode in 51..67 || city.cachedWeatherCode in 80..82) {
+            2
+        } else {
+            city.cachedWeatherCode
+        }
         val baseTemp = city.cachedTempC
         val high = city.cachedHighC
         val low = city.cachedLowC
@@ -1987,8 +2004,8 @@ class WeatherRepository(
             val isHourDay = hourNum in 7..17
             val wave = sin((hourNum - 6) * Math.PI / 12.0)
             val t = ((high + low) / 2.0) + ((high - low) / 2.0) * wave
-            val hourCode = if (effectiveWeatherCode >= 45) {
-                if (h <= 6) effectiveWeatherCode else if (h % 3 == 0) 61 else 2
+            val hourCode = if (effectiveWeatherCode >= 71) {
+                if (h <= 6) effectiveWeatherCode else 2
             } else {
                 when (h % 4) {
                     0, 1 -> 0
@@ -1996,7 +2013,7 @@ class WeatherRepository(
                     else -> 2
                 }
             }
-            val hProb = if (hourCode >= 51) (78 - (h * 4).coerceAtMost(35)) else (8 + (h * 2) % 14)
+            val hProb = if (hourCode >= 51) (78 - (h * 4).coerceAtMost(35)) else 0
             val hPrecip = if (hourCode >= 51) (2.2 - (h * 0.2).coerceAtMost(1.4)) else 0.0
             val hWind = 14.0 + (h % 6) * 1.8
             HourlyForecastItem(
@@ -2027,7 +2044,7 @@ class WeatherRepository(
             val dayCal = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, d) }
             val dMax = high + sin(d * 0.9) * 2.8
             val dMin = low + cos(d * 0.8) * 2.2
-            val code = if (effectiveWeatherCode >= 45 && d == 0) {
+            val code = if (effectiveWeatherCode >= 71 && d == 0) {
                 effectiveWeatherCode
             } else {
                 when (d % 4) {
@@ -2037,7 +2054,7 @@ class WeatherRepository(
                 }
             }
             val dateIsoStr = sdfIso.format(dayCal.time)
-            val dProb = if (code >= 51) 82 else if (code == 2) 15 else 5
+            val dProb = if (code >= 51) 82 else 0
             val dSumMm = if (code >= 51) 6.4 else 0.0
             DailyForecastItem(
                 dateIso = dateIsoStr,
@@ -2136,16 +2153,20 @@ class WeatherRepository(
                 precipMm = item.precipMm,
                 tempC = item.tempC,
                 windKmh = item.windSpeedKmh,
-                isRaining = item.precipProbability >= 35 || item.precipMm > 0.05 || item.weatherCode in listOf(51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99)
+                isRaining = (item.precipProbability >= 60 && item.precipMm >= 0.25) ||
+                    item.precipMm >= 0.35 ||
+                    (item.weatherCode in listOf(61, 63, 65, 80, 81, 82, 95, 96, 99) && item.precipMm >= 0.20)
             )
         }
 
-        val firstRain = rainPoints.firstOrNull { it.isRaining || it.probabilityPercent >= 40 }
+        val isCurrentlyRaining = current.precipitationMm >= 0.20 &&
+            current.weatherCode in listOf(51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99)
+        val firstRain = rainPoints.firstOrNull { it.isRaining || (it.probabilityPercent >= 65 && it.precipMm >= 0.25) }
         val peakRain = rainPoints.maxByOrNull { it.probabilityPercent }
         val peakProb = peakRain?.probabilityPercent ?: 0
         val totalRain7Days = daily.take(7).sumOf { it.precipSumMm }
 
-        val nextRainOnsetLabel = if (current.weatherCode in listOf(51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99)) {
+        val nextRainOnsetLabel = if (isCurrentlyRaining) {
             "Precipitation active right now"
         } else if (firstRain != null) {
             "Rain expected around ${firstRain.hourLabel} (${firstRain.probabilityPercent}% chance, ${firstRain.tempC.roundToInt()}°C, wind ${firstRain.windKmh.roundToInt()} km/h)"
@@ -2153,27 +2174,27 @@ class WeatherRepository(
             "No precipitation expected in the next 48 hours"
         }
 
-        val peakRainWindow = if (peakRain != null && peakProb >= 25) {
+        val peakRainWindow = if (peakRain != null && peakProb >= 55 && peakRain.precipMm >= 0.25) {
             "Peak rain chance: ${peakRain.hourLabel} at ${peakProb}% (${String.format(Locale.US, "%.1f", peakRain.precipMm)} mm, wind ${peakRain.windKmh.roundToInt()} km/h)"
         } else {
             "Clear, dry skies across the upcoming 7–10 day forecast horizon"
         }
 
         val riskLevel = when {
-            peakProb >= 65 -> "High Rain Chance"
-            peakProb >= 35 -> "Moderate Chance of Showers"
-            peakProb >= 15 -> "Low / Spotty Showers"
+            peakProb >= 70 -> "High Rain Chance"
+            peakProb >= 50 -> "Moderate Chance of Showers"
+            peakProb >= 30 -> "Low / Spotty Showers"
             else -> "Dry Clear Horizon"
         }
 
         val rainAdvice = when {
-            peakProb >= 60 -> "Rain showers likely. Expect reduced visibility and gusty surface winds."
-            peakProb >= 30 -> "Scattered light showers possible. Check hourly rain radar before heading outdoors."
+            peakProb >= 65 -> "Rain showers likely. Expect reduced visibility and gusty surface winds."
+            peakProb >= 45 -> "Scattered light showers possible. Check hourly rain radar before heading outdoors."
             else -> "Dry atmospheric conditions with clear skies and stable barometric pressure."
         }
 
         return com.example.model.RainTimingOutlook(
-            hasRainInNext48h = firstRain != null,
+            hasRainInNext48h = isCurrentlyRaining || firstRain != null,
             nextRainOnsetLabel = nextRainOnsetLabel,
             peakRainWindowLabel = peakRainWindow,
             totalRainNext7DaysMm = totalRain7Days,
