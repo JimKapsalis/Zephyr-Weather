@@ -1118,28 +1118,29 @@ fun CurrentWeatherHeroSection(
     }
     val isLiveNight = remember(bundle?.current?.isDay, liveClockLabel) {
         if (bundle != null) {
-            !bundle.current.isDay
+            !bundle.current.isDay || WmoWeatherMapper.isNightHourLabel(liveClockLabel)
         } else {
             WmoWeatherMapper.isNightHourLabel(liveClockLabel)
         }
     }
 
-    val visualSpec = remember(bundle?.current?.weatherCode, isLiveNight, isLiveSunset) {
-        WmoWeatherMapper.resolve(
-            code = bundle?.current?.weatherCode ?: 2,
-            isDay = !isLiveNight,
-            isSunset = isLiveSunset
+    val visualSpec = remember(bundle?.current?.weatherCode, isLiveNight, isLiveSunset, skyAtmospherePreset) {
+        skyAtmospherePreset.resolveVisualSpec(
+            liveCode = bundle?.current?.weatherCode ?: 2,
+            liveIsDay = !isLiveNight,
+            liveIsSunset = isLiveSunset
         )
     }
 
-    val heroTextureRes = when (visualSpec.particleEffect) {
-        SkyParticleEffect.SUNSET_DUSK -> R.drawable.img_sunset_dusk
-        SkyParticleEffect.STARFIELD -> R.drawable.img_night_moon
+    val isNightHeroScene = visualSpec.isNight || visualSpec.particleEffect == SkyParticleEffect.STARFIELD
+    val heroTextureRes = when {
+        visualSpec.particleEffect == SkyParticleEffect.SUNSET_DUSK -> R.drawable.img_sunset_dusk
+        isNightHeroScene -> R.drawable.img_night_moon
         else -> R.drawable.img_atmosphere_hero
     }
-    val heroTextureAlpha = when (visualSpec.particleEffect) {
-        SkyParticleEffect.SUNSET_DUSK -> 0.50f
-        SkyParticleEffect.STARFIELD -> 0.52f
+    val heroTextureAlpha = when {
+        visualSpec.particleEffect == SkyParticleEffect.SUNSET_DUSK -> 0.50f
+        isNightHeroScene -> 0.56f
         else -> 0.24f
     }
 

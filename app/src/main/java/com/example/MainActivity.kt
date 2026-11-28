@@ -392,6 +392,7 @@ fun ZephyrWeatherApp(
     }
 
     MyApplicationTheme(themeSetting = state.selectedTheme) {
+        com.example.ui.components.ProvideSharedWeatherIconAnimation {
         val currentLoadingState = state.loadingState
         val activeBundle = state.primaryBundle ?: (currentLoadingState as? LoadingState.Success)?.bundle
         val liveClock = rememberLiveGreeceClock(activeBundle?.timezoneId)
@@ -963,6 +964,7 @@ fun ZephyrWeatherApp(
                     }
                 }
             }
+        }
         }
     }
 }

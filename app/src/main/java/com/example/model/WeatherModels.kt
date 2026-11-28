@@ -73,7 +73,12 @@ enum class SkyAtmospherePreset(
         return if (weatherCode == null) {
             WmoWeatherMapper.resolve(liveCode, liveIsDay, liveIsSunset)
         } else {
-            WmoWeatherMapper.resolve(weatherCode, isDay, this.isSunset)
+            val effectiveIsDay = when (this) {
+                STARLIT_NIGHT, THUNDERSTORM -> false
+                SUNNY_CORONA, SUNSET_TWILIGHT -> true
+                else -> liveIsDay
+            }
+            WmoWeatherMapper.resolve(weatherCode, effectiveIsDay, this.isSunset)
         }
     }
 }
@@ -252,7 +257,8 @@ data class WeatherVisualSpec(
     val gradientTop: Color,
     val gradientMid: Color,
     val gradientBottom: Color,
-    val particleEffect: SkyParticleEffect
+    val particleEffect: SkyParticleEffect,
+    val isNight: Boolean = false
 ) {
     fun localizedLabel(lang: AppLanguage): String =
         if (lang == AppLanguage.GREEK) labelEl else label
@@ -285,7 +291,9 @@ data class WeatherVisualSpec(
 object WmoWeatherMapper {
     fun isNightHourLabel(hourLabel: String): Boolean {
         val clean = hourLabel.trim()
-        val hourInt = clean.take(2).toIntOrNull() ?: return false
+        val hourInt = clean.substringBefore(":").trim().toIntOrNull()
+            ?: clean.take(2).toIntOrNull()
+            ?: return false
         return hourInt >= 18 || hourInt <= 6
     }
 
@@ -316,10 +324,12 @@ object WmoWeatherMapper {
                 gradientTop = Color(0xFF1F0E38),
                 gradientMid = Color(0xFF832A52),
                 gradientBottom = Color(0xFF0E0D22),
-                particleEffect = SkyParticleEffect.SUNSET_DUSK
+                particleEffect = SkyParticleEffect.SUNSET_DUSK,
+                isNight = false
             )
         }
 
+        val nightMode = !isDay
         return when (code) {
             0 -> if (isDay) {
                 WeatherVisualSpec(
@@ -333,7 +343,8 @@ object WmoWeatherMapper {
                     gradientTop = Color(0xFF093B6B),
                     gradientMid = Color(0xFF15659E),
                     gradientBottom = Color(0xFF0A213F),
-                    particleEffect = SkyParticleEffect.SUN_RAYS
+                    particleEffect = SkyParticleEffect.SUN_RAYS,
+                    isNight = false
                 )
             } else {
                 WeatherVisualSpec(
@@ -347,7 +358,8 @@ object WmoWeatherMapper {
                     gradientTop = Color(0xFF030712),
                     gradientMid = Color(0xFF0C1D3E),
                     gradientBottom = Color(0xFF040812),
-                    particleEffect = SkyParticleEffect.STARFIELD
+                    particleEffect = SkyParticleEffect.STARFIELD,
+                    isNight = true
                 )
             }
             1 -> if (isDay) {
@@ -362,21 +374,23 @@ object WmoWeatherMapper {
                     gradientTop = Color(0xFF0B4578),
                     gradientMid = Color(0xFF19669C),
                     gradientBottom = Color(0xFF0A203D),
-                    particleEffect = SkyParticleEffect.SUN_RAYS
+                    particleEffect = SkyParticleEffect.SUN_RAYS,
+                    isNight = false
                 )
             } else {
                 WeatherVisualSpec(
                     code = code,
                     label = "Moonlit Night",
                     labelEl = "Φεγγαρόλουστη Νύχτα",
-                    summary = "Clear moonlit sky with crisp starlight across the horizon.",
-                    summaryEl = "Καθαρή νύχτα με φεγγάρι και αστέρια στον ορίζοντα.",
+                    summary = "Clear moonlit sky with crisp starlight and soft nocturnal clouds.",
+                    summaryEl = "Καθαρή νύχτα με φεγγάρι, αστέρια και απαλά νυχτερινά σύννεφα.",
                     icon = WeatherIcons.NightsStay,
                     iconTint = Color(0xFFFDE047),
                     gradientTop = Color(0xFF040918),
                     gradientMid = Color(0xFF0E2144),
                     gradientBottom = Color(0xFF040812),
-                    particleEffect = SkyParticleEffect.STARFIELD
+                    particleEffect = SkyParticleEffect.STARFIELD,
+                    isNight = true
                 )
             }
             2 -> if (isDay) {
@@ -391,21 +405,23 @@ object WmoWeatherMapper {
                     gradientTop = Color(0xFF162C46),
                     gradientMid = Color(0xFF28486B),
                     gradientBottom = Color(0xFF0C1A2E),
-                    particleEffect = SkyParticleEffect.CLOUDS
+                    particleEffect = SkyParticleEffect.CLOUDS,
+                    isNight = false
                 )
             } else {
                 WeatherVisualSpec(
                     code = code,
                     label = "Moon & Clouds",
                     labelEl = "Φεγγάρι με Σύννεφα",
-                    summary = "Luminous crescent moon shining through drifting night clouds.",
-                    summaryEl = "Φεγγάρι με αραιά νυχτερινά σύννεφα στον ουρανό.",
+                    summary = "Luminous crescent moon shining through drifting moonlit night clouds.",
+                    summaryEl = "Φεγγάρι με φωτισμένα νυχτερινά σύννεφα στον ουρανό.",
                     icon = WeatherIcons.NightsStay,
                     iconTint = Color(0xFFFDE047),
-                    gradientTop = Color(0xFF050C1C),
-                    gradientMid = Color(0xFF112346),
-                    gradientBottom = Color(0xFF050A15),
-                    particleEffect = SkyParticleEffect.STARFIELD
+                    gradientTop = Color(0xFF040A1A),
+                    gradientMid = Color(0xFF102244),
+                    gradientBottom = Color(0xFF040914),
+                    particleEffect = SkyParticleEffect.STARFIELD,
+                    isNight = true
                 )
             }
             3 -> if (isDay) {
@@ -420,21 +436,23 @@ object WmoWeatherMapper {
                     gradientTop = Color(0xFF1C2D42),
                     gradientMid = Color(0xFF30465E),
                     gradientBottom = Color(0xFF0E1929),
-                    particleEffect = SkyParticleEffect.CLOUDS
+                    particleEffect = SkyParticleEffect.CLOUDS,
+                    isNight = false
                 )
             } else {
                 WeatherVisualSpec(
                     code = code,
                     label = "Cloudy Night",
                     labelEl = "Νυχτερινή Συννεφιά",
-                    summary = "Calm night sky with moonlight filtering through soft clouds.",
-                    summaryEl = "Ήρεμη νύχτα με φεγγάρι και σύννεφα στον ορίζοντα.",
+                    summary = "Deep night sky with moonlight filtering through dense drifting clouds.",
+                    summaryEl = "Νυχτερινός ουρανός με φεγγάρι και πυκνά κινούμενα σύννεφα.",
                     icon = WeatherIcons.NightsStay,
                     iconTint = Color(0xFFFDE047),
-                    gradientTop = Color(0xFF060E20),
-                    gradientMid = Color(0xFF132440),
-                    gradientBottom = Color(0xFF050A15),
-                    particleEffect = SkyParticleEffect.STARFIELD
+                    gradientTop = Color(0xFF050C1D),
+                    gradientMid = Color(0xFF122340),
+                    gradientBottom = Color(0xFF040812),
+                    particleEffect = SkyParticleEffect.STARFIELD,
+                    isNight = true
                 )
             }
             45, 48 -> WeatherVisualSpec(
@@ -445,10 +463,11 @@ object WmoWeatherMapper {
                 summaryEl = "Πέπλο ομίχλης και υδρατμοί στην ατμόσφαιρα με περιορισμένη ορατότητα.",
                 icon = WeatherIcons.Foggy,
                 iconTint = Color(0xFFBAE6FD),
-                gradientTop = if (isDay) Color(0xFF1B2D3E) else Color(0xFF0A1222),
-                gradientMid = if (isDay) Color(0xFF334A5E) else Color(0xFF17253A),
-                gradientBottom = Color(0xFF0D1826),
-                particleEffect = SkyParticleEffect.FOG
+                gradientTop = if (isDay) Color(0xFF1B2D3E) else Color(0xFF060E1C),
+                gradientMid = if (isDay) Color(0xFF334A5E) else Color(0xFF112036),
+                gradientBottom = if (isDay) Color(0xFF0D1826) else Color(0xFF050B16),
+                particleEffect = SkyParticleEffect.FOG,
+                isNight = nightMode
             )
             51, 53, 55, 61, 63, 65, 80, 81, 82 -> WeatherVisualSpec(
                 code = code,
@@ -464,14 +483,23 @@ object WmoWeatherMapper {
                     63, 81 -> "Βροχόπτωση"
                     else -> "Ισχυρή Βροχή"
                 },
-                summary = "White rain clouds with active showers; carry an umbrella.",
-                summaryEl = "Σύννεφα με βροχή στην περιοχή· κρατήστε ομπρέλα.",
+                summary = if (isDay) {
+                    "White rain clouds with active showers; carry an umbrella."
+                } else {
+                    "Moonlit night rain clouds with active nocturnal showers; carry an umbrella."
+                },
+                summaryEl = if (isDay) {
+                    "Σύννεφα με βροχή στην περιοχή· κρατήστε ομπρέλα."
+                } else {
+                    "Νυχτερινή βροχή με σύννεφα στην περιοχή· κρατήστε ομπρέλα."
+                },
                 icon = WeatherIcons.Grain,
                 iconTint = Color(0xFF38BDF8),
-                gradientTop = if (isDay) Color(0xFF09203A) else Color(0xFF040F1E),
-                gradientMid = if (isDay) Color(0xFF133860) else Color(0xFF0B1F38),
-                gradientBottom = Color(0xFF051120),
-                particleEffect = SkyParticleEffect.RAIN
+                gradientTop = if (isDay) Color(0xFF09203A) else Color(0xFF020714),
+                gradientMid = if (isDay) Color(0xFF133860) else Color(0xFF091B36),
+                gradientBottom = if (isDay) Color(0xFF051120) else Color(0xFF030812),
+                particleEffect = SkyParticleEffect.RAIN,
+                isNight = nightMode
             )
             56, 66, 71, 73, 77, 85 -> WeatherVisualSpec(
                 code = code,
@@ -493,10 +521,11 @@ object WmoWeatherMapper {
                 summaryEl = "Χειμερινά σύννεφα χιονιού με κρυστάλλινες νιφάδες και χιονόπτωση στην περιοχή.",
                 icon = WeatherIcons.SnowCloud,
                 iconTint = Color(0xFF7DD3FC),
-                gradientTop = if (isDay) Color(0xFF122C4A) else Color(0xFF08162B),
-                gradientMid = if (isDay) Color(0xFF214A75) else Color(0xFF122A4A),
-                gradientBottom = Color(0xFF0A192E),
-                particleEffect = SkyParticleEffect.SNOW
+                gradientTop = if (isDay) Color(0xFF122C4A) else Color(0xFF040C1C),
+                gradientMid = if (isDay) Color(0xFF214A75) else Color(0xFF0E2240),
+                gradientBottom = if (isDay) Color(0xFF0A192E) else Color(0xFF040A16),
+                particleEffect = SkyParticleEffect.SNOW,
+                isNight = nightMode
             )
             57, 67, 75, 86 -> WeatherVisualSpec(
                 code = code,
@@ -514,10 +543,11 @@ object WmoWeatherMapper {
                 summaryEl = "Ισχυρή χιονοθύελλα με πυκνή χιονόπτωση, παγωμένες ριπές ανέμου και χιονόστρωση.",
                 icon = WeatherIcons.SnowStorm,
                 iconTint = Color(0xFFBAE6FD),
-                gradientTop = if (isDay) Color(0xFF0E223B) else Color(0xFF061121),
-                gradientMid = if (isDay) Color(0xFF1A3A5C) else Color(0xFF0E233E),
-                gradientBottom = Color(0xFF071222),
-                particleEffect = SkyParticleEffect.SNOW_STORM
+                gradientTop = if (isDay) Color(0xFF0E223B) else Color(0xFF030916),
+                gradientMid = if (isDay) Color(0xFF1A3A5C) else Color(0xFF0B1C36),
+                gradientBottom = if (isDay) Color(0xFF071222) else Color(0xFF030812),
+                particleEffect = SkyParticleEffect.SNOW_STORM,
+                isNight = nightMode
             )
             95, 96, 99 -> WeatherVisualSpec(
                 code = code,
@@ -527,10 +557,11 @@ object WmoWeatherMapper {
                 summaryEl = "Καταιγίδα με κεραυνούς, βροχή και ισχυρές ριπές ανέμου.",
                 icon = WeatherIcons.Thunderstorm,
                 iconTint = Color(0xFFFBBF24),
-                gradientTop = Color(0xFF1A1645),
-                gradientMid = Color(0xFF262359),
-                gradientBottom = Color(0xFF080C18),
-                particleEffect = SkyParticleEffect.THUNDER
+                gradientTop = if (isDay) Color(0xFF1A1645) else Color(0xFF040614),
+                gradientMid = if (isDay) Color(0xFF262359) else Color(0xFF0E1334),
+                gradientBottom = Color(0xFF050814),
+                particleEffect = SkyParticleEffect.THUNDER,
+                isNight = nightMode
             )
             else -> WeatherVisualSpec(
                 code = code,
@@ -543,7 +574,8 @@ object WmoWeatherMapper {
                 gradientTop = if (isDay) Color(0xFF0D2640) else Color(0xFF050C1C),
                 gradientMid = if (isDay) Color(0xFF183656) else Color(0xFF112344),
                 gradientBottom = Color(0xFF09172A),
-                particleEffect = if (isDay) SkyParticleEffect.CLOUDS else SkyParticleEffect.STARFIELD
+                particleEffect = if (isDay) SkyParticleEffect.CLOUDS else SkyParticleEffect.STARFIELD,
+                isNight = nightMode
             )
         }
     }

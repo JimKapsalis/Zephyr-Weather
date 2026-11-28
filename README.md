@@ -7,13 +7,14 @@
 
 [![Latest Release](https://img.shields.io/badge/Latest_Release-v1.3.1_(Build_14)-00E5FF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
 [![Total APK Downloads](https://img.shields.io/github/downloads/JimKapsalis/Zephyr-Weather/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](../../releases)
+[![Discord Server](https://img.shields.io/badge/Discord_Server-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/aHynb4QKC)
 [![GitHub Stars](https://img.shields.io/github/stars/JimKapsalis/Zephyr-Weather?style=for-the-badge&logo=github&logoColor=white&label=GitHub_Stars&color=F59E0B)](../../stargazers)
 [![Android Platform](https://img.shields.io/badge/Android-7.0%2B_(60Hz_%2F_90Hz_%2F_120Hz)-22C55E?style=for-the-badge&logo=android&logoColor=white)](#-whats-new-in-v131--changelog-tap-here-to-download-zephyrweather131apk)
 [![4-Model Ensemble](https://img.shields.io/badge/NWP_Models-ECMWF_%2B_ICON_%2B_GFS_%2B_HR--LAM-F59E0B?style=for-the-badge)](#-core-features)
 
 ---
 
-# 📲 ⬇️ DOWNLOAD ANDROID APK HERE ⬇️
+# 📲 ⬇️ DOWNLOAD ANDROID APK & JOIN DISCORD ⬇️
 
 <table>
   <tr>
@@ -32,7 +33,13 @@
         </a>
       </p>
       <p>
+        <a href="https://discord.gg/aHynb4QKC">
+          <img src="https://img.shields.io/badge/%F0%9F%92%AC_JOIN_OFFICIAL_DISCORD_SERVER-discord.gg%2FaHynb4QKC-5865F2?style=for-the-badge&logo=discord&logoColor=white" height="46" alt="Join Official Discord Server" />
+        </a>
+      </p>
+      <p>
         🔗 <a href="../../releases/latest"><b>Open GitHub Releases Page (v1.3.1)</b></a> &nbsp;•&nbsp;
+        💬 <a href="https://discord.gg/aHynb4QKC"><b>Join Discord Community Server (<code>https://discord.gg/aHynb4QKC</code>)</b></a> &nbsp;•&nbsp;
         📥 <a href="./ZephyrWeather.1.3.1.apk"><b>Direct Repository File: <code>/ZephyrWeather.1.3.1.apk</code></b></a> &nbsp;•&nbsp;
         📂 <a href="./public/assets/ZephyrWeather.1.3.1.apk"><b>Assets APK: <code>/public/assets/ZephyrWeather.1.3.1.apk</code></b></a>
       </p>

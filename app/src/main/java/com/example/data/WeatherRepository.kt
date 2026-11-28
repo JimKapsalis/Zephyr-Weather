@@ -1134,17 +1134,29 @@ class WeatherRepository(
         if (tertiaryCode != null && tertiaryCode in 95..99 && precipProb >= 45 && precipMm >= 0.20) return tertiaryCode
 
         var resolved = primaryCode
-        if ((resolved in 51..67 || resolved in 80..82) && precipMm < 0.06 && precipProb < 25) {
+        val ensembleHasRainCode = listOfNotNull(primaryCode, secondaryCode, tertiaryCode, quaternaryCode).any {
+            it in 51..67 || it in 80..82 || it in 95..99
+        }
+        if ((resolved in 51..67 || resolved in 80..82) && precipMm < 0.01 && precipProb < 10 && cloudCover < 42 && !ensembleHasRainCode) {
             resolved = when {
                 cloudCover >= 75 -> 3
                 cloudCover >= 25 -> 2
                 else -> 1
             }
-        } else if (resolved < 51 && precipMm >= 0.35 && precipProb >= 30) {
+        } else if (resolved < 51 && (
+                (precipMm >= 0.02 && (precipProb >= 14 || cloudCover >= 55)) ||
+                    (precipProb >= 24 && cloudCover >= 65) ||
+                    (ensembleHasRainCode && (precipMm >= 0.01 || precipProb >= 15 || cloudCover >= 60))
+                )
+        ) {
             resolved = if (tempC <= 1.5) {
                 if (precipMm >= 1.8) 73 else 71
             } else {
-                if (precipMm >= 2.5) 63 else 61
+                when {
+                    precipMm >= 2.5 -> 63
+                    precipMm >= 0.35 -> 61
+                    else -> 51
+                }
             }
         }
         return resolved
@@ -1287,7 +1299,7 @@ class WeatherRepository(
                 tertiaryCurrent?.cloudCover,
                 quaternaryCurrent?.cloudCover
             )
-            if (cValues.isNotEmpty()) cValues.average().roundToInt().coerceIn(0, 100) else 20
+            if (cValues.isNotEmpty()) cValues.maxOrNull()!!.coerceIn(0, 100) else 20
         } else {
             (currentDto.cloudCover ?: secondaryCurrent?.cloudCover ?: 20).coerceIn(0, 100)
         }
@@ -1344,27 +1356,47 @@ class WeatherRepository(
 
         val resolvedCurrentIsDay = (currentDto.isDay ?: 1) == 1
 
-        // Assimilate exact 15-minute high-resolution nowcast slice (:00, :15, :30, :45)
+        // Assimilate 15-minute high-resolution nowcast window (-15m to +45m around current time)
         val minutelyTimes = minutely15Dto?.time.orEmpty()
         val minutelyIndex = minutelyTimes.indexOfFirst { it.startsWith(liveQuarterPrefix) }
             .takeIf { it >= 0 }
             ?: minutelyTimes.indexOfFirst { it.startsWith(liveHourPrefix) }.takeIf { it >= 0 }
             ?: 0
-        val nowcastPrecipMm = minutely15Dto?.precipitation?.getOrNull(minutelyIndex) ?: 0.0
-        val nowcastSnowCm = minutely15Dto?.snowfall?.getOrNull(minutelyIndex) ?: 0.0
-        val nowcastCode = minutely15Dto?.weatherCode?.getOrNull(minutelyIndex)
+        val minutelyWindowStart = (minutelyIndex - 1).coerceAtLeast(0)
+        val minutelyWindowEnd = minOf((minutelyTimes.size - 1).coerceAtLeast(0), minutelyIndex + 2)
+        val minutelyWindowIndices = if (minutelyTimes.isNotEmpty() && minutelyWindowStart <= minutelyWindowEnd) {
+            (minutelyWindowStart..minutelyWindowEnd).toList()
+        } else {
+            listOf(minutelyIndex)
+        }
+        val nowcastPrecipMm = minutelyWindowIndices.maxOfOrNull { idx ->
+            minutely15Dto?.precipitation?.getOrNull(idx) ?: 0.0
+        } ?: 0.0
+        val nowcastSnowCm = minutelyWindowIndices.maxOfOrNull { idx ->
+            minutely15Dto?.snowfall?.getOrNull(idx) ?: 0.0
+        } ?: 0.0
+        val nowcastWindowCodes = minutelyWindowIndices.mapNotNull { idx ->
+            minutely15Dto?.weatherCode?.getOrNull(idx)
+        }
+        val nowcastCode = nowcastWindowCodes.firstOrNull { it in 51..99 }
+            ?: minutely15Dto?.weatherCode?.getOrNull(minutelyIndex)
 
         val currentSnowfallCm = maxOf(
             currentDto.snowfall ?: 0.0,
             nowcastSnowCm,
             if (useEnsembleBlend) (secondaryCurrent?.snowfall ?: 0.0) else 0.0
         )
+        val nextHourIndex = (startIndex + 1).coerceAtMost((hourlyTimes.size - 1).coerceAtLeast(0))
         val currentHourlyPrecipMm = maxOf(
             hourlyDto?.precipitation?.getOrNull(startIndex) ?: 0.0,
             hourlyDto?.rain?.getOrNull(startIndex) ?: 0.0,
             hourlyDto?.showers?.getOrNull(startIndex) ?: 0.0,
+            (hourlyDto?.precipitation?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
+            (hourlyDto?.rain?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
+            (hourlyDto?.showers?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
             if (useEnsembleBlend) (secondaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0
+            if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (quaternaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0
         )
         val fusedCurrentPrecipMm = maxOf(
             currentDto.precipitation ?: 0.0,
@@ -1373,16 +1405,26 @@ class WeatherRepository(
             nowcastPrecipMm,
             currentHourlyPrecipMm,
             if (useEnsembleBlend) (secondaryCurrent?.precipitation ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (secondaryCurrent?.rain ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (secondaryCurrent?.showers ?: 0.0) else 0.0,
             if (useEnsembleBlend) (tertiaryCurrent?.precipitation ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (tertiaryCurrent?.rain ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (tertiaryCurrent?.showers ?: 0.0) else 0.0,
             if (useEnsembleBlend) (quaternaryCurrent?.precipitation ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (quaternaryCurrent?.rain ?: 0.0) else 0.0,
+            if (useEnsembleBlend) (quaternaryCurrent?.showers ?: 0.0) else 0.0,
             currentSnowfallCm * 1.0
         )
 
-        val rawCurrentProb = (hourlyDto?.precipitationProbability?.getOrNull(startIndex)
-            ?: secondaryHourly?.precipitationProbability?.getOrNull(startIndex)
-            ?: tertiaryHourly?.precipitationProbability?.getOrNull(startIndex)
-            ?: quaternaryHourly?.precipitationProbability?.getOrNull(startIndex)
-            ?: 0).coerceIn(0, 100)
+        val candidateProbs = listOfNotNull(
+            hourlyDto?.precipitationProbability?.getOrNull(startIndex),
+            hourlyDto?.precipitationProbability?.getOrNull(nextHourIndex),
+            if (useEnsembleBlend) secondaryHourly?.precipitationProbability?.getOrNull(startIndex) else null,
+            if (useEnsembleBlend) secondaryHourly?.precipitationProbability?.getOrNull(nextHourIndex) else null,
+            if (useEnsembleBlend) tertiaryHourly?.precipitationProbability?.getOrNull(startIndex) else null,
+            if (useEnsembleBlend) quaternaryHourly?.precipitationProbability?.getOrNull(startIndex) else null
+        )
+        val rawCurrentProb = (candidateProbs.maxOrNull() ?: 0).coerceIn(0, 100)
         val currentFreezingLevelM = hourlyDto?.freezingLevelHeight?.getOrNull(startIndex)
             ?: secondaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
             ?: tertiaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
@@ -1392,18 +1434,32 @@ class WeatherRepository(
             currentDto.weatherCode,
             nowcastCode,
             hourlyDto?.weatherCode?.getOrNull(startIndex),
+            hourlyDto?.weatherCode?.getOrNull(nextHourIndex),
             if (useEnsembleBlend) secondaryCurrent?.weatherCode else null,
+            if (useEnsembleBlend) secondaryHourly?.weatherCode?.getOrNull(startIndex) else null,
             if (useEnsembleBlend) tertiaryCurrent?.weatherCode else null,
-            if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null
-        )
+            if (useEnsembleBlend) tertiaryHourly?.weatherCode?.getOrNull(startIndex) else null,
+            if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null,
+            if (useEnsembleBlend) quaternaryHourly?.weatherCode?.getOrNull(startIndex) else null
+        ) + nowcastWindowCodes
         val activeRainCodeFromEnsemble = currentCandidateCodes.firstOrNull {
             it in 51..67 || it in 80..82 || it in 95..99
         }
         val effectivePrimaryCurrentCode = when {
-            activeRainCodeFromEnsemble != null && (fusedCurrentPrecipMm >= 0.04 || rawCurrentProb >= 35 || currentDto.weatherCode in 51..99 || nowcastCode in 51..99) ->
-                activeRainCodeFromEnsemble
-            (currentDto.weatherCode ?: 0) < 51 && (fusedCurrentPrecipMm >= 0.10 || (rawCurrentProb >= 55 && currentCloudCover >= 65)) ->
+            activeRainCodeFromEnsemble != null && (
+                fusedCurrentPrecipMm >= 0.01 ||
+                    rawCurrentProb >= 15 ||
+                    currentCloudCover >= 52 ||
+                    currentDto.weatherCode in 51..99 ||
+                    nowcastCode in 51..99
+                ) -> activeRainCodeFromEnsemble
+            (currentDto.weatherCode ?: 0) < 51 && (
+                fusedCurrentPrecipMm >= 0.02 ||
+                    (rawCurrentProb >= 24 && currentCloudCover >= 58) ||
+                    (currentCloudCover >= 80 && currentHumidity >= 78 && rawCurrentProb >= 14)
+                ) -> {
                 if (fusedCurrentPrecipMm >= 1.5) 63 else if (fusedCurrentPrecipMm >= 0.3) 61 else 51
+            }
             else -> currentDto.weatherCode ?: nowcastCode ?: 0
         }
 
@@ -1421,10 +1477,10 @@ class WeatherRepository(
             freezingLevelM = currentFreezingLevelM,
             elevationM = effectiveElevation
         )
-        val fusedCurrentProb = if (fusedCurrentPrecipMm >= 0.10 && rawCurrentProb == 0) {
-            (fusedCurrentPrecipMm * 28.0).roundToInt().coerceIn(25, 90)
-        } else {
-            rawCurrentProb
+        val fusedCurrentProb = when {
+            fusedCurrentCode in 51..82 && rawCurrentProb < 35 -> maxOf(rawCurrentProb, 38)
+            fusedCurrentPrecipMm >= 0.02 && rawCurrentProb < 25 -> (fusedCurrentPrecipMm * 32.0).roundToInt().coerceIn(28, 90)
+            else -> rawCurrentProb
         }
 
         val hourlyList = mutableListOf<HourlyForecastItem>()

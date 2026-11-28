@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1036,6 +1038,127 @@ fun SettingsTabScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 7.5: Official Discord Community Server (https://discord.gg/aHynb4QKC)
+        item {
+            SettingsSectionHeader(
+                icon = WeatherIcons.Send,
+                title = if (language == AppLanguage.GREEK) "Κοινότητα Discord (Official Server)" else "Official Discord Community Server",
+                subtitle = if (language == AppLanguage.GREEK) {
+                    "Μπείτε στον Discord server μας για ζωντανές ενημερώσεις καιρού, νέα features & υποστήριξη"
+                } else {
+                    "Join our Discord server for live weather updates, feature requests & community chat"
+                }
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val discordInviteUrl = "https://discord.gg/aHynb4QKC"
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_discord_server_card"),
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF151F3E).copy(alpha = 0.62f)
+                ),
+                border = BorderStroke(1.2.dp, Color(0xFF5865F2).copy(alpha = 0.72f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF5865F2).copy(alpha = 0.24f),
+                            border = BorderStroke(1.dp, Color(0xFF5865F2)),
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = WeatherIcons.Send,
+                                    contentDescription = "Discord Server",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (language == AppLanguage.GREEK) {
+                                    "Zephyr Weather • Discord Server"
+                                } else {
+                                    "Zephyr Weather • Discord Server"
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = discordInviteUrl,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = CyanGlow
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (language == AppLanguage.GREEK) {
+                            "Συζητήστε για τον καιρό στην Ελλάδα, αναφέρετε τοπικά φαινόμενα (βροχή, χιόνι, καταιγίδες) και κατεβάστε πρώτοι τις νέες εκδόσεις APK."
+                        } else {
+                            "Chat about live weather, report local rain/snow conditions, suggest new features, and get instant notifications for new APK builds."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.80f)
+                    )
+
+                    Button(
+                        onClick = {
+                            runCatching {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(discordInviteUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF5865F2)
+                        ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_join_discord_button")
+                    ) {
+                        Icon(
+                            imageVector = WeatherIcons.Send,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (language == AppLanguage.GREEK) {
+                                "Είσοδος στον Discord Server (discord.gg/aHynb4QKC)"
+                            } else {
+                                "Join Discord Server (discord.gg/aHynb4QKC)"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
                 }

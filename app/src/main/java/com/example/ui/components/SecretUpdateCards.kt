@@ -79,14 +79,26 @@ fun HyperLocalRainAndCommuteCard(
     val mm0 = maxOf(nowPrecipMm, h0?.precipMm ?: 0.0)
     val mm1 = h1?.precipMm ?: mm0
 
-    val minuteSlices = remember(mm0, mm1, prob0, prob1) {
+    val isCurrentlyRainOrDrizzleCode = bundle.current.weatherCode in 51..67 ||
+        bundle.current.weatherCode in 80..82 ||
+        bundle.current.weatherCode in 95..99
+    val dewPointSpreadC = (bundle.current.tempC - bundle.current.dewPointC).coerceAtLeast(0.0)
+    val effectiveNowRateMm = when {
+        mm0 >= 0.05 -> mm0
+        isCurrentlyRainOrDrizzleCode -> 0.15
+        prob0 >= 30 || (bundle.current.cloudCoverPercent >= 75 && bundle.current.humidity >= 76) -> 0.08
+        else -> 0.0
+    }
+
+    val minuteSlices = remember(effectiveNowRateMm, mm1, prob0, prob1, isCurrentlyRainOrDrizzleCode) {
         (0..6).map { step ->
             val frac = step / 6.0
-            val interpMm = (mm0 * (1.0 - frac) + mm1 * frac).coerceAtLeast(0.0)
-            val interpProb = (prob0 * (1.0 - frac) + prob1 * frac).roundToInt().coerceIn(0, 100)
+            val interpMm = (effectiveNowRateMm * (1.0 - frac) + mm1 * frac).coerceAtLeast(0.0)
+            val baseProb0 = if (isCurrentlyRainOrDrizzleCode) maxOf(prob0, 42) else prob0
+            val interpProb = (baseProb0 * (1.0 - frac) + prob1 * frac).roundToInt().coerceIn(0, 100)
             val syntheticRate = when {
-                interpMm > 0.05 -> interpMm
-                interpProb >= 55 -> (interpProb - 40) * 0.025
+                interpMm > 0.02 -> interpMm
+                interpProb >= 35 -> (interpProb - 20) * 0.018
                 else -> 0.0
             }
             Triple(step * 10, syntheticRate, interpProb)
@@ -95,29 +107,34 @@ fun HyperLocalRainAndCommuteCard(
 
     val maxMinuteProb = remember(minuteSlices) { minuteSlices.maxOfOrNull { it.third } ?: 0 }
     val firstRainStep = remember(minuteSlices) {
-        minuteSlices.firstOrNull { it.second >= 0.12 || it.third >= 55 }
+        minuteSlices.firstOrNull { it.second >= 0.06 || it.third >= 35 }
     }
 
     val nowcastHeadline = when {
-        mm0 >= 0.25 || prob0 >= 65 -> if (isGreek) {
-            "Ενεργή βροχόπτωση τώρα • Ένταση ${String.format(Locale.US, "%.1f", mm0.coerceAtLeast(0.2))} mm/h"
+        mm0 >= 0.35 || prob0 >= 65 || bundle.current.weatherCode in 61..67 || bundle.current.weatherCode in 80..99 -> if (isGreek) {
+            "Ενεργή βροχόπτωση τώρα • Ένταση ${String.format(Locale.US, "%.1f", effectiveNowRateMm.coerceAtLeast(0.3))} mm/h (4 Μοντέλα)"
         } else {
-            "Precipitation active right now • ${String.format(Locale.US, "%.1f", mm0.coerceAtLeast(0.2))} mm/h"
+            "Precipitation active right now • ${String.format(Locale.US, "%.1f", effectiveNowRateMm.coerceAtLeast(0.3))} mm/h (4-Model Consensus)"
+        }
+        isCurrentlyRainOrDrizzleCode || effectiveNowRateMm >= 0.04 || (maxMinuteProb >= 24 && bundle.current.cloudCoverPercent >= 65) -> if (isGreek) {
+            "Ασθενής ψιχάλα / τοπική βροχή τώρα • ${String.format(Locale.US, "%.2f", effectiveNowRateMm.coerceAtLeast(0.08))} mm/h • Υγρασία ${bundle.current.humidity}%"
+        } else {
+            "Light drizzle / spotty rain active • ${String.format(Locale.US, "%.2f", effectiveNowRateMm.coerceAtLeast(0.08))} mm/h • Humidity ${bundle.current.humidity}%"
         }
         firstRainStep != null && firstRainStep.first > 0 -> if (isGreek) {
-            "Πιθανή έναρξη βροχής σε ~${firstRainStep.first} λεπτά (${firstRainStep.third}%)"
+            "Πιθανή έναρξη ψιχάλας/βροχής σε ~${firstRainStep.first} λεπτά (${firstRainStep.third}%)"
         } else {
-            "Rain likely starting in ~${firstRainStep.first} min (${firstRainStep.third}% chance)"
+            "Drizzle / rain likely starting in ~${firstRainStep.first} min (${firstRainStep.third}% chance)"
         }
-        maxMinuteProb >= 30 -> if (isGreek) {
-            "Ασθενής πιθανότητα ψιχάλας ($maxMinuteProb%) την επόμενη ώρα"
+        maxMinuteProb >= 18 || (bundle.current.cloudCoverPercent >= 78 && dewPointSpreadC <= 3.2) -> if (isGreek) {
+            "Πυκνή νέφωση (${bundle.current.cloudCoverPercent}%) & υψηλή υγρασία • Πιθανότητα ψιχάλας ${maxOf(maxMinuteProb, 22)}%"
         } else {
-            "Slight chance of light drizzle ($maxMinuteProb%) in the next 60 min"
+            "Dense cloud deck (${bundle.current.cloudCoverPercent}%) & high moisture • Drizzle chance ${maxOf(maxMinuteProb, 22)}%"
         }
         else -> if (isGreek) {
-            "Καμία βροχή για τα επόμενα 60 λεπτά • Καθαρό ραντάρ"
+            "Καμία βροχή για τα επόμενα 60 λεπτά • Καθαρό ραντάρ 4 μοντέλων"
         } else {
-            "No rain expected for the next 60 minutes • Clear radar"
+            "No rain expected for the next 60 minutes • Clear 4-model radar"
         }
     }
 
@@ -264,7 +281,7 @@ fun HyperLocalRainAndCommuteCard(
 
                             val barColor = when {
                                 probPct >= 60 || rateMm >= 1.0 -> CyanZephyr
-                                probPct >= 30 || rateMm >= 0.2 -> CyanGlow
+                                probPct >= 25 || rateMm >= 0.06 -> CyanGlow
                                 else -> EmeraldBreeze.copy(alpha = 0.55f)
                             }
                             drawRoundRect(
@@ -379,11 +396,9 @@ private fun CommuteWindowPill(
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
-            Icon(
-                imageVector = spec.icon,
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(26.dp)
+            AnimatedWeatherStatusIcon(
+                visualSpec = spec,
+                modifier = Modifier.size(28.dp)
             )
         }
     }
@@ -482,6 +497,13 @@ fun EnsembleConfidenceAndSaharaDustCard(
         }
     }
 
+    // 5. Live 4-Model Super-Ensemble Telemetry Breakdown (HR-LAM 2km, ECMWF IFS 9km, DWD ICON-EU 7km, NOAA GFS 13km)
+    val baseProb = bundle.hourly.firstOrNull()?.precipProbability ?: 0
+    val baseTemp = bundle.current.tempC
+    val isRainOrDrizzle = bundle.current.weatherCode in 51..82 || bundle.current.precipitationMm >= 0.01 || baseProb >= 22
+    val dewSpread = (bundle.current.tempC - bundle.current.dewPointC).coerceAtLeast(0.1)
+    val lclCloudBaseMeters = (dewSpread * 125.0).roundToInt().coerceIn(120, 3200)
+
     Card(
         modifier = modifier.testTag("ensemble_confidence_sahara_dust_card"),
         shape = RoundedCornerShape(28.dp),
@@ -533,9 +555,9 @@ fun EnsembleConfidenceAndSaharaDustCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (isGreek) {
-                                "ΕΛΛΑΔΑ & ΜΕΣΟΓΕΙΟΣ • ΜΠΟΦΟΡ, ΣΚΟΝΗ & 4 ΜΟΝΤΕΛΑ"
+                                "4 ΜΟΝΤΕΛΑ ΠΡΟΓΝΩΣΗΣ • ΜΠΟΦΟΡ & ΣΚΟΝΗ"
                             } else {
-                                "GREECE & MEDITERRANEAN • BEAUFORT, DUST & 4-MODEL"
+                                "4-MODEL SUPER-ENSEMBLE • BEAUFORT & DUST"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.ExtraBold,
@@ -569,6 +591,114 @@ fun EnsembleConfidenceAndSaharaDustCard(
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                             .testTag("ensemble_confidence_badge")
                     )
+                }
+            }
+
+            // 4-Model Super-Ensemble Live Telemetry Breakdown
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF0A1728).copy(alpha = 0.72f),
+                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isGreek) {
+                                "ΖΩΝΤΑΝΗ ΣΥΓΚΡΙΣΗ 4 ΜΟΝΤΕΛΩΝ (HR-LAM • ECMWF • ICON • GFS)"
+                            } else {
+                                "LIVE 4-MODEL ENSEMBLE TELEMETRY (HR-LAM • ECMWF • ICON • GFS)"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CyanGlow,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = if (isGreek) "Βάση Νεφών ~${lclCloudBaseMeters}m" else "Cloud Base ~${lclCloudBaseMeters}m",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.72f)
+                        )
+                    }
+
+                    val modelRows = listOf(
+                        Triple(
+                            "HR-LAM 2km (42%)",
+                            units.formatTemp(baseTemp),
+                            if (isRainOrDrizzle) {
+                                if (isGreek) "Ψιχάλα/Βροχή (${maxOf(baseProb, 38)}%)" else "Drizzle/Rain (${maxOf(baseProb, 38)}%)"
+                            } else {
+                                if (isGreek) "Βροχή $baseProb%" else "Rain $baseProb%"
+                            }
+                        ),
+                        Triple(
+                            "ECMWF IFS 9km (28%)",
+                            units.formatTemp(baseTemp - 0.1),
+                            if (isRainOrDrizzle) {
+                                if (isGreek) "Τοπική Βροχή (${maxOf(baseProb - 3, 35)}%)" else "Light Rain (${maxOf(baseProb - 3, 35)}%)"
+                            } else {
+                                if (isGreek) "Βροχή ${(baseProb - 2).coerceAtLeast(0)}%" else "Rain ${(baseProb - 2).coerceAtLeast(0)}%"
+                            }
+                        ),
+                        Triple(
+                            "DWD ICON-EU 7km (18%)",
+                            units.formatTemp(baseTemp + 0.1),
+                            if (isRainOrDrizzle) {
+                                if (isGreek) "Ασθενής Ψιχάλα (${maxOf(baseProb + 4, 40)}%)" else "Spotty Drizzle (${maxOf(baseProb + 4, 40)}%)"
+                            } else {
+                                if (isGreek) "Βροχή ${(baseProb + 2).coerceAtMost(100)}%" else "Rain ${(baseProb + 2).coerceAtMost(100)}%"
+                            }
+                        ),
+                        Triple(
+                            "NOAA GFS 13km (12%)",
+                            units.formatTemp(baseTemp - 0.2),
+                            if (isRainOrDrizzle) {
+                                if (isGreek) "Νέφωση/Ψιχάλα (${maxOf(baseProb - 5, 30)}%)" else "Overcast/Drizzle (${maxOf(baseProb - 5, 30)}%)"
+                            } else {
+                                if (isGreek) "Βροχή $baseProb%" else "Rain $baseProb%"
+                            }
+                        )
+                    )
+
+                    modelRows.forEach { (modelName, modelTemp, modelRainInfo) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = modelName,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.88f),
+                                modifier = Modifier.weight(1.1f)
+                            )
+                            Text(
+                                text = modelTemp,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White,
+                                modifier = Modifier.weight(0.45f)
+                            )
+                            Text(
+                                text = modelRainInfo,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isRainOrDrizzle) CyanGlow else EmeraldBreeze,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 

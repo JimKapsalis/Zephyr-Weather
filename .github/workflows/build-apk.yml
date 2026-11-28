@@ -60,18 +60,20 @@ jobs:
 
           [![Total APK Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/total?style=for-the-badge&logo=android&logoColor=white&label=Total_APK_Downloads&color=10B981)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
           [![Download APK](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD_APK-ZephyrWeather.1.3.1.apk_(v1.3.1)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
+          [![Join Discord Server](https://img.shields.io/badge/Discord_Server-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/aHynb4QKC)
 
           ### 📲 [⬇️ DOWNLOAD `ZephyrWeather.1.3.1.apk` HERE ⬇️](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
+          ### 💬 [Join Official Discord Server: `https://discord.gg/aHynb4QKC`](https://discord.gg/aHynb4QKC)
 
           ---
 
           ### 🚀 [What's New in v1.3.1 — Full Changelog (Tap to Download `ZephyrWeather.1.3.1.apk`)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
-          - **[Smart City Deduplication (GPS Auto-Detect + Search Merge)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Searching for an already auto-detected city (e.g., `Larisa` / `Larissa` / `Λάρισα`) now seamlessly updates and selects the existing location instead of creating duplicate entries.
-          - **[True 10-Day Rain Probability & Live Precipitation Detection](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Fixed an issue where 10-day forecast rows could fallback to `65%` rain probability, added full ECMWF hourly/daily precipitation probability fusion, and improved real-time active rain detection.
-          - **[Ultra-Smooth 60fps Live Background Rain & Zero UI Lag](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Eliminated overlapping background canvas loops and optimized volumetric cloud shaders for 60fps scrolling with crisp, responsive live rain streaks and splash ripples.
-          - **[60-Minute Hyper-Local Rain Nowcast, Sahara Dust Tracker & Weekend Planner](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Live 10-minute precipitation bar graph (`+0m` to `+60m`), Morning/Evening commute cards, 4-Model Ensemble confidence `%`, and Sahara Dust (`Αφρικανική Σκόνη`) PM10 tracker.
+          - **[60fps Animated Weather Icons & Night Sky Rain/Clouds Backdrop](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Every weather icon across the app animates continuously at 60fps, and nighttime weather scenes display the glowing moonlit night backdrop with live rain streaks and drifting nocturnal clouds.
+          - **[4-Model Super-Ensemble Live Drizzle Detection & Telemetry](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: High-sensitivity 15-minute nowcast + 4-model ensemble fusion (`HR-LAM 2km`, `ECMWF IFS 9km`, `DWD ICON-EU 7km`, `NOAA GFS 13km`) detects light drizzle and spotty rain immediately with live per-model comparison.
+          - **[Smart City Deduplication & True 10-Day Rain Probability %](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)**: Searching for an already auto-detected city (e.g., `Larisa` / `Larissa` / `Λάρισα`) merges cleanly with zero duplicate entries, and 10-day forecast rows show true model-fused precipitation probabilities.
+          - **[Official Discord Community Server in Settings & GitHub](https://discord.gg/aHynb4QKC)**: Direct one-tap access to the official Discord server (`https://discord.gg/aHynb4QKC`) right inside the Settings tab and on GitHub.
 
-          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.3.1.apk` (v1.3.1)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk)
+          **Full Changelog & Direct APK Download**: [Download `ZephyrWeather.1.3.1.apk` (v1.3.1)](https://github.com/${{ github.repository }}/releases/latest/download/ZephyrWeather.1.3.1.apk) • [Join Discord Server](https://discord.gg/aHynb4QKC)
           EOF
 
           # 2. Publish ZephyrWeather.1.3.1.apk to the latest release and remove old 1.2 / 1.3 APK assets
