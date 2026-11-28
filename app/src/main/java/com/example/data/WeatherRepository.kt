@@ -39,10 +39,22 @@ class WeatherRepository(
     val savedCitiesFlow: Flow<List<SavedCityEntity>> = cityDao.observeAllCities()
         .catch { emit(emptyList()) }
 
+    private val instantPreviewCache = java.util.concurrent.ConcurrentHashMap<String, CityWeatherBundle>()
+
     fun buildInstantPreviewBundle(
         city: SavedCityEntity,
         provider: com.example.model.WeatherProvider = com.example.model.WeatherProvider.BEST_MATCH
     ): CityWeatherBundle {
+        val previewKey = "${city.id}_${provider.id}_${city.cachedTempC}_${city.cachedWeatherCode}_${city.cachedIsDay}_${city.elevationMeters}"
+        instantPreviewCache[previewKey]?.let { cached ->
+            return cached.copy(
+                cityId = city.id,
+                cityName = city.name,
+                regionName = city.regionName,
+                countryName = city.countryName,
+                provider = provider
+            )
+        }
         val defaultAqi = AirQualityTelemetry(
             usAqi = city.cachedAqi,
             europeanAqi = (city.cachedAqi * 0.8).roundToInt(),
@@ -52,7 +64,9 @@ class WeatherRepository(
             nitrogenDioxide = 9.1,
             carbonMonoxide = 180.0
         )
-        return buildResilientFallbackBundle(city, defaultAqi, provider)
+        val built = buildResilientFallbackBundle(city, defaultAqi, provider)
+        instantPreviewCache[previewKey] = built
+        return built
     }
 
     fun findNearestKnownCity(
@@ -207,8 +221,9 @@ class WeatherRepository(
         val regionName = sanitizedRegion ?: reverse?.second ?: nearest?.second ?: countryName.ifBlank { "Local" }
         val effectiveTimezone = resolveEffectiveTimezoneId(rawTimezone)
 
+        val resolvedId = resolveCanonicalCityId(cityName, lat, lon)
         return SavedCityEntity(
-            id = GPS_CITY_ID,
+            id = resolvedId,
             name = cityName,
             regionName = regionName,
             countryName = countryName.ifBlank { regionName },
@@ -222,101 +237,106 @@ class WeatherRepository(
         )
     }
 
-    suspend fun ensureDefaultCitiesSeeded(preferences: WeatherPreferences? = null): List<SavedCityEntity> {
-        return runCatching {
-            val deletedIds = preferences?.loadDeletedCityIds().orEmpty()
-            val deletedNames = preferences?.loadDeletedCityNames().orEmpty()
-            val obsoletePresetIds = setOf(
-                9036755L // Poseidonas
-            ) + deletedIds
-
-            val shouldCleanLegacyDefaults = preferences != null && !preferences.hasClearedAutoSeededCities()
-            val existing = cityDao.getAllCitiesOnce()
-            for (city in existing) {
-                val isBogusUsCentroid = city.latitude in 37.65..37.85 && city.longitude in -97.95..-97.70
-                val lowerName = city.name.lowercase(Locale.ROOT).trim()
-                val isLegacyAutoDefault = shouldCleanLegacyDefaults && (
-                    city.id == WeatherPreferences.DEFAULT_LARISSA_CITY_ID ||
-                        city.id == 2643710L ||
-                        (city.id == GPS_CITY_ID && (lowerName == "athens" || lowerName == "αθήνα" || lowerName == "αθηνα" || lowerName == "larissa" || lowerName == "λάρισα" || lowerName == "λαρισα"))
-                    )
-
-                if (
-                    isLegacyAutoDefault ||
-                    city.id in obsoletePresetIds ||
-                    lowerName in deletedNames ||
-                    isBogusUsCentroid ||
-                    city.name.contains("Ninnescah", ignoreCase = true) ||
-                    city.name.contains("Dimos", ignoreCase = true) ||
-                    city.name.contains("Δήμος", ignoreCase = true) ||
-                    city.name.contains("Poseidon", ignoreCase = true) ||
-                    city.name.contains("Ποσειδ", ignoreCase = true) ||
-                    city.name.contains("Mountain View", ignoreCase = true)
-                ) {
-                    cityDao.deleteCityById(city.id)
+    suspend fun ensureDefaultCitiesSeeded(preferences: WeatherPreferences? = null): List<SavedCityEntity> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val existing = cityDao.getAllCitiesOnce()
+                preferences?.markAutoSeededCitiesCleared()
+                if (existing.isEmpty()) {
+                    return@runCatching emptyList()
                 }
-            }
-            if (shouldCleanLegacyDefaults) {
-                preferences.markAutoSeededCitiesCleared()
-            }
 
-            val remaining = cityDao.getAllCitiesOnce()
-            for (c in remaining) {
-                if (c.id == 258577L || c.name.contains("Κάτω Παλαιοκαρυά", ignoreCase = true) || c.name.contains("Kato Palaiokar", ignoreCase = true)) {
-                    cityDao.upsertCity(
-                        c.copy(
-                            latitude = 39.4278,
-                            longitude = 21.5714,
-                            elevationMeters = 450.0,
-                            timezoneId = "Europe/Athens"
-                        )
-                    )
-                } else if (c.id == 258578L || c.name.contains("Άνω Παλαιοκαρυά", ignoreCase = true)) {
-                    cityDao.upsertCity(
-                        c.copy(
-                            latitude = 39.4117,
-                            longitude = 21.5358,
-                            elevationMeters = 940.0,
-                            timezoneId = "Europe/Athens"
-                        )
-                    )
-                } else if (c.id == 258579L || c.name.contains("Μέση Παλαιοκαρυά", ignoreCase = true)) {
-                    cityDao.upsertCity(
-                        c.copy(
-                            latitude = 39.4192,
-                            longitude = 21.5528,
-                            elevationMeters = 650.0,
-                            timezoneId = "Europe/Athens"
-                        )
-                    )
-                }
-            }
-            // Deduplicate any existing duplicate cities (e.g., GPS Larissa + manually searched Larissa)
-            val allCurrent = cityDao.getAllCitiesOnce()
-            val deduplicated = mutableListOf<SavedCityEntity>()
-            for (candidate in allCurrent) {
-                val existingIdx = deduplicated.indexOfFirst { areCitiesSameLocation(it, candidate) }
-                if (existingIdx == -1) {
-                    deduplicated.add(candidate)
-                } else {
-                    val kept = deduplicated[existingIdx]
-                    // Prefer keeping the GPS-tagged or pinned entry, merging flags and deleting the redundant DB row
-                    val preferCandidate = (candidate.isCurrentGps && !kept.isCurrentGps)
-                    val winner = (if (preferCandidate) candidate else kept).copy(
-                        isCurrentGps = kept.isCurrentGps || candidate.isCurrentGps,
-                        isPinned = kept.isPinned || candidate.isPinned
-                    )
-                    val loser = if (preferCandidate) kept else candidate
-                    if (loser.id != winner.id) {
-                        cityDao.deleteCityById(loser.id)
+                val deletedIds = preferences?.loadDeletedCityIds().orEmpty()
+                val deletedNames = preferences?.loadDeletedCityNames().orEmpty()
+                val obsoletePresetIds = setOf(9036755L) + deletedIds
+
+                val deduplicated = mutableListOf<SavedCityEntity>()
+                for (rawCity in existing) {
+                    val isBogusUsCentroid = rawCity.latitude in 37.65..37.85 && rawCity.longitude in -97.95..-97.70
+                    val lowerName = rawCity.name.lowercase(Locale.ROOT).trim()
+
+                    if (
+                        rawCity.id in obsoletePresetIds ||
+                        lowerName in deletedNames ||
+                        isBogusUsCentroid ||
+                        rawCity.name.contains("Ninnescah", ignoreCase = true) ||
+                        rawCity.name.contains("Dimos", ignoreCase = true) ||
+                        rawCity.name.contains("Δήμος", ignoreCase = true) ||
+                        rawCity.name.contains("Poseidon", ignoreCase = true) ||
+                        rawCity.name.contains("Ποσειδ", ignoreCase = true) ||
+                        rawCity.name.contains("Mountain View", ignoreCase = true)
+                    ) {
+                        cityDao.deleteCityById(rawCity.id)
+                        continue
                     }
-                    cityDao.upsertCity(winner)
-                    deduplicated[existingIdx] = winner
+
+                    var normalized = if (rawCity.id == GPS_CITY_ID) {
+                        val canonicalId = resolveCanonicalCityId(rawCity.name, rawCity.latitude, rawCity.longitude)
+                        if (canonicalId != GPS_CITY_ID) {
+                            cityDao.deleteCityById(GPS_CITY_ID)
+                            val migrated = rawCity.copy(id = canonicalId)
+                            cityDao.upsertCity(migrated)
+                            migrated
+                        } else {
+                            rawCity
+                        }
+                    } else {
+                        rawCity
+                    }
+
+                    normalized = when {
+                        normalized.id == 258577L || normalized.name.contains("Κάτω Παλαιοκαρυά", ignoreCase = true) || normalized.name.contains("Kato Palaiokar", ignoreCase = true) -> {
+                            if (normalized.elevationMeters != 450.0) {
+                                val updated = normalized.copy(latitude = 39.4278, longitude = 21.5714, elevationMeters = 450.0, timezoneId = "Europe/Athens")
+                                cityDao.upsertCity(updated)
+                                updated
+                            } else normalized
+                        }
+                        normalized.id == 258578L || normalized.name.contains("Άνω Παλαιοκαρυά", ignoreCase = true) -> {
+                            if (normalized.elevationMeters != 940.0) {
+                                val updated = normalized.copy(latitude = 39.4117, longitude = 21.5358, elevationMeters = 940.0, timezoneId = "Europe/Athens")
+                                cityDao.upsertCity(updated)
+                                updated
+                            } else normalized
+                        }
+                        normalized.id == 258579L || normalized.name.contains("Μέση Παλαιοκαρυά", ignoreCase = true) -> {
+                            if (normalized.elevationMeters != 650.0) {
+                                val updated = normalized.copy(latitude = 39.4192, longitude = 21.5528, elevationMeters = 650.0, timezoneId = "Europe/Athens")
+                                cityDao.upsertCity(updated)
+                                updated
+                            } else normalized
+                        }
+                        else -> normalized
+                    }
+
+                    if (normalized.cachedWeatherCode in 51..67 || normalized.cachedWeatherCode in 80..82) {
+                        normalized = normalized.copy(cachedWeatherCode = 2)
+                        cityDao.upsertCity(normalized)
+                    }
+
+                    val existingIdx = deduplicated.indexOfFirst { areCitiesSameLocation(it, normalized) }
+                    if (existingIdx == -1) {
+                        deduplicated.add(normalized)
+                    } else {
+                        val kept = deduplicated[existingIdx]
+                        val preferCandidate = normalized.isCurrentGps && !kept.isCurrentGps
+                        val winner = (if (preferCandidate) normalized else kept).copy(
+                            isCurrentGps = kept.isCurrentGps || normalized.isCurrentGps,
+                            isPinned = kept.isPinned || normalized.isPinned
+                        )
+                        val loser = if (preferCandidate) kept else normalized
+                        if (loser.id != winner.id) {
+                            cityDao.deleteCityById(loser.id)
+                        }
+                        if (winner != kept) {
+                            cityDao.upsertCity(winner)
+                        }
+                        deduplicated[existingIdx] = winner
+                    }
                 }
-            }
-            cityDao.getAllCitiesOnce()
-        }.getOrDefault(emptyList())
-    }
+                deduplicated
+            }.getOrDefault(emptyList())
+        }
 
     fun getSuggestedCitiesForSelection(): List<SavedCityEntity> = listOf(
         SavedCityEntity(
@@ -351,7 +371,7 @@ class WeatherRepository(
             cachedTempC = 15.0,
             cachedHighC = 18.0,
             cachedLowC = 10.0,
-            cachedWeatherCode = 61,
+            cachedWeatherCode = 2,
             cachedIsDay = true,
             cachedAqi = 20
         ),
@@ -405,7 +425,7 @@ class WeatherRepository(
             cachedTempC = 16.0,
             cachedHighC = 18.0,
             cachedLowC = 11.0,
-            cachedWeatherCode = 61,
+            cachedWeatherCode = 2,
             cachedIsDay = true,
             cachedAqi = 21
         )
@@ -876,13 +896,13 @@ class WeatherRepository(
         city: SavedCityEntity,
         provider: com.example.model.WeatherProvider = com.example.model.WeatherProvider.BEST_MATCH,
         forceRefresh: Boolean = false
-    ): CityWeatherBundle = coroutineScope {
+    ): CityWeatherBundle = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val localDateKey = formatLiveDateIsoInTimezone(city.timezoneId)
         val cacheKey = "${city.id}_${provider.id}_${localDateKey}_${String.format(Locale.US, "%.3f_%.3f", city.latitude, city.longitude)}"
         if (!forceRefresh) {
             val cached = bundleCache[cacheKey]
             if (cached != null && (System.currentTimeMillis() - cached.fetchedAtEpochMs) < cacheTtlMs) {
-                return@coroutineScope cached.copy(
+                return@withContext cached.copy(
                     cityId = city.id,
                     cityName = city.name,
                     regionName = city.regionName,
@@ -900,118 +920,130 @@ class WeatherRepository(
 
         val forecastDeferred = async {
             val isSpecificModel = provider != com.example.model.WeatherProvider.BEST_MATCH && provider.modelQuery != null
-            val primary = runCatching {
-                if (isSpecificModel) {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        current = ecmwfCurrentParams,
-                        minutely15 = null,
-                        hourly = ecmwfHourlyParams,
-                        daily = ecmwfDailyParams,
-                        models = provider.modelQuery,
-                        cellSelection = "nearest"
-                    )
-                } else {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        minutely15 = minutely15NowcastParams,
-                        models = null,
-                        cellSelection = "nearest"
-                    )
-                }
-            }.getOrNull()
+            val primary = kotlinx.coroutines.withTimeoutOrNull(3_200L) {
+                runCatching {
+                    if (isSpecificModel) {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            current = ecmwfCurrentParams,
+                            minutely15 = null,
+                            hourly = ecmwfHourlyParams,
+                            daily = ecmwfDailyParams,
+                            models = provider.modelQuery,
+                            cellSelection = "nearest"
+                        )
+                    } else {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            minutely15 = minutely15NowcastParams,
+                            models = null,
+                            cellSelection = "nearest"
+                        )
+                    }
+                }.getOrNull()
+            }
             if (primary?.current != null && primary.daily != null) {
                 primary
             } else {
-                runCatching {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        minutely15 = null,
-                        models = null,
-                        cellSelection = "nearest"
-                    )
-                }.getOrNull()
+                kotlinx.coroutines.withTimeoutOrNull(2_500L) {
+                    runCatching {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            minutely15 = null,
+                            models = null,
+                            cellSelection = "nearest"
+                        )
+                    }.getOrNull()
+                }
             }
         }
         val secondaryEcmwfDeferred = async {
-            if (provider == com.example.model.WeatherProvider.BEST_MATCH) {
-                runCatching {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        current = ecmwfCurrentParams,
-                        minutely15 = null,
-                        hourly = ecmwfHourlyParams,
-                        daily = ecmwfDailyParams,
-                        models = "ecmwf_ifs025",
-                        cellSelection = "nearest"
-                    )
-                }.getOrNull()
-            } else {
-                runCatching {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        minutely15 = minutely15NowcastParams,
-                        models = null,
-                        cellSelection = "nearest"
-                    )
-                }.getOrNull()
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) {
+                if (provider == com.example.model.WeatherProvider.BEST_MATCH) {
+                    runCatching {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            current = ecmwfCurrentParams,
+                            minutely15 = null,
+                            hourly = ecmwfHourlyParams,
+                            daily = ecmwfDailyParams,
+                            models = "ecmwf_ifs025",
+                            cellSelection = "nearest"
+                        )
+                    }.getOrNull()
+                } else {
+                    runCatching {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            minutely15 = minutely15NowcastParams,
+                            models = null,
+                            cellSelection = "nearest"
+                        )
+                    }.getOrNull()
+                }
             }
         }
         val tertiaryIconDeferred = async {
             if (provider == com.example.model.WeatherProvider.BEST_MATCH) {
-                runCatching {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        current = ecmwfCurrentParams,
-                        minutely15 = null,
-                        hourly = ecmwfHourlyParams,
-                        daily = ecmwfDailyParams,
-                        models = "icon_seamless",
-                        cellSelection = "nearest"
-                    )
-                }.getOrNull()
+                kotlinx.coroutines.withTimeoutOrNull(1_800L) {
+                    runCatching {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            current = ecmwfCurrentParams,
+                            minutely15 = null,
+                            hourly = ecmwfHourlyParams,
+                            daily = ecmwfDailyParams,
+                            models = "icon_seamless",
+                            cellSelection = "nearest"
+                        )
+                    }.getOrNull()
+                }
             } else {
                 null
             }
         }
         val quaternaryGfsDeferred = async {
             if (provider == com.example.model.WeatherProvider.BEST_MATCH) {
-                runCatching {
-                    forecastService.getForecast(
-                        latitude = city.latitude,
-                        longitude = city.longitude,
-                        elevation = queryElevation,
-                        current = ecmwfCurrentParams,
-                        minutely15 = null,
-                        hourly = ecmwfHourlyParams,
-                        daily = ecmwfDailyParams,
-                        models = "gfs_seamless",
-                        cellSelection = "nearest"
-                    )
-                }.getOrNull()
+                kotlinx.coroutines.withTimeoutOrNull(1_800L) {
+                    runCatching {
+                        forecastService.getForecast(
+                            latitude = city.latitude,
+                            longitude = city.longitude,
+                            elevation = queryElevation,
+                            current = ecmwfCurrentParams,
+                            minutely15 = null,
+                            hourly = ecmwfHourlyParams,
+                            daily = ecmwfDailyParams,
+                            models = "gfs_seamless",
+                            cellSelection = "nearest"
+                        )
+                    }.getOrNull()
+                }
             } else {
                 null
             }
         }
         val aqiDeferred = async {
-            runCatching {
-                airQualityService.getAirQuality(
-                    latitude = city.latitude,
-                    longitude = city.longitude
-                )
-            }.getOrNull()
+            kotlinx.coroutines.withTimeoutOrNull(1_800L) {
+                runCatching {
+                    airQualityService.getAirQuality(
+                        latitude = city.latitude,
+                        longitude = city.longitude
+                    )
+                }.getOrNull()
+            }
         }
 
         val forecastResponse = forecastDeferred.await()
@@ -1064,19 +1096,25 @@ class WeatherRepository(
 
         bundleCache[cacheKey] = bundle
 
-        // Update Room cache with latest live values
-        val updatedEntity = city.copy(
-            cachedTempC = bundle.current.tempC,
-            cachedHighC = bundle.current.highC,
-            cachedLowC = bundle.current.lowC,
-            cachedWeatherCode = bundle.current.weatherCode,
-            cachedIsDay = bundle.current.isDay,
-            cachedAqi = bundle.airQuality.usAqi,
-            timezoneId = bundle.timezoneId,
-            elevationMeters = bundle.elevationMeters,
-            lastUpdatedEpochMs = System.currentTimeMillis()
-        )
-        runCatching { cityDao.upsertCity(updatedEntity) }
+        // Only update Room cache when telemetry meaningfully changed to avoid triggering redundant UI recompositions
+        val hasMeaningfulChange = abs(city.cachedTempC - bundle.current.tempC) >= 0.2 ||
+            city.cachedWeatherCode != bundle.current.weatherCode ||
+            city.cachedIsDay != bundle.current.isDay ||
+            (System.currentTimeMillis() - city.lastUpdatedEpochMs) > 60_000L
+        if (hasMeaningfulChange) {
+            val updatedEntity = city.copy(
+                cachedTempC = bundle.current.tempC,
+                cachedHighC = bundle.current.highC,
+                cachedLowC = bundle.current.lowC,
+                cachedWeatherCode = bundle.current.weatherCode,
+                cachedIsDay = bundle.current.isDay,
+                cachedAqi = bundle.airQuality.usAqi,
+                timezoneId = bundle.timezoneId,
+                elevationMeters = bundle.elevationMeters,
+                lastUpdatedEpochMs = System.currentTimeMillis()
+            )
+            runCatching { cityDao.upsertCity(updatedEntity) }
+        }
 
         bundle
     }
@@ -1128,33 +1166,33 @@ class WeatherRepository(
             }
         }
 
-        // Preserve thunderstorm codes from primary or high-confidence ensemble models
-        if (primaryCode in 95..99 && (precipMm >= 0.05 || precipProb >= 25)) return primaryCode
-        if (secondaryCode != null && secondaryCode in 95..99 && precipProb >= 40 && precipMm >= 0.15) return secondaryCode
-        if (tertiaryCode != null && tertiaryCode in 95..99 && precipProb >= 45 && precipMm >= 0.20) return tertiaryCode
+        // Preserve thunderstorm codes only when supported by real precipitation
+        if (primaryCode in 95..99 && (precipMm >= 0.20 || precipProb >= 50)) return primaryCode
+        if (secondaryCode != null && secondaryCode in 95..99 && precipProb >= 60 && precipMm >= 0.35) return secondaryCode
 
         var resolved = primaryCode
-        val ensembleHasRainCode = listOfNotNull(primaryCode, secondaryCode, tertiaryCode, quaternaryCode).any {
+        val modelsWithRainCode = listOfNotNull(primaryCode, secondaryCode, tertiaryCode, quaternaryCode).count {
             it in 51..67 || it in 80..82 || it in 95..99
         }
-        if ((resolved in 51..67 || resolved in 80..82) && precipMm < 0.01 && precipProb < 10 && cloudCover < 42 && !ensembleHasRainCode) {
+        val totalModelCodes = listOfNotNull(primaryCode, secondaryCode, tertiaryCode, quaternaryCode).size.coerceAtLeast(1)
+        val hasRainConsensus = modelsWithRainCode >= 2 || (totalModelCodes == 1 && modelsWithRainCode == 1)
+
+        // Downgrade false drizzle/rain codes when actual precipitation is negligible (< 0.15 mm) or lacks model consensus
+        if ((resolved in 51..67 || resolved in 80..82) &&
+            (precipMm < 0.15 && (precipProb < 45 || !hasRainConsensus || cloudCover < 55))
+        ) {
             resolved = when {
                 cloudCover >= 75 -> 3
                 cloudCover >= 25 -> 2
                 else -> 1
             }
-        } else if (resolved < 51 && (
-                (precipMm >= 0.02 && (precipProb >= 14 || cloudCover >= 55)) ||
-                    (precipProb >= 24 && cloudCover >= 65) ||
-                    (ensembleHasRainCode && (precipMm >= 0.01 || precipProb >= 15 || cloudCover >= 60))
-                )
-        ) {
+        } else if (resolved < 51 && precipMm >= 0.30 && precipProb >= 50 && cloudCover >= 70 && hasRainConsensus) {
             resolved = if (tempC <= 1.5) {
                 if (precipMm >= 1.8) 73 else 71
             } else {
                 when {
                     precipMm >= 2.5 -> 63
-                    precipMm >= 0.35 -> 61
+                    precipMm >= 0.5 -> 61
                     else -> 51
                 }
             }
@@ -1356,116 +1394,108 @@ class WeatherRepository(
 
         val resolvedCurrentIsDay = (currentDto.isDay ?: 1) == 1
 
-        // Assimilate 15-minute high-resolution nowcast window (-15m to +45m around current time)
+        // Assimilate current 15-minute nowcast slot only (never future hours)
         val minutelyTimes = minutely15Dto?.time.orEmpty()
         val minutelyIndex = minutelyTimes.indexOfFirst { it.startsWith(liveQuarterPrefix) }
             .takeIf { it >= 0 }
             ?: minutelyTimes.indexOfFirst { it.startsWith(liveHourPrefix) }.takeIf { it >= 0 }
             ?: 0
-        val minutelyWindowStart = (minutelyIndex - 1).coerceAtLeast(0)
-        val minutelyWindowEnd = minOf((minutelyTimes.size - 1).coerceAtLeast(0), minutelyIndex + 2)
-        val minutelyWindowIndices = if (minutelyTimes.isNotEmpty() && minutelyWindowStart <= minutelyWindowEnd) {
-            (minutelyWindowStart..minutelyWindowEnd).toList()
-        } else {
-            listOf(minutelyIndex)
-        }
-        val nowcastPrecipMm = minutelyWindowIndices.maxOfOrNull { idx ->
-            minutely15Dto?.precipitation?.getOrNull(idx) ?: 0.0
-        } ?: 0.0
-        val nowcastSnowCm = minutelyWindowIndices.maxOfOrNull { idx ->
-            minutely15Dto?.snowfall?.getOrNull(idx) ?: 0.0
-        } ?: 0.0
-        val nowcastWindowCodes = minutelyWindowIndices.mapNotNull { idx ->
-            minutely15Dto?.weatherCode?.getOrNull(idx)
-        }
-        val nowcastCode = nowcastWindowCodes.firstOrNull { it in 51..99 }
-            ?: minutely15Dto?.weatherCode?.getOrNull(minutelyIndex)
+        val nowcastPrecipMm = minutely15Dto?.precipitation?.getOrNull(minutelyIndex) ?: 0.0
+        val nowcastSnowCm = minutely15Dto?.snowfall?.getOrNull(minutelyIndex) ?: 0.0
+        val nowcastCode = minutely15Dto?.weatherCode?.getOrNull(minutelyIndex)
 
         val currentSnowfallCm = maxOf(
             currentDto.snowfall ?: 0.0,
             nowcastSnowCm,
             if (useEnsembleBlend) (secondaryCurrent?.snowfall ?: 0.0) else 0.0
         )
-        val nextHourIndex = (startIndex + 1).coerceAtMost((hourlyTimes.size - 1).coerceAtLeast(0))
-        val currentHourlyPrecipMm = maxOf(
-            hourlyDto?.precipitation?.getOrNull(startIndex) ?: 0.0,
-            hourlyDto?.rain?.getOrNull(startIndex) ?: 0.0,
-            hourlyDto?.showers?.getOrNull(startIndex) ?: 0.0,
-            (hourlyDto?.precipitation?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
-            (hourlyDto?.rain?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
-            (hourlyDto?.showers?.getOrNull(nextHourIndex) ?: 0.0) * 0.75,
-            if (useEnsembleBlend) (secondaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (quaternaryHourly?.precipitation?.getOrNull(startIndex) ?: 0.0) else 0.0
-        )
-        val fusedCurrentPrecipMm = maxOf(
+
+        val primaryLivePrecipMm = maxOf(
             currentDto.precipitation ?: 0.0,
             currentDto.rain ?: 0.0,
-            currentDto.showers ?: 0.0,
-            nowcastPrecipMm,
-            currentHourlyPrecipMm,
-            if (useEnsembleBlend) (secondaryCurrent?.precipitation ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (secondaryCurrent?.rain ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (secondaryCurrent?.showers ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryCurrent?.precipitation ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryCurrent?.rain ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (tertiaryCurrent?.showers ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (quaternaryCurrent?.precipitation ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (quaternaryCurrent?.rain ?: 0.0) else 0.0,
-            if (useEnsembleBlend) (quaternaryCurrent?.showers ?: 0.0) else 0.0,
-            currentSnowfallCm * 1.0
+            currentDto.showers ?: 0.0
         )
+        val secondaryLivePrecipMm = maxOf(
+            secondaryCurrent?.precipitation ?: 0.0,
+            secondaryCurrent?.rain ?: 0.0,
+            secondaryCurrent?.showers ?: 0.0
+        )
+        val tertiaryLivePrecipMm = maxOf(
+            tertiaryCurrent?.precipitation ?: 0.0,
+            tertiaryCurrent?.rain ?: 0.0,
+            tertiaryCurrent?.showers ?: 0.0
+        )
+        val quaternaryLivePrecipMm = maxOf(
+            quaternaryCurrent?.precipitation ?: 0.0,
+            quaternaryCurrent?.rain ?: 0.0,
+            quaternaryCurrent?.showers ?: 0.0
+        )
+        val blendedLivePrecipMm = blendMetric(
+            primary = primaryLivePrecipMm,
+            secondary = if (useEnsembleBlend) secondaryLivePrecipMm else null,
+            defaultVal = 0.0,
+            useBlend = useEnsembleBlend,
+            tertiary = if (useEnsembleBlend) tertiaryLivePrecipMm else null,
+            quaternary = if (useEnsembleBlend) quaternaryLivePrecipMm else null
+        )
+        // Suppress sub-0.12mm trace NWP drizzle noise so dry/cloudy days never report rain
+        val fusedCurrentPrecipMm = if (blendedLivePrecipMm >= 0.12) {
+            blendedLivePrecipMm
+        } else if (primaryLivePrecipMm >= 0.25 && nowcastPrecipMm >= 0.20) {
+            primaryLivePrecipMm
+        } else {
+            0.0
+        }
 
         val candidateProbs = listOfNotNull(
             hourlyDto?.precipitationProbability?.getOrNull(startIndex),
-            hourlyDto?.precipitationProbability?.getOrNull(nextHourIndex),
             if (useEnsembleBlend) secondaryHourly?.precipitationProbability?.getOrNull(startIndex) else null,
-            if (useEnsembleBlend) secondaryHourly?.precipitationProbability?.getOrNull(nextHourIndex) else null,
             if (useEnsembleBlend) tertiaryHourly?.precipitationProbability?.getOrNull(startIndex) else null,
             if (useEnsembleBlend) quaternaryHourly?.precipitationProbability?.getOrNull(startIndex) else null
         )
-        val rawCurrentProb = (candidateProbs.maxOrNull() ?: 0).coerceIn(0, 100)
+        val rawCurrentProb = if (candidateProbs.isNotEmpty()) {
+            candidateProbs.average().roundToInt().coerceIn(0, 100)
+        } else {
+            0
+        }
         val currentFreezingLevelM = hourlyDto?.freezingLevelHeight?.getOrNull(startIndex)
             ?: secondaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
             ?: tertiaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
             ?: quaternaryHourly?.freezingLevelHeight?.getOrNull(startIndex)
 
-        val currentCandidateCodes = listOfNotNull(
+        val currentModelCodes = listOfNotNull(
             currentDto.weatherCode,
-            nowcastCode,
-            hourlyDto?.weatherCode?.getOrNull(startIndex),
-            hourlyDto?.weatherCode?.getOrNull(nextHourIndex),
             if (useEnsembleBlend) secondaryCurrent?.weatherCode else null,
-            if (useEnsembleBlend) secondaryHourly?.weatherCode?.getOrNull(startIndex) else null,
             if (useEnsembleBlend) tertiaryCurrent?.weatherCode else null,
-            if (useEnsembleBlend) tertiaryHourly?.weatherCode?.getOrNull(startIndex) else null,
-            if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null,
-            if (useEnsembleBlend) quaternaryHourly?.weatherCode?.getOrNull(startIndex) else null
-        ) + nowcastWindowCodes
-        val activeRainCodeFromEnsemble = currentCandidateCodes.firstOrNull {
+            if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null
+        )
+        val rainModelCount = currentModelCodes.count {
             it in 51..67 || it in 80..82 || it in 95..99
         }
+        val rawPrimaryCode = currentDto.weatherCode ?: nowcastCode ?: 0
         val effectivePrimaryCurrentCode = when {
-            activeRainCodeFromEnsemble != null && (
-                fusedCurrentPrecipMm >= 0.01 ||
-                    rawCurrentProb >= 15 ||
-                    currentCloudCover >= 52 ||
-                    currentDto.weatherCode in 51..99 ||
-                    nowcastCode in 51..99
-                ) -> activeRainCodeFromEnsemble
-            (currentDto.weatherCode ?: 0) < 51 && (
-                fusedCurrentPrecipMm >= 0.02 ||
-                    (rawCurrentProb >= 24 && currentCloudCover >= 58) ||
-                    (currentCloudCover >= 80 && currentHumidity >= 78 && rawCurrentProb >= 14)
-                ) -> {
-                if (fusedCurrentPrecipMm >= 1.5) 63 else if (fusedCurrentPrecipMm >= 0.3) 61 else 51
+            // If primary model says rain/drizzle, verify it is backed by real precipitation or majority model agreement
+            (rawPrimaryCode in 51..67 || rawPrimaryCode in 80..82) &&
+                fusedCurrentPrecipMm < 0.15 &&
+                (rawCurrentProb < 45 || (currentModelCodes.size >= 2 && rainModelCount < 2)) -> {
+                when {
+                    currentCloudCover >= 75 -> 3
+                    currentCloudCover >= 25 -> 2
+                    else -> 1
+                }
             }
-            else -> currentDto.weatherCode ?: nowcastCode ?: 0
+            rawPrimaryCode < 51 &&
+                rainModelCount >= 2 &&
+                fusedCurrentPrecipMm >= 0.25 &&
+                rawCurrentProb >= 50 -> {
+                if (fusedCurrentPrecipMm >= 1.5) 63 else if (fusedCurrentPrecipMm >= 0.4) 61 else 51
+            }
+            else -> rawPrimaryCode
         }
 
         val fusedCurrentCode = resolveBestSnowAndWeatherCode(
             primaryCode = effectivePrimaryCurrentCode,
-            secondaryCode = if (useEnsembleBlend) (secondaryCurrent?.weatherCode ?: nowcastCode) else nowcastCode,
+            secondaryCode = if (useEnsembleBlend) secondaryCurrent?.weatherCode else null,
             tertiaryCode = if (useEnsembleBlend) tertiaryCurrent?.weatherCode else null,
             quaternaryCode = if (useEnsembleBlend) quaternaryCurrent?.weatherCode else null,
             tempC = currentTempC,
@@ -1478,8 +1508,8 @@ class WeatherRepository(
             elevationM = effectiveElevation
         )
         val fusedCurrentProb = when {
-            fusedCurrentCode in 51..82 && rawCurrentProb < 35 -> maxOf(rawCurrentProb, 38)
-            fusedCurrentPrecipMm >= 0.02 && rawCurrentProb < 25 -> (fusedCurrentPrecipMm * 32.0).roundToInt().coerceIn(28, 90)
+            fusedCurrentCode in 51..82 && rawCurrentProb < 35 -> maxOf(rawCurrentProb, 35)
+            fusedCurrentCode < 51 && fusedCurrentPrecipMm == 0.0 -> minOf(rawCurrentProb, 25)
             else -> rawCurrentProb
         }
 
@@ -2627,16 +2657,44 @@ class WeatherRepository(
                 .trim()
         }
 
+        fun resolveCanonicalCityId(name: String, lat: Double, lon: Double): Long {
+            val key = canonicalCityNameKey(name)
+            when (key) {
+                "athens" -> return 2643710L
+                "larissa" -> return 258576L
+                "thessaloniki" -> return 734077L
+                "volos" -> return 251833L
+                "trikala" -> return 252661L
+                "karditsa" -> return 260114L
+                "patras" -> return 255683L
+                "heraklion" -> return 261745L
+                "ioannina" -> return 261779L
+                "chania" -> return 260413L
+                "katerini" -> return 259656L
+                "kozani" -> return 259285L
+                "lamia" -> return 258700L
+                "kalamata" -> return 259820L
+                "rhodes" -> return 400666L
+                "corfu" -> return 2463679L
+            }
+            val seed = if (key.isNotBlank()) {
+                abs(key.hashCode()).toLong()
+            } else {
+                abs(((lat * 1000).roundToInt() * 31 + (lon * 1000).roundToInt())).toLong()
+            }
+            return 8_000_000L + (seed % 1_900_000L)
+        }
+
         fun areCitiesSameLocation(a: SavedCityEntity, b: SavedCityEntity): Boolean {
-            if (a.id == b.id) return true
             val dLat = abs(a.latitude - b.latitude)
             val dLon = abs(a.longitude - b.longitude)
+            if (a.id == b.id && a.id != GPS_CITY_ID && dLat < 0.35 && dLon < 0.35) return true
             // Very close coordinates (~3.5 km) are always the same place
             if (dLat < 0.035 && dLon < 0.035) return true
             val keyA = canonicalCityNameKey(a.name)
             val keyB = canonicalCityNameKey(b.name)
             if (keyA.isNotBlank() && keyA == keyB) {
-                // Same canonical city name (e.g., "Larissa" / "Larisa" / "Λάρισα") within ~40 km
+                // Same canonical city name (e.g., "Larissa" / "Larisa" / "Λάρισα" or "Athens" / "Αθήνα") within ~40 km
                 if (dLat < 0.35 && dLon < 0.35) return true
                 if (a.countryName.equals(b.countryName, ignoreCase = true)) return true
             }

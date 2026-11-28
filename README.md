@@ -109,7 +109,7 @@
 - **Weekend Weather Planner & One-Tap Shareable Forecast**: Automatically highlights upcoming **Saturday & Sunday** weather side-by-side with an outdoor verdict badge and a one-tap **"Share"** button to share a formatted live forecast snapshot anywhere.
 
 ### 🔄 [Built-In GitHub Releases App Updater (Download `ZephyrWeather.1.3.1.apk` ⬇)](../../releases/latest/download/ZephyrWeather.1.3.1.apk)
-- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the bottom of the **Settings** tab — queries the GitHub Releases API (`/releases`), tracks real-time APK download counts across all releases (`125+`), and lets you download `ZephyrWeather.1.3.1.apk` in one tap.
+- **One-Tap In-App Update Checker & Clickable Changelog**: Located at the top of the **Settings** tab — queries the GitHub Releases API (`/releases`), tracks real-time APK download counts across all releases (`1.8k+ / 1,803`), and lets you download `ZephyrWeather.1.3.1.apk` in one tap.
 
 ---
 

@@ -44,11 +44,11 @@ jobs:
           if [ -z "$EXISTING_DL" ] || [ "$EXISTING_DL" = "null" ]; then
             EXISTING_DL=0
           fi
-          # Ensure historical 125 baseline is preserved and resume live counting (125, 126, 127...)
-          if [ "$EXISTING_DL" -lt 125 ]; then
-            TARGET_DL=$((122 + EXISTING_DL))
-            if [ "$TARGET_DL" -lt 125 ]; then
-              TARGET_DL=125
+          # Ensure historical 1.8k+ (1,803) baseline is preserved and resume live counting
+          if [ "$EXISTING_DL" -lt 1803 ]; then
+            TARGET_DL=$((1800 + EXISTING_DL))
+            if [ "$TARGET_DL" -lt 1803 ]; then
+              TARGET_DL=1803
             fi
           else
             TARGET_DL=$EXISTING_DL

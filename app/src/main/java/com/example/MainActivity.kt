@@ -433,9 +433,9 @@ fun ZephyrWeatherApp(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF07111E))
+                .background(Color(0xFF14141B))
         ) {
-            if (visualSpec != null) {
+            if (visualSpec != null && state.activeTab == WeatherNavTab.FORECAST && !state.isLocationSetupOpen) {
                 WeatherSkyBackdrop(
                     visualSpec = visualSpec,
                     modifier = Modifier.fillMaxSize()

@@ -62,6 +62,13 @@ import com.example.ui.theme.CoralWarmth
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanZephyr
 import com.example.ui.theme.EmeraldBreeze
+import com.example.ui.theme.M3BodyText
+import com.example.ui.theme.M3CardSurface
+import com.example.ui.theme.M3PeriwinkleAction
+import com.example.ui.theme.M3PillSelectedContainer
+import com.example.ui.theme.M3PillUnselectedContainer
+import com.example.ui.theme.M3SubtleBorder
+import com.example.ui.theme.M3TitleText
 import com.example.ui.theme.WeatherIcons
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -172,13 +179,13 @@ fun HomeCitySearchAndQuickSwitchCard(
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.94f),
-                    unfocusedContainerColor = Color(0xFF0E223B).copy(alpha = 0.86f),
-                    focusedBorderColor = CyanZephyr,
-                    unfocusedBorderColor = CyanZephyr.copy(alpha = 0.32f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = CyanZephyr
+                    focusedContainerColor = M3CardSurface,
+                    unfocusedContainerColor = M3CardSurface.copy(alpha = 0.94f),
+                    focusedBorderColor = M3PeriwinkleAction,
+                    unfocusedBorderColor = M3SubtleBorder,
+                    focusedTextColor = M3TitleText,
+                    unfocusedTextColor = M3TitleText,
+                    cursorColor = M3PeriwinkleAction
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -199,9 +206,9 @@ fun HomeCitySearchAndQuickSwitchCard(
                     .testTag("home_search_results_dropdown"),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF0E2138).copy(alpha = 0.96f)
+                    containerColor = M3CardSurface
                 ),
-                border = BorderStroke(1.dp, CyanZephyr.copy(alpha = 0.45f))
+                border = BorderStroke(1.dp, M3SubtleBorder)
             ) {
                 Column(modifier = Modifier.padding(vertical = 6.dp)) {
                     searchResults.take(6).forEachIndexed { idx, resultCity ->
@@ -284,23 +291,19 @@ fun HomeCitySearchAndQuickSwitchCard(
                     val isSelected = city.id == selectedCityId
                     val spec = WmoWeatherMapper.resolve(city.cachedWeatherCode, city.cachedIsDay)
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = RoundedCornerShape(16.dp),
                         color = if (isSelected) {
-                            CyanZephyr.copy(alpha = 0.26f)
+                            M3PillSelectedContainer
                         } else {
-                            Color(0xFF102238).copy(alpha = 0.80f)
+                            M3PillUnselectedContainer
                         },
-                        border = BorderStroke(
-                            width = if (isSelected) 1.4.dp else 1.dp,
-                            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.14f)
-                        ),
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { onSelectCity(city) }
                             .testTag("home_city_chip_${city.id}")
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -322,7 +325,7 @@ fun HomeCitySearchAndQuickSwitchCard(
                                 text = city.name,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = Color.White,
+                                color = if (isSelected) M3TitleText else M3BodyText,
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -330,7 +333,7 @@ fun HomeCitySearchAndQuickSwitchCard(
                                 text = units.formatTemp(city.cachedTempC, includeUnit = false),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) CyanGlow else Color.White.copy(alpha = 0.75f),
+                                color = if (isSelected) M3PeriwinkleAction else M3BodyText,
                                 maxLines = 1,
                                 softWrap = false
                             )

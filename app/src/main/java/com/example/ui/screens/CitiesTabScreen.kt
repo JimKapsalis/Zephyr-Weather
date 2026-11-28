@@ -34,6 +34,10 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +54,12 @@ import com.example.ui.components.AnimatedWeatherStatusIcon
 import com.example.ui.theme.AmberSol
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanZephyr
+import com.example.ui.theme.M3BodyText
+import com.example.ui.theme.M3CardSurface
+import com.example.ui.theme.M3PeriwinkleAction
+import com.example.ui.theme.M3PillSelectedContainer
+import com.example.ui.theme.M3SubtleBorder
+import com.example.ui.theme.M3TitleText
 import com.example.ui.theme.WeatherIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,6 +83,7 @@ fun CitiesTabScreen(
     modifier: Modifier = Modifier
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
+    var selectedCitiesPillTab by remember { mutableStateOf(0) }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -82,8 +93,8 @@ fun CitiesTabScreen(
             PullToRefreshDefaults.Indicator(
                 state = pullToRefreshState,
                 isRefreshing = isRefreshing,
-                containerColor = Color(0xFF0E223B),
-                color = CyanZephyr,
+                containerColor = M3CardSurface,
+                color = M3PeriwinkleAction,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .testTag("cities_pull_to_refresh_indicator")
@@ -100,6 +111,18 @@ fun CitiesTabScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 116.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 0. Top Material You Segmented Pill Switcher
+            item(key = "cities_segmented_pill_header") {
+                MaterialYouSegmentedPillBar(
+                    selectedIndex = selectedCitiesPillTab,
+                    leftLabel = if (language == AppLanguage.GREEK) "Προτεινόμενα" else "Recommended",
+                    rightLabel = if (language == AppLanguage.GREEK) "Όλοι οι σταθμοί" else "All stations",
+                    onSelectIndex = { selectedCitiesPillTab = it },
+                    leftTag = "cities_segmented_pill_recommended",
+                    rightTag = "cities_segmented_pill_all"
+                )
+            }
+
             // 1. Live Global Geocoding Search Field
             item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -378,14 +401,10 @@ private fun SavedCityWeatherCard(
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
-                Color(0xFF173456).copy(alpha = 0.58f)
+                M3PillSelectedContainer
             } else {
-                Color(0xFF102238).copy(alpha = 0.46f)
+                M3CardSurface
             }
-        ),
-        border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) CyanZephyr else Color.White.copy(alpha = 0.22f)
         )
     ) {
         Row(

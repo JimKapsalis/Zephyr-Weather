@@ -82,59 +82,53 @@ fun HyperLocalRainAndCommuteCard(
     val isCurrentlyRainOrDrizzleCode = bundle.current.weatherCode in 51..67 ||
         bundle.current.weatherCode in 80..82 ||
         bundle.current.weatherCode in 95..99
-    val dewPointSpreadC = (bundle.current.tempC - bundle.current.dewPointC).coerceAtLeast(0.0)
     val effectiveNowRateMm = when {
-        mm0 >= 0.05 -> mm0
-        isCurrentlyRainOrDrizzleCode -> 0.15
-        prob0 >= 30 || (bundle.current.cloudCoverPercent >= 75 && bundle.current.humidity >= 76) -> 0.08
+        isCurrentlyRainOrDrizzleCode && nowPrecipMm >= 0.15 -> nowPrecipMm
+        nowPrecipMm >= 0.25 -> nowPrecipMm
         else -> 0.0
     }
 
     val minuteSlices = remember(effectiveNowRateMm, mm1, prob0, prob1, isCurrentlyRainOrDrizzleCode) {
         (0..6).map { step ->
             val frac = step / 6.0
-            val interpMm = (effectiveNowRateMm * (1.0 - frac) + mm1 * frac).coerceAtLeast(0.0)
-            val baseProb0 = if (isCurrentlyRainOrDrizzleCode) maxOf(prob0, 42) else prob0
-            val interpProb = (baseProb0 * (1.0 - frac) + prob1 * frac).roundToInt().coerceIn(0, 100)
-            val syntheticRate = when {
-                interpMm > 0.02 -> interpMm
-                interpProb >= 35 -> (interpProb - 20) * 0.018
-                else -> 0.0
-            }
-            Triple(step * 10, syntheticRate, interpProb)
+            val nextHourRate = if (prob1 >= 45 && mm1 >= 0.15) mm1 else 0.0
+            val interpMm = (effectiveNowRateMm * (1.0 - frac) + nextHourRate * frac).coerceAtLeast(0.0)
+            val interpProb = (prob0 * (1.0 - frac) + prob1 * frac).roundToInt().coerceIn(0, 100)
+            val displayRate = if (interpMm >= 0.12) interpMm else 0.0
+            Triple(step * 10, displayRate, interpProb)
         }
     }
 
     val maxMinuteProb = remember(minuteSlices) { minuteSlices.maxOfOrNull { it.third } ?: 0 }
     val firstRainStep = remember(minuteSlices) {
-        minuteSlices.firstOrNull { it.second >= 0.06 || it.third >= 35 }
+        minuteSlices.firstOrNull { it.second >= 0.15 && it.third >= 45 }
     }
 
     val nowcastHeadline = when {
-        mm0 >= 0.35 || prob0 >= 65 || bundle.current.weatherCode in 61..67 || bundle.current.weatherCode in 80..99 -> if (isGreek) {
+        effectiveNowRateMm >= 0.35 || (isCurrentlyRainOrDrizzleCode && nowPrecipMm >= 0.20) -> if (isGreek) {
             "Ενεργή βροχόπτωση τώρα • Ένταση ${String.format(Locale.US, "%.1f", effectiveNowRateMm.coerceAtLeast(0.3))} mm/h (4 Μοντέλα)"
         } else {
             "Precipitation active right now • ${String.format(Locale.US, "%.1f", effectiveNowRateMm.coerceAtLeast(0.3))} mm/h (4-Model Consensus)"
         }
-        isCurrentlyRainOrDrizzleCode || effectiveNowRateMm >= 0.04 || (maxMinuteProb >= 24 && bundle.current.cloudCoverPercent >= 65) -> if (isGreek) {
-            "Ασθενής ψιχάλα / τοπική βροχή τώρα • ${String.format(Locale.US, "%.2f", effectiveNowRateMm.coerceAtLeast(0.08))} mm/h • Υγρασία ${bundle.current.humidity}%"
+        isCurrentlyRainOrDrizzleCode && effectiveNowRateMm >= 0.15 -> if (isGreek) {
+            "Ασθενής τοπική βροχή τώρα • ${String.format(Locale.US, "%.2f", effectiveNowRateMm)} mm/h • Υγρασία ${bundle.current.humidity}%"
         } else {
-            "Light drizzle / spotty rain active • ${String.format(Locale.US, "%.2f", effectiveNowRateMm.coerceAtLeast(0.08))} mm/h • Humidity ${bundle.current.humidity}%"
+            "Light spotty rain active • ${String.format(Locale.US, "%.2f", effectiveNowRateMm)} mm/h • Humidity ${bundle.current.humidity}%"
         }
         firstRainStep != null && firstRainStep.first > 0 -> if (isGreek) {
-            "Πιθανή έναρξη ψιχάλας/βροχής σε ~${firstRainStep.first} λεπτά (${firstRainStep.third}%)"
+            "Πιθανή έναρξη βροχής σε ~${firstRainStep.first} λεπτά (${firstRainStep.third}%)"
         } else {
-            "Drizzle / rain likely starting in ~${firstRainStep.first} min (${firstRainStep.third}% chance)"
+            "Rain likely starting in ~${firstRainStep.first} min (${firstRainStep.third}% chance)"
         }
-        maxMinuteProb >= 18 || (bundle.current.cloudCoverPercent >= 78 && dewPointSpreadC <= 3.2) -> if (isGreek) {
-            "Πυκνή νέφωση (${bundle.current.cloudCoverPercent}%) & υψηλή υγρασία • Πιθανότητα ψιχάλας ${maxOf(maxMinuteProb, 22)}%"
+        maxMinuteProb >= 40 -> if (isGreek) {
+            "Χωρίς βροχή τώρα • Νέφωση ${bundle.current.cloudCoverPercent}% (Πιθανότητα ${maxMinuteProb}%)"
         } else {
-            "Dense cloud deck (${bundle.current.cloudCoverPercent}%) & high moisture • Drizzle chance ${maxOf(maxMinuteProb, 22)}%"
+            "Dry right now • Cloud cover ${bundle.current.cloudCoverPercent}% (${maxMinuteProb}% rain chance)"
         }
         else -> if (isGreek) {
-            "Καμία βροχή για τα επόμενα 60 λεπτά • Καθαρό ραντάρ 4 μοντέλων"
+            "Καμία βροχή τώρα ή τα επόμενα 60 λεπτά • Καθαρό ραντάρ 4 μοντέλων"
         } else {
-            "No rain expected for the next 60 minutes • Clear 4-model radar"
+            "No rain right now or for the next 60 minutes • Clear 4-model radar"
         }
     }
 

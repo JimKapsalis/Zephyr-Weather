@@ -103,6 +103,15 @@ import com.example.ui.theme.AmberSol
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanZephyr
 import com.example.ui.theme.EmeraldBreeze
+import com.example.ui.theme.M3BodyText
+import com.example.ui.theme.M3CardSurface
+import com.example.ui.theme.M3CardSurfaceElevated
+import com.example.ui.theme.M3IconTint
+import com.example.ui.theme.M3PeriwinkleAction
+import com.example.ui.theme.M3PillSelectedContainer
+import com.example.ui.theme.M3PillUnselectedContainer
+import com.example.ui.theme.M3SubtleBorder
+import com.example.ui.theme.M3TitleText
 import com.example.ui.theme.WeatherIcons
 import com.example.util.SevereWeatherAlertEvent
 import kotlinx.coroutines.delay
@@ -199,6 +208,7 @@ fun ForecastTabScreen(
     }
 
     val pullToRefreshState = rememberPullToRefreshState()
+    var selectedForecastPillTab by remember { mutableStateOf(0) } // 0 = Recommended, 1 = All weather
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -208,8 +218,8 @@ fun ForecastTabScreen(
             PullToRefreshDefaults.Indicator(
                 state = pullToRefreshState,
                 isRefreshing = isRefreshing,
-                containerColor = Color(0xFF0E223B),
-                color = CyanZephyr,
+                containerColor = M3CardSurface,
+                color = M3PeriwinkleAction,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .testTag("forecast_pull_to_refresh_indicator")
@@ -305,11 +315,10 @@ fun ForecastTabScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .testTag("ten_day_forecast_card"),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(26.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
-                    ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                        containerColor = M3CardSurface.copy(alpha = 0.94f)
+                    )
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(
@@ -369,11 +378,10 @@ fun ForecastTabScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .testTag("hourly_curve_card"),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(26.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF102238).copy(alpha = 0.48f)
-                    ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                        containerColor = M3CardSurface.copy(alpha = 0.94f)
+                    )
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
@@ -461,7 +469,7 @@ fun ForecastTabScreen(
                 }
             }
 
-            // 4. Quick Environmental Bento Grid
+            // 4. Material You Segmented Pill Switcher & 2-Column Environmental Bento Service Grid
             item(key = "environmental_bento_grid", contentType = "environmental_bento") {
                 Column(
                     modifier = Modifier
@@ -469,29 +477,40 @@ fun ForecastTabScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    MaterialYouSegmentedPillBar(
+                        selectedIndex = selectedForecastPillTab,
+                        leftLabel = if (language == AppLanguage.GREEK) "Προτεινόμενα" else "Recommended",
+                        rightLabel = if (language == AppLanguage.GREEK) "Όλες οι μετρήσεις" else "All metrics",
+                        onSelectIndex = { selectedForecastPillTab = it },
+                        leftTag = "forecast_segmented_pill_recommended",
+                        rightTag = "forecast_segmented_pill_all"
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         QuickMetricBentoCard(
-                            title = if (language == AppLanguage.GREEK) "ΑΝΕΜΟΣ & ΡΙΠΕΣ" else "WIND & GUSTS",
+                            title = if (language == AppLanguage.GREEK) "Άνεμος & Ριπές" else "Wind & Gusts",
                             primaryValue = units.formatWind(bundle.current.windSpeedKmh),
                             subtitle = "${bundle.current.windCardinal} (${bundle.current.windDirectionDeg}°) • ${units.formatWind(bundle.current.windGustsKmh)}",
+                            actionText = if (language == AppLanguage.GREEK) "Ραντάρ ανέμου" else "Open radar",
                             icon = WeatherIcons.Air,
-                            accent = CyanZephyr,
+                            accent = M3IconTint,
                             onClick = onNavigateToRadar,
                             modifier = Modifier.weight(1f)
                         )
                         QuickMetricBentoCard(
-                            title = if (language == AppLanguage.GREEK) "ΥΓΡΑΣΙΑ & ΔΡΟΣΟΣ" else "HUMIDITY & DEW",
+                            title = if (language == AppLanguage.GREEK) "Υγρασία & Δρόσος" else "Humidity & Dew",
                             primaryValue = "${bundle.current.humidity}%",
                             subtitle = if (language == AppLanguage.GREEK) {
-                                "Σημείο δρόσου ${units.formatTemp(bundle.current.dewPointC)}"
+                                "Σημείο δρόσου ${units.formatTemp(bundle.current.dewPointC)} στην ατμόσφαιρα"
                             } else {
-                                "Dew point ${units.formatTemp(bundle.current.dewPointC)}"
+                                "Dew point ${units.formatTemp(bundle.current.dewPointC)} with live moisture balance"
                             },
+                            actionText = if (language == AppLanguage.GREEK) "Χάρτης υγρασίας" else "View map",
                             icon = WeatherIcons.WaterDrop,
-                            accent = EmeraldBreeze,
+                            accent = M3IconTint,
                             onClick = onNavigateToRadar,
                             modifier = Modifier.weight(1f)
                         )
@@ -501,24 +520,26 @@ fun ForecastTabScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         QuickMetricBentoCard(
-                            title = if (language == AppLanguage.GREEK) "ΑΚΤΙΝΟΒΟΛΙΑ UV" else "UV RADIATION",
+                            title = if (language == AppLanguage.GREEK) "Ακτινοβολία UV" else "UV Radiation",
                             primaryValue = String.format(Locale.US, "%.1f", bundle.current.uvIndex),
                             subtitle = uvCategoryDescription(bundle.current.uvIndex, language),
+                            actionText = if (language == AppLanguage.GREEK) "Ηλιακή τροχιά" else "Check UV",
                             icon = WeatherIcons.WbSunny,
-                            accent = AmberSol,
+                            accent = M3IconTint,
                             onClick = onNavigateToRadar,
                             modifier = Modifier.weight(1f)
                         )
                         QuickMetricBentoCard(
-                            title = if (language == AppLanguage.GREEK) "ΠΙΕΣΗ & ΟΡΑΤΟΤΗΤΑ" else "PRESSURE & VISIBILITY",
+                            title = if (language == AppLanguage.GREEK) "Πίεση & Ορατότητα" else "Pressure & Sky",
                             primaryValue = units.formatPressure(bundle.current.pressureHpa),
                             subtitle = if (language == AppLanguage.GREEK) {
                                 "Ορατότητα ${bundle.current.visibilityKm.roundToInt()} km • Νέφη ${bundle.current.cloudCoverPercent}%"
                             } else {
-                                "Visibility ${bundle.current.visibilityKm.roundToInt()} km • Cloud ${bundle.current.cloudCoverPercent}%"
+                                "Visibility ${bundle.current.visibilityKm.roundToInt()} km • Cloud cover ${bundle.current.cloudCoverPercent}%"
                             },
+                            actionText = if (language == AppLanguage.GREEK) "Βαρόμετρο" else "Details",
                             icon = WeatherIcons.Speed,
-                            accent = CyanGlow,
+                            accent = M3IconTint,
                             onClick = onNavigateToRadar,
                             modifier = Modifier.weight(1f)
                         )
@@ -2149,7 +2170,8 @@ private fun QuickMetricBentoCard(
     icon: ImageVector,
     accent: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actionText: String = "Details"
 ) {
     Card(
         modifier = modifier
@@ -2157,49 +2179,56 @@ private fun QuickMetricBentoCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF102238).copy(alpha = 0.46f)
-        ),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+            containerColor = M3CardSurface
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = accent,
-                    modifier = Modifier.size(16.dp)
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = M3TitleText,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.65f),
-                    maxLines = 1,
-                    softWrap = false,
+                    text = "$primaryValue • $subtitle",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = M3BodyText,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = primaryValue,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.72f),
-                maxLines = 2,
-                softWrap = true,
-                overflow = TextOverflow.Ellipsis
-            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = actionText,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = M3PeriwinkleAction,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
